@@ -12,8 +12,8 @@ describe('AppController', () => {
       providers: [AppService],
     }).compile();
 
-    appController = app.get<AppController>(AppController);
-    appService = app.get<AppService>(AppService);
+    appController = app.get(AppController);
+    appService = app.get(AppService);
   });
 
   describe('root', () => {
@@ -33,9 +33,9 @@ describe('AppController', () => {
       const result = appController.getHealth();
       expect(result).toEqual({
         status: 'ok',
-        timestamp: expect.any(String),
-        uptime: expect.any(Number),
+        timestamp: expect.any(String) as string,
+        uptime: expect.any(Number) as number,
       });
     });
   });
-}); 
+});
