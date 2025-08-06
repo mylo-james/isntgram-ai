@@ -1,0 +1,79 @@
+module.exports = {
+  projects: [
+    // Next.js Web App
+    {
+      displayName: 'web',
+      testEnvironment: 'jsdom',
+      setupFilesAfterEnv: ['<rootDir>/apps/web/jest.setup.cjs'],
+      testMatch: ['<rootDir>/apps/web/**/*.(test|spec).(js|jsx|ts|tsx)'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/apps/web/$1',
+      },
+      transform: {
+        '^.+\\.(js|jsx|ts|tsx)$': [
+          'babel-jest',
+          {
+            presets: ['next/babel'],
+          },
+        ],
+      },
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+      collectCoverageFrom: [
+        'apps/web/app/**/*.{js,jsx,ts,tsx}',
+        'apps/web/components/**/*.{js,jsx,ts,tsx}',
+        '!**/*.d.ts',
+        '!**/node_modules/**',
+      ],
+    },
+    // NestJS API
+    {
+      displayName: 'api',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/apps/api/src/**/*.(test|spec).ts'],
+      transform: {
+        '^.+\\.(t|j)s$': [
+          'ts-jest',
+          {
+            tsconfig: '<rootDir>/apps/api/tsconfig.json',
+          },
+        ],
+      },
+      moduleFileExtensions: ['js', 'json', 'ts'],
+      collectCoverageFrom: [
+        'apps/api/src/**/*.(t|j)s',
+        '!**/*.d.ts',
+        '!**/node_modules/**',
+      ],
+      coverageDirectory: '<rootDir>/apps/api/coverage',
+    },
+    // Shared Types
+    {
+      displayName: 'shared-types',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/packages/shared-types/src/**/*.test.ts'],
+      transform: {
+        '^.+\\.ts$': [
+          'ts-jest',
+          {
+            tsconfig: '<rootDir>/packages/shared-types/tsconfig.json',
+          },
+        ],
+      },
+      collectCoverageFrom: [
+        'packages/shared-types/src/**/*.ts',
+        '!packages/shared-types/src/**/*.test.ts',
+        '!packages/shared-types/src/**/*.d.ts',
+      ],
+      coverageDirectory: '<rootDir>/packages/shared-types/coverage',
+    },
+  ],
+  collectCoverageFrom: [
+    'apps/*/src/**/*.{js,jsx,ts,tsx}',
+    'packages/*/src/**/*.{js,jsx,ts,tsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+  ],
+  coverageDirectory: '<rootDir>/coverage',
+};

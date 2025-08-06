@@ -207,4 +207,29 @@ temp/
 !.cursor/rules/mylo-*
 
 # Web bundles (BMAD-related)
-web-bundles/ 
+web-bundles/
+
+# Monorepo specific
+packages/*/dist/
+packages/*/build/
+apps/*/dist/
+apps/*/build/
+apps/*/.next/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+apps/*/.env*
+packages/*/.env*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+docker-compose.override.yml 

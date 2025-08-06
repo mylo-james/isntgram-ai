@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered social media platform",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -17,6 +18,7 @@
     "test": "npm run test --workspaces",
     "test:web": "npm run test --workspace=apps/web",
     "test:api": "npm run test --workspace=apps/api",
+    "test:shared-types": "npm run test --workspace=packages/shared-types",
     "lint": "npm run lint --workspaces",
     "lint:web": "npm run lint --workspace=apps/web",
     "lint:api": "npm run lint --workspace=apps/api",
@@ -26,17 +28,29 @@
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@eslint/js": "^9.32.0",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.3",
+    "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
     "markdownlint-cli": "^0.37.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
+    "prettier": "^3.6.2",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.39.0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
+    "apps/api/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "npm run test:api"
+    ],
+    "apps/web/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "npm run test:web"
+    ],
+    "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "npm run test --workspace=packages/shared-types"
     ],
     "*.{json,md}": [
       "prettier --write"
@@ -46,4 +60,4 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   }
-} 
+}

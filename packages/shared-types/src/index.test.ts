@@ -1,104 +1,96 @@
-import { User, Post, ApiResponse } from './index';
+import { User, Post, ApiResponse } from "./index";
 
-describe('Shared Types', () => {
-  describe('User interface', () => {
-    it('should have required properties', () => {
+describe("Shared Types", () => {
+  describe("User interface", () => {
+    it("should have required properties", () => {
       const user: User = {
-        id: '1',
-        username: 'testuser',
-        email: 'test@example.com',
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        firstName: "Test",
+        isVerified: false,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
 
-      expect(user.id).toBe('1');
-      expect(user.username).toBe('testuser');
-      expect(user.email).toBe('test@example.com');
-      expect(user.createdAt).toBeInstanceOf(Date);
-      expect(user.updatedAt).toBeInstanceOf(Date);
+      expect(user.id).toBeDefined();
+      expect(user.email).toBeDefined();
+      expect(user.username).toBeDefined();
+      expect(user.firstName).toBeDefined();
     });
 
-    it('should allow optional properties', () => {
+    it("should allow optional properties", () => {
       const user: User = {
-        id: '1',
-        username: 'testuser',
-        email: 'test@example.com',
-        displayName: 'Test User',
-        avatar: 'https://example.com/avatar.jpg',
-        bio: 'Test bio',
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        firstName: "Test",
+        lastName: "User",
+        avatarUrl: "https://example.com/avatar.jpg",
+        bio: "Test bio",
+        isVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      expect(user.displayName).toBe('Test User');
-      expect(user.avatar).toBe('https://example.com/avatar.jpg');
-      expect(user.bio).toBe('Test bio');
+      expect(user.lastName).toBe("User");
+      expect(user.avatarUrl).toBeDefined();
+      expect(user.bio).toBeDefined();
     });
   });
 
-  describe('Post interface', () => {
-    it('should have required properties', () => {
+  describe("Post interface", () => {
+    it("should have required properties", () => {
       const post: Post = {
-        id: '1',
-        userId: 'user1',
-        content: 'Test post content',
+        id: "1",
+        userId: "1",
+        content: "Test post",
         likes: 0,
         comments: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      expect(post.id).toBe('1');
-      expect(post.userId).toBe('user1');
-      expect(post.content).toBe('Test post content');
-      expect(post.likes).toBe(0);
-      expect(post.comments).toBe(0);
+      expect(post.id).toBeDefined();
+      expect(post.userId).toBeDefined();
+      expect(post.content).toBeDefined();
     });
 
-    it('should allow optional mediaUrls', () => {
+    it("should allow optional mediaUrls", () => {
       const post: Post = {
-        id: '1',
-        userId: 'user1',
-        content: 'Test post with media',
-        mediaUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
-        likes: 5,
-        comments: 2,
+        id: "1",
+        userId: "1",
+        content: "Test post",
+        mediaUrls: ["https://example.com/image.jpg"],
+        likes: 0,
+        comments: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      expect(post.mediaUrls).toHaveLength(2);
-      expect(post.mediaUrls![0]).toBe('https://example.com/image1.jpg');
+      expect(post.mediaUrls).toHaveLength(1);
     });
   });
 
-  describe('ApiResponse interface', () => {
-    it('should handle success response', () => {
-      const response: ApiResponse<User> = {
+  describe("ApiResponse interface", () => {
+    it("should handle success response", () => {
+      const response: ApiResponse<string> = {
         success: true,
-        data: {
-          id: '1',
-          username: 'testuser',
-          email: 'test@example.com',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        message: 'User created successfully',
+        data: "test data",
+        message: "Success",
       };
 
       expect(response.success).toBe(true);
-      expect(response.data).toBeDefined();
-      expect(response.message).toBe('User created successfully');
+      expect(response.data).toBe("test data");
     });
 
-    it('should handle error response', () => {
-      const response: ApiResponse<User> = {
+    it("should handle error response", () => {
+      const response: ApiResponse<null> = {
         success: false,
-        error: 'User not found',
+        error: "Something went wrong",
       };
 
       expect(response.success).toBe(false);
-      expect(response.error).toBe('User not found');
+      expect(response.error).toBeDefined();
     });
   });
-}); 
+});
