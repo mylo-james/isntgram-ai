@@ -202,9 +202,8 @@ temp/
 # BMAD Core files
 .bmad-core/
 
-# Cursor rules (exclude everything except personal mylo-* rules)
-.cursor/rules/*
-!.cursor/rules/mylo-*
+# Cursor rules (exclude all .cursor files for consistency)
+.cursor/
 
 # Web bundles (BMAD-related)
 web-bundles/ 
