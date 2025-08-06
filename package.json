@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered social media platform",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -35,6 +36,18 @@
     "typescript": "^5.0.0"
   },
   "lint-staged": {
+    "apps/api/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --config apps/api/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "apps/web/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --config apps/web/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix --config packages/shared-types/eslint.config.mjs",
+      "prettier --write"
+    ],
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix",
       "prettier --write"
