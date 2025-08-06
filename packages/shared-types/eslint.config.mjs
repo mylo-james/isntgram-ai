@@ -1,31 +1,36 @@
-import js from '@eslint/js';
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default [
-  js.configs.recommended,
+export default tseslint.config(
   {
-    files: ['**/*.ts'],
+    ignores: ['eslint.config.mjs', '**/*.test.ts', '**/*.spec.ts'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  eslintPluginPrettierRecommended,
+  {
     languageOptions: {
-      parser: typescriptParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
       globals: {
-        describe: 'readonly',
-        it: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        jest: 'readonly',
+        ...globals.node,
+        ...globals.jest,
       },
-    },
-    plugins: {
-      '@typescript-eslint': typescript,
-    },
-    rules: {
-      ...typescript.configs.recommended.rules,
+      sourceType: 'module',
+      parserOptions: {
+        project: './tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
-];
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+    },
+  },
+);

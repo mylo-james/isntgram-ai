@@ -1,27 +1,5 @@
-// User-related types
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  displayName?: string;
-  avatar?: string;
-  bio?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateUserRequest {
-  username: string;
-  email: string;
-  password: string;
-  displayName?: string;
-}
-
-export interface UpdateUserRequest {
-  displayName?: string;
-  bio?: string;
-  avatar?: string;
-}
+// Re-export auth types
+export * from "./auth";
 
 // Post-related types
 export interface Post {
@@ -77,22 +55,6 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// Authentication types
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  user: User;
-  token: string;
-  refreshToken: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
 // Common types
 export interface PaginationParams {
   page?: number;
@@ -101,5 +63,5 @@ export interface PaginationParams {
 
 export interface SortParams {
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-} 
+  sortOrder?: "asc" | "desc";
+}
