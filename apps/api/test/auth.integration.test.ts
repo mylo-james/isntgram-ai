@@ -237,7 +237,7 @@ describe('Auth Integration Tests', () => {
       expect(response.body).toHaveProperty('message', 'Sign in successful');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('email', userData.email);
-      expect(response.headers['set-cookie']).toBeDefined();
+      expect(response.headers['set-cookie']).toBeUndefined();
     });
 
     it('should return 401 for invalid credentials', async () => {

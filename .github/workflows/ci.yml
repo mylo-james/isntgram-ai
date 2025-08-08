@@ -232,10 +232,11 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres@127.0.0.1:5432/isntgram_test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_USERNAME: postgres
+      DB_PASSWORD: postgres
       DB_NAME: isntgram_test
       CI: true
     steps:

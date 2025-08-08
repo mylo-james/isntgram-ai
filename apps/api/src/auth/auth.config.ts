@@ -1,7 +1,8 @@
 import { AuthConfig } from '@auth/core';
 import CredentialsProvider from '@auth/core/providers/credentials';
+import { AuthService } from './auth.service';
 
-export const authConfig: AuthConfig = {
+export const buildAuthConfig = (authService: AuthService): AuthConfig => ({
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -12,12 +13,19 @@ export const authConfig: AuthConfig = {
       async authorize(
         credentials: Partial<Record<'email' | 'password', unknown>>,
       ) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-        // This would need to be implemented with your AuthService
-        // For now, return null
-        return null;
+        const email = String(credentials?.email ?? '');
+        const password = String(credentials?.password ?? '');
+        if (!email || !password) return null;
+
+        const user = await authService.validateUser(email, password);
+        if (!user) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.fullName,
+          emailVerified: null,
+        };
       },
     }),
   ],
@@ -27,7 +35,6 @@ export const authConfig: AuthConfig = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // Safely propagate standard fields
         if (typeof (user as { email?: unknown }).email === 'string') {
           token.email = (user as { email: string }).email;
         }
@@ -49,4 +56,4 @@ export const authConfig: AuthConfig = {
       return session;
     },
   },
-};
+});

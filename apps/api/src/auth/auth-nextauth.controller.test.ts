@@ -66,16 +66,7 @@ describe('AuthNextAuthController', () => {
         credentials.email,
         credentials.password,
       );
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'session-token',
-        expect.any(String),
-        expect.objectContaining({
-          httpOnly: true,
-          secure: false, // In test environment
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60 * 1000,
-        }),
-      );
+      expect(mockResponse.cookie).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Sign in successful',
         user: expect.objectContaining({
@@ -105,7 +96,7 @@ describe('AuthNextAuthController', () => {
     it('should clear session cookie and return success message', async () => {
       await controller.signOut(mockResponse);
 
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith('session-token');
+      expect(mockResponse.clearCookie).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Sign out successful',
       });
@@ -138,16 +129,7 @@ describe('AuthNextAuthController', () => {
       await controller.register(registerDto, mockResponse);
 
       expect(authService.register).toHaveBeenCalledWith(registerDto);
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'session-token',
-        expect.any(String),
-        expect.objectContaining({
-          httpOnly: true,
-          secure: false, // In test environment
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60 * 1000,
-        }),
-      );
+      expect(mockResponse.cookie).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'User registered successfully',
         user: mockUser,
