@@ -82,6 +82,13 @@ jobs:
           if [ -f coverage-artifacts.tgz ]; then tar -xzf coverage-artifacts.tgz; fi
           if [ -f coverage.zip ]; then unzip -o coverage.zip; fi
 
+      - name: 📂 Debug Coverage Files
+        run: |
+          echo "PWD: $(pwd)"
+          ls -la
+          echo "\nCoverage files found:"
+          find . \( -name "coverage*.json" -o -name "lcov.info" -o -name "coverage*.xml" \) -type f | sed 's|^| - |'
+
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
 
