@@ -18,12 +18,13 @@ RUN apk add --no-cache \
 
 # Copy package manifests (preserve workspace structure)
 COPY package*.json ./
+COPY .npmrc ./.npmrc
 COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
 # Install all dependencies (including dev dependencies for testing)
-RUN npm ci
+RUN npm ci && npm dedupe
 
 # Install CLI tools globally (optional for build)
 RUN npm install -g @nestjs/cli next
