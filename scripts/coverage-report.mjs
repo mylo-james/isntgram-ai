@@ -28,8 +28,8 @@ function readCoverageFile(filePath) {
 function analyzeCoverage() {
   const coverageFiles = [
     // Root coverage directory (current Jest config)
-    "coverage/coverage-final.json",
-    "coverage/coverage-summary.json",
+    "coverage-final.json",
+    "coverage-summary.json",
     // Fallback to individual app directories
     "apps/web/coverage/coverage-summary.json",
     "apps/api/coverage/coverage-summary.json",
@@ -62,7 +62,7 @@ function analyzeCoverage() {
     if (coverage && coverage.total) {
       // Handle root coverage file
       let packageName;
-      if (file.startsWith("coverage/")) {
+      if (file === "coverage-final.json" || file === "coverage-summary.json") {
         packageName = "root";
       } else {
         const [scope, pkg] = file.split("/");
