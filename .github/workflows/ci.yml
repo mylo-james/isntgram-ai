@@ -6,190 +6,404 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Build Applications
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
-
+    outputs:
+      changed: ${{ steps.set-changes-outputs.outputs.changed }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+            api:
+              - 'apps/api/**'
+              - 'packages/shared-types/**'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+            infra:
+              - '.github/**'
+              - 'Dockerfile'
+              - 'docker-compose*.yml'
+      - id: set-changes-outputs
+        run: |
+          echo "changed={\"web\":\"${{ steps.filter.outputs['web'] }}\",\"api\":\"${{ steps.filter.outputs['api'] }}\",\"docs\":\"${{ steps.filter.outputs['docs'] }}\",\"infra\":\"${{ steps.filter.outputs['infra'] }}\"}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
           cache: "npm"
-          cache-dependency-path: |
-            **/package-lock.json
-            **/package.json
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm ci
+      - name: 🔍 Lint
+        run: npm run lint && npm run lint:web && npm run lint:api
 
-      - name: Run linting
-        run: npm run lint
-
-      - name: Build applications
-        run: npm run build
-
-      - name: Prepare artifacts for upload
-        run: |
-          # Rename .next to next-build to avoid .gitignore exclusion
-          mv apps/web/.next apps/web/next-build || echo "No .next directory found"
-
-      - name: If browsers are cached, skip installation
-        id: cache-playwright
-        uses: actions/cache@v4
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: /home/runner/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
+          node-version: 20
+          cache: "npm"
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: ✅ Type check
+        run: npm run type-check
 
-      - name: Else install browsers
-        run: npx playwright install --with-deps
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
+  unit:
+    name: Unit Tests (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [web, api, shared-types]
+    needs: [changes]
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🧪 Unit tests (web)
+        if: matrix.project == 'web' && fromJSON(needs.changes.outputs.changed).web == 'true'
+        run:
+          npm run test:web -- --coverage --coverageDirectory=apps/web/coverage --coverageReporters=json-summary
+          --watchAll=false
+      - name: 🧪 Unit tests (api)
+        if: matrix.project == 'api' && fromJSON(needs.changes.outputs.changed).api == 'true'
+        run:
+          npm run test:api -- --coverage --coverageDirectory=apps/api/coverage --coverageReporters=json-summary
+          --watchAll=false
+      - name: 🧪 Unit tests (shared-types)
+        if: matrix.project == 'shared-types' && fromJSON(needs.changes.outputs.changed).api == 'true'
+        run:
+          npm run test:shared-types -- --coverage --coverageDirectory=packages/shared-types/coverage
+          --coverageReporters=json-summary --watchAll=false
+      - name: 📄 Upload JUnit
+        if:
+          always() && ((matrix.project == 'web' && fromJSON(needs.changes.outputs.changed).web == 'true') ||
+          (matrix.project == 'api' && fromJSON(needs.changes.outputs.changed).api == 'true') || (matrix.project ==
+          'shared-types' && fromJSON(needs.changes.outputs.changed).api == 'true'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.project }}
+          path: test-results/junit/jest-junit.xml
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: 📊 Upload coverage (web)
+        if: always() && matrix.project == 'web' && fromJSON(needs.changes.outputs.changed).web == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-web
+          path: apps/web/coverage/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: 📊 Upload coverage (api)
+        if: always() && matrix.project == 'api' && fromJSON(needs.changes.outputs.changed).api == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api
+          path: apps/api/coverage/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: 📊 Upload coverage (shared-types)
+        if: always() && matrix.project == 'shared-types' && fromJSON(needs.changes.outputs.changed).api == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-shared-types
+          path: packages/shared-types/coverage/
+          retention-days: 14
+          if-no-files-found: ignore
 
-      - name: Upload build artifacts
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    needs: [unit]
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 📥 Download coverage (web)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-web
+          path: apps/web/coverage
+      - name: 📥 Download coverage (api)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-api
+          path: apps/api/coverage
+      - name: 📥 Download coverage (shared-types)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-shared-types
+          path: packages/shared-types/coverage
+      - name: 🔎 List coverage files
+        run: |
+          ls -R apps/web/coverage || true
+          ls -R apps/api/coverage || true
+          ls -R packages/shared-types/coverage || true
+      - name: 📈 Enforce coverage thresholds (if artifacts present)
+        run: |
+          if [ -f apps/web/coverage/coverage-summary.json ] || [ -f apps/api/coverage/coverage-summary.json ] || [ -f packages/shared-types/coverage/coverage-summary.json ]; then
+            npm run coverage:report
+          else
+            echo "No coverage artifacts found. Skipping coverage gate."
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: fromJSON(needs.changes.outputs.changed).web == 'true' || fromJSON(needs.changes.outputs.changed).api == 'true'
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🧱 Build workspaces
+        run: npm run build
+      - name: 📦 Package build artifacts (tar)
+        run: |
+          tar -czf web-next-build.tgz -C apps/web .next || echo "No .next directory found"
+          tar -czf api-dist.tgz -C apps/api dist || echo "No api dist found"
+      - name: 📦 Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
-            apps/web/next-build/
-            apps/api/dist/
-            apps/web/public/
+            web-next-build.tgz
+            api-dist.tgz
           retention-days: 7
 
-  test-unit:
-    name: Unit Tests
+  integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [build]
-
+    needs: [build, changes]
+    if: fromJSON(needs.changes.outputs.changed).api == 'true'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: isntgram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: isntgram_test
+      CI: true
     steps:
-      - name: Checkout code
+      - name: 🚀 Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
           cache: "npm"
-          cache-dependency-path: |
-            **/package-lock.json
-            **/package.json
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: apps/
-
-      - name: Restore .next directory
-        run: |
-          # Rename next-build back to .next for Next.js to find it
-          mv apps/web/next-build apps/web/.next || echo "No next-build directory found"
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm ci
+      - name: 🔗 Integration tests (with Postgres)
+        run: npm run test:integration -- --runInBand --watchAll=false
+      - name: 📄 Upload JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-integration
+          path: test-results/junit/jest-junit.xml
+          retention-days: 14
 
-      - name: Run all tests
-        run: npm run test
-
-  test-e2e:
+  e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      CI: true
-
+    needs: [build, changes]
+    if: fromJSON(needs.changes.outputs.changed).web == 'true' || fromJSON(needs.changes.outputs.changed).api == 'true'
     steps:
-      - name: Checkout code
+      - name: 🚀 Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
           cache: "npm"
-          cache-dependency-path: |
-            **/package-lock.json
-            **/package.json
-
-      - name: Download build artifacts
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 📥 Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: apps/
-
-      - name: Restore .next directory
+          path: .
+      - name: 📦 Extract Next.js build
         run: |
-          # Rename next-build back to .next for Next.js to find it
-          mv apps/web/next-build apps/web/.next || echo "No next-build directory found"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install chromium firefox --with-deps
-
-      - name: Run E2E tests
-        run: DEBUG=pw:webserver npm run test:e2e
-
-      - name: Upload E2E test results
+          mkdir -p apps/web
+          if [ -f web-next-build.tgz ]; then
+            tar -xzf web-next-build.tgz -C apps/web
+          else
+            echo "ERROR: web-next-build.tgz not found"
+            exit 1
+          fi
+          ls -la apps/web/.next || true
+      - name: 📦 Extract API build
+        run: |
+          mkdir -p apps/api
+          if [ -f api-dist.tgz ]; then
+            tar -xzf api-dist.tgz -C apps/api
+          else
+            echo "ERROR: api-dist.tgz not found"
+            exit 1
+          fi
+          ls -la apps/api/dist || true
+      - name: Install Playwright browsers and system deps
+        run: npx playwright install --with-deps
+      - name: 🌐 E2E tests (Playwright)
+        run: npm run test:e2e
+      - name: 📊 Upload Playwright report
+        if: always()
         uses: actions/upload-artifact@v4
-        if: failure()
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 7
+          retention-days: 14
 
-  security-scan:
-    name: Security Scan
+  codeql:
+    name: CodeQL
     runs-on: ubuntu-latest
-
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: |
-            **/package-lock.json
-            **/package.json
+          languages: javascript-typescript
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run security audit
-        run: npm audit --audit-level=moderate
-
-      - name: Run dependency check
-        run: npx audit-ci --config .audit-ci.json
-        continue-on-error: true
-
-  type-check:
-    name: TypeScript Type Check
+  docker-build:
+    name: Docker Build
     runs-on: ubuntu-latest
-
+    needs: [build]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: |
-            **/package-lock.json
-            **/package.json
+          context: .
+          push: false
 
-      - name: Install dependencies
-        run: npm ci
+  trivy-scan:
+    name: Trivy Container Scan
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image (load)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: isntgram-ai:ci
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: isntgram-ai:ci
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
 
-      - name: Type check all packages
-        run: npm run type-check
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-xml
+          output-file: sbom.xml
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.xml
+
+  gitleaks:
+    name: Gitleaks Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Gitleaks
+        run: |
+          GL_VERSION=8.24.3
+          curl -sSL -o gitleaks.tar.gz https://github.com/zricethezav/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz
+          tar -xzf gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+      - name: Run Gitleaks (no git history)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gitleaks detect --redact --no-git --config=.gitleaks.toml --report-format=sarif --report-path=gitleaks.sarif
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks.sarif
