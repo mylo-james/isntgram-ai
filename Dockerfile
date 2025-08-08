@@ -24,7 +24,7 @@ COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
 # Install all dependencies (including dev dependencies for testing)
-RUN npm install && npm dedupe
+RUN npm ci --prefer-offline --no-audit && npm dedupe && npm cache clean --force
 
 # Install CLI tools globally (optional for build)
 RUN npm install -g @nestjs/cli next
@@ -33,7 +33,7 @@ RUN npm install -g @nestjs/cli next
 COPY . .
 
 # Build applications
-RUN npm run build
+RUN npm run build && npm prune --omit=dev && npm cache clean --force
 
 # Initialize PostgreSQL for development
 RUN mkdir -p /var/lib/postgresql/data && \

@@ -233,7 +233,6 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: isntgram-ai:ci
-          security-checks: vuln
           format: "table"
           exit-code: "1"
           severity: "HIGH,CRITICAL"
