@@ -72,7 +72,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage
-          path: coverage/
+          path: .
 
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
