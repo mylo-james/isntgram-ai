@@ -2,7 +2,8 @@
 
 ## Coding Standards
 
-Critical, non-negotiable standards are defined, focusing on TypeScript strictness, use of shared types, environment variable handling, error handling, and immutability.
+Critical, non-negotiable standards are defined, focusing on TypeScript strictness, use of shared types, environment
+variable handling, error handling, and immutability.
 
 ### TypeScript Standards
 

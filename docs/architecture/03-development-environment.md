@@ -2,7 +2,9 @@
 
 ## Recommended Development Environment & Tooling
 
-This section outlines the recommended tools for developers working on this project. While the application itself depends on the technologies in the stack below, this environment is optimized for the BMad-Method and AI-agent collaboration used to build Isntgram.
+This section outlines the recommended tools for developers working on this project. While the application itself depends
+on the technologies in the stack below, this environment is optimized for the BMad-Method and AI-agent collaboration
+used to build Isntgram.
 
 | Category        | Technology                | Purpose                | Rationale                                                                                                                                                                                                  |
 | --------------- | ------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

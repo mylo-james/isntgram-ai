@@ -1,6 +1,7 @@
 # Isntgram Fullstack Architecture Document - Sharded Documentation
 
-This directory contains the sharded version of the Isntgram Fullstack Architecture Document, broken down into logical sections for easier navigation and reference.
+This directory contains the sharded version of the Isntgram Fullstack Architecture Document, broken down into logical
+sections for easier navigation and reference.
 
 ## Document Structure
 

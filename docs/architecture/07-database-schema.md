@@ -2,7 +2,10 @@
 
 ## Database Schema
 
-The DDL for PostgreSQL has been defined, including tables for users, posts, comments, likes, and follows. The schema is optimized with denormalized columns for `posts_count`, `follower_count`, `following_count`, `likes_count`, and `comments_count` to ensure high-performance reads. Indexes are specified on all foreign keys and frequently queried columns.
+The DDL for PostgreSQL has been defined, including tables for users, posts, comments, likes, and follows. The schema is
+optimized with denormalized columns for `posts_count`, `follower_count`, `following_count`, `likes_count`, and
+`comments_count` to ensure high-performance reads. Indexes are specified on all foreign keys and frequently queried
+columns.
 
 ### Key Schema Features
 

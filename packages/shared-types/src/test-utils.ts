@@ -52,10 +52,7 @@ export class MockDataFactory {
     };
   }
 
-  static createUsers(
-    count: number,
-    overrides: Partial<MockUser> = {},
-  ): MockUser[] {
+  static createUsers(count: number, overrides: Partial<MockUser> = {}): MockUser[] {
     return Array.from({ length: count }, (_, index) =>
       this.createUser({
         id: (index + 1).toString(),
@@ -67,11 +64,7 @@ export class MockDataFactory {
     );
   }
 
-  static createPosts(
-    count: number,
-    authorId: string = "1",
-    overrides: Partial<MockPost> = {},
-  ): MockPost[] {
+  static createPosts(count: number, authorId: string = "1", overrides: Partial<MockPost> = {}): MockPost[] {
     return Array.from({ length: count }, (_, index) =>
       this.createPost({
         id: (index + 1).toString(),
@@ -98,8 +91,7 @@ export class TestUtils {
    * Generate a random string for testing
    */
   static randomString(length: number = 10): string {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let result = "";
     for (let i = 0; i < length; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -142,7 +134,7 @@ export class TestUtils {
   /**
    * Validate that an object matches expected shape
    */
-  static validateShape<T>(obj: any, expectedKeys: (keyof T)[]): obj is T {
+  static validateShape<T>(obj: unknown, expectedKeys: (keyof T)[]): obj is T {
     if (!obj || typeof obj !== "object") return false;
 
     return expectedKeys.every((key) => key in obj);
@@ -173,8 +165,7 @@ export class TestAssertions {
    * Assert that a value is a valid UUID
    */
   static isValidUUID(value: string): boolean {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(value);
   }
 
@@ -196,8 +187,9 @@ export class TestAssertions {
   /**
    * Assert that an object has required properties
    */
-  static hasRequiredProperties<T>(obj: any, properties: (keyof T)[]): boolean {
-    return properties.every((prop) => obj.hasOwnProperty(prop));
+  static hasRequiredProperties<T>(obj: unknown, properties: (keyof T)[]): boolean {
+    if (!obj || typeof obj !== "object") return false;
+    return properties.every((prop) => Object.prototype.hasOwnProperty.call(obj, prop));
   }
 }
 
@@ -208,9 +200,7 @@ export class PerformanceTestUtils {
   /**
    * Measure execution time of a function
    */
-  static async measureExecutionTime<T>(
-    fn: () => Promise<T> | T,
-  ): Promise<{ result: T; duration: number }> {
+  static async measureExecutionTime<T>(fn: () => Promise<T> | T): Promise<{ result: T; duration: number }> {
     const start = performance.now();
     const result = await fn();
     const end = performance.now();
@@ -222,16 +212,11 @@ export class PerformanceTestUtils {
   /**
    * Assert that a function executes within a time limit
    */
-  static async assertExecutionTime<T>(
-    fn: () => Promise<T> | T,
-    maxDurationMs: number,
-  ): Promise<T> {
+  static async assertExecutionTime<T>(fn: () => Promise<T> | T, maxDurationMs: number): Promise<T> {
     const { result, duration } = await this.measureExecutionTime(fn);
 
     if (duration > maxDurationMs) {
-      throw new Error(
-        `Function took ${duration}ms, expected less than ${maxDurationMs}ms`,
-      );
+      throw new Error(`Function took ${duration}ms, expected less than ${maxDurationMs}ms`);
     }
 
     return result;

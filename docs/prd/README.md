@@ -1,6 +1,7 @@
 # Isntgram Product Requirements Document (PRD) - Sharded Documentation
 
-This directory contains the sharded version of the Isntgram Product Requirements Document, broken down into logical sections for easier navigation and reference.
+This directory contains the sharded version of the Isntgram Product Requirements Document, broken down into logical
+sections for easier navigation and reference.
 
 ## Document Structure
 

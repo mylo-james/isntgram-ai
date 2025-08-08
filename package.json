@@ -19,7 +19,10 @@
     "test:web": "jest --selectProjects web",
     "test:api": "jest --selectProjects api",
     "test:shared-types": "jest --selectProjects shared-types",
-    "lint": "npm run lint --workspaces",
+    "type-check": "cd apps/web && npx tsc --noEmit && cd ../../apps/api && npx tsc --noEmit && cd ../../packages/shared-types && npx tsc --noEmit",
+    "lint": "npm run lint:md && npm run lint:workspaces",
+    "lint:workspaces": "npm run lint --workspaces",
+    "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
     "lint:web": "npm run lint --workspace=apps/web",
     "lint:api": "npm run lint --workspace=apps/api",
     "format": "npm run format --workspaces",
@@ -30,7 +33,9 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "coverage": "jest --coverage",
-    "coverage:report": "node scripts/coverage-report.js",
+    "coverage:report": "node scripts/coverage-report.mjs",
+    "ci:start:web": "npm run start --workspace=apps/web -- -p 3000",
+    "ci:start:api": "SKIP_DB=true PORT=3001 npm run start:prod --workspace=apps/api",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -49,15 +54,19 @@
   },
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
-      "prettier --write"
+      "prettier --write",
+      "eslint --fix"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
-      "prettier --write"
+      "prettier --write",
+      "eslint --fix"
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
-      "prettier --write"
+      "prettier --write",
+      "eslint --fix"
     ],
     "*.{json,md}": [
+      "markdownlint --fix",
       "prettier --write"
     ]
   },

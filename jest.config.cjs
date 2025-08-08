@@ -4,7 +4,7 @@ module.exports = {
     {
       displayName: 'web',
       testEnvironment: 'jsdom',
-      setupFilesAfterEnv: ['<rootDir>/apps/web/jest.setup.cjs'],
+      setupFilesAfterEnv: ['<rootDir>/apps/web/jest.setup.ts'],
       testMatch: ['<rootDir>/apps/web/**/*.(test|spec).(js|jsx|ts|tsx)'],
       testPathIgnorePatterns: [
         '<rootDir>/apps/web/.next/',
@@ -12,6 +12,8 @@ module.exports = {
       ],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/apps/web/$1',
+        '^@/components/(.*)$': '<rootDir>/apps/web/components/$1',
+        '^@/lib/(.*)$': '<rootDir>/apps/web/lib/$1',
         '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
       },
       transform: {

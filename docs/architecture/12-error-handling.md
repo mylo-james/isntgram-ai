@@ -2,7 +2,8 @@
 
 ## Error Handling Strategy
 
-A unified strategy is defined with a global exception filter on the backend and an API client interceptor on the frontend to provide standardized, user-friendly error responses.
+A unified strategy is defined with a global exception filter on the backend and an API client interceptor on the
+frontend to provide standardized, user-friendly error responses.
 
 ### Backend Error Handling
 

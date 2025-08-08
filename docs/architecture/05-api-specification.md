@@ -2,7 +2,8 @@
 
 ## API Specification
 
-This specification uses the OpenAPI 3.0 standard. Authentication endpoints like login and logout are handled automatically by Auth.js at `/api/auth/*`.
+This specification uses the OpenAPI 3.0 standard. Authentication endpoints like login and logout are handled
+automatically by Auth.js at `/api/auth/*`.
 
 ```yaml
 openapi: 3.0.1
