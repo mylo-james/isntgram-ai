@@ -24,7 +24,7 @@ COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
 # Install all dependencies (including dev dependencies for testing)
-RUN npm ci && npm dedupe
+RUN npm install && npm dedupe
 
 # Install CLI tools globally (optional for build)
 RUN npm install -g @nestjs/cli next
