@@ -79,7 +79,8 @@ jobs:
 
       - name: 📦 Extract Coverage
         run: |
-          tar -xzf coverage-artifacts.tgz || true
+          if [ -f coverage-artifacts.tgz ]; then tar -xzf coverage-artifacts.tgz; fi
+          if [ -f coverage.zip ]; then unzip -o coverage.zip; fi
 
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
