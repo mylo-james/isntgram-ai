@@ -36,11 +36,14 @@ jobs:
       - name: 🧪 Unit Tests with Coverage
         run: npm test -- --coverage --watchAll=false
 
+      - name: 📦 Archive coverage artifacts
+        run: |
+          tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage 2>/dev/null || true
       - name: 📊 Upload Coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: coverage/
+          path: coverage-artifacts.tgz
           retention-days: 14
 
       - name: 📄 Upload JUnit
@@ -73,6 +76,10 @@ jobs:
         with:
           name: coverage
           path: .
+
+      - name: 📦 Extract Coverage
+        run: |
+          tar -xzf coverage-artifacts.tgz || true
 
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report

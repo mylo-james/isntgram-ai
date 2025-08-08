@@ -28,6 +28,9 @@ function readCoverageFile(filePath) {
 function analyzeCoverage() {
   const coverageFiles = [
     // Root coverage directory (current Jest config)
+    "coverage/coverage-final.json",
+    "coverage/coverage-summary.json",
+    // Legacy fallbacks
     "coverage-final.json",
     "coverage-summary.json",
     // Fallback to individual app directories
