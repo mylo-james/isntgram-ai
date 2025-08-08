@@ -131,7 +131,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install chromium firefox --with-deps
 
       - name: Run E2E tests
         run: DEBUG=pw:webserver npm run test:e2e
