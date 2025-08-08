@@ -40,10 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage
-          path: |
-            apps/web/coverage/
-            apps/api/coverage/
-            packages/shared-types/coverage/
+          path: coverage/
           retention-days: 14
       
       - name: 📄 Upload JUnit
@@ -75,7 +72,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage
-          path: .
+          path: coverage/
       
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
