@@ -27,10 +27,13 @@ function readCoverageFile(filePath) {
 
 function analyzeCoverage() {
   const coverageFiles = [
+    // Root coverage directory (current Jest config)
+    "coverage/coverage-final.json",
+    "coverage/coverage-summary.json",
+    // Fallback to individual app directories
     "apps/web/coverage/coverage-summary.json",
     "apps/api/coverage/coverage-summary.json",
     "packages/shared-types/coverage/coverage-summary.json",
-    // fallbacks for older jest configs / CI runs that may only upload coverage-final.json
     "apps/web/coverage/coverage-final.json",
     "apps/api/coverage/coverage-final.json",
     "packages/shared-types/coverage/coverage-final.json",
@@ -57,8 +60,14 @@ function analyzeCoverage() {
   for (const file of coverageFiles) {
     const coverage = readCoverageFile(file);
     if (coverage && coverage.total) {
-      const [scope, pkg] = file.split("/");
-      const packageName = `${scope}/${pkg}`;
+      // Handle root coverage file
+      let packageName;
+      if (file.startsWith("coverage/")) {
+        packageName = "root";
+      } else {
+        const [scope, pkg] = file.split("/");
+        packageName = `${scope}/${pkg}`;
+      }
       const total = coverage.total;
 
       const stmtPct = coercePercentageFromEntry(total.statements);
