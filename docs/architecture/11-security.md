@@ -2,7 +2,8 @@
 
 ## Security
 
-Key security requirements are defined for authentication, authorization, input validation (DTOs), secrets management, and XSS prevention.
+Key security requirements are defined for authentication, authorization, input validation (DTOs), secrets management,
+and XSS prevention.
 
 ### Authentication
 

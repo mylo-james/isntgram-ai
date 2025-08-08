@@ -20,18 +20,23 @@ None. The document is robust, internally consistent, and ready for the next phas
 
 ### Recommendations
 
-Proceed to the UI/UX Specification and Architecture phases. The Architect should pay close attention to the delegated infrastructure decisions (hosting, database, image storage) to design a solution that meets the strict budget constraint of <$20/month.
+Proceed to the UI/UX Specification and Architecture phases. The Architect should pay close attention to the delegated
+infrastructure decisions (hosting, database, image storage) to design a solution that meets the strict budget constraint
+of <$20/month.
 
 ### Final Decision
 
-**READY FOR ARCHITECT & UX-EXPERT**
+#### READY FOR ARCHITECT & UX-EXPERT
 
 ## Next Steps
 
 ### UX Expert Prompt
 
-Sally, the PRD for Isntgram is complete and attached. Please review it to create the UI/UX Specification, focusing on the User Interface Design Goals and the defined user stories to ensure a high-fidelity and intuitive user experience.
+Sally, the PRD for Isntgram is complete and attached. Please review it to create the UI/UX Specification, focusing on
+the User Interface Design Goals and the defined user stories to ensure a high-fidelity and intuitive user experience.
 
 ### Architect Prompt
 
-Winston, the PRD for Isntgram is complete. Please begin your architectural design process. Pay close attention to the Technical Assumptions, especially the delegated decisions regarding hosting, database, and image storage, ensuring the final design adheres to the <$20/month budget constraint and the TDD/E2E testing requirements.
+Winston, the PRD for Isntgram is complete. Please begin your architectural design process. Pay close attention to the
+Technical Assumptions, especially the delegated decisions regarding hosting, database, and image storage, ensuring the
+final design adheres to the <$20/month budget constraint and the TDD/E2E testing requirements.

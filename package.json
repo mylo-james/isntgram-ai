@@ -15,24 +15,37 @@
     "build": "npm run build --workspaces",
     "build:web": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
-    "test": "npm run test --workspaces",
-    "test:web": "npm run test --workspace=apps/web",
-    "test:api": "npm run test --workspace=apps/api",
-    "test:shared-types": "npm run test --workspace=packages/shared-types",
-    "lint": "npm run lint --workspaces",
+    "test": "jest",
+    "test:web": "jest --selectProjects web",
+    "test:api": "jest --selectProjects api",
+    "test:shared-types": "jest --selectProjects shared-types",
+    "type-check": "cd apps/web && npx tsc --noEmit && cd ../../apps/api && npx tsc --noEmit && cd ../../packages/shared-types && npx tsc --noEmit",
+    "lint": "npm run lint:md && npm run lint:workspaces",
+    "lint:workspaces": "npm run lint --workspaces",
+    "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
     "lint:web": "npm run lint --workspace=apps/web",
     "lint:api": "npm run lint --workspace=apps/api",
     "format": "npm run format --workspaces",
     "format:web": "npm run format --workspace=apps/web",
     "format:api": "npm run format --workspace=apps/api",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "coverage": "jest --coverage",
+    "coverage:report": "node scripts/coverage-report.mjs",
+    "ci:start:web": "npm run start --workspace=apps/web -- -p 3000",
+    "ci:start:api": "SKIP_DB=true PORT=3001 npm run start:prod --workspace=apps/api",
     "prepare": "husky install"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.54.2",
     "@types/node": "^20.0.0",
     "@types/supertest": "^6.0.3",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.0.0",
+    "identity-obj-proxy": "^3.0.0",
     "lint-staged": "^15.0.0",
     "markdownlint-cli": "^0.37.0",
     "prettier": "^3.6.2",
@@ -42,17 +55,18 @@
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "npm run test:api"
+      "eslint --fix"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "npm run test:web"
+      "eslint --fix"
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "npm run test --workspace=packages/shared-types"
+      "eslint --fix"
     ],
     "*.{json,md}": [
+      "markdownlint --fix",
       "prettier --write"
     ]
   },

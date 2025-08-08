@@ -2,7 +2,8 @@
 
 ## Testing Strategy
 
-A strict TDD methodology with a 95%+ coverage target is required, utilizing a testing pyramid of Unit (Jest/RTL), Integration, and End-to-End (Playwright) tests.
+A strict TDD methodology with a 95%+ coverage target is required, utilizing a testing pyramid of Unit (Jest/RTL),
+Integration, and End-to-End (Playwright) tests.
 
 ### Testing Pyramid
 

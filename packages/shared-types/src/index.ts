@@ -1,5 +1,6 @@
 // Re-export auth types
 export * from "./auth";
+export * from "./test-utils";
 
 // Post-related types
 export interface Post {

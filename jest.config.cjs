@@ -4,10 +4,17 @@ module.exports = {
     {
       displayName: 'web',
       testEnvironment: 'jsdom',
-      setupFilesAfterEnv: ['<rootDir>/apps/web/jest.setup.cjs'],
+      setupFilesAfterEnv: ['<rootDir>/apps/web/jest.setup.ts'],
       testMatch: ['<rootDir>/apps/web/**/*.(test|spec).(js|jsx|ts|tsx)'],
+      testPathIgnorePatterns: [
+        '<rootDir>/apps/web/.next/',
+        '<rootDir>/node_modules/',
+      ],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/apps/web/$1',
+        '^@/components/(.*)$': '<rootDir>/apps/web/components/$1',
+        '^@/lib/(.*)$': '<rootDir>/apps/web/lib/$1',
+        '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
       },
       transform: {
         '^.+\\.(js|jsx|ts|tsx)$': [
@@ -21,16 +28,33 @@ module.exports = {
       collectCoverageFrom: [
         'apps/web/app/**/*.{js,jsx,ts,tsx}',
         'apps/web/components/**/*.{js,jsx,ts,tsx}',
-        '!**/*.d.ts',
-        '!**/node_modules/**',
+        'apps/web/lib/**/*.{js,jsx,ts,tsx}',
+        '!apps/web/**/*.d.ts',
+        '!apps/web/**/node_modules/**',
+        '!apps/web/**/*.test.{js,jsx,ts,tsx}',
+        '!apps/web/**/test-utils.{js,jsx,ts,tsx}',
       ],
+      coverageThreshold: {
+        global: {
+          branches: 80,
+          functions: 80,
+          lines: 80,
+          statements: 80,
+        },
+      },
+      coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
+      coverageDirectory: '<rootDir>/apps/web/coverage',
     },
     // NestJS API
     {
       displayName: 'api',
       preset: 'ts-jest',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/apps/api/src/**/*.(test|spec).ts'],
+      testMatch: [
+        '<rootDir>/apps/api/src/**/*.(test|spec).ts',
+        '<rootDir>/apps/api/test/**/*.(test|spec).ts',
+      ],
+      setupFilesAfterEnv: ['<rootDir>/apps/api/test/setup.ts'],
       transform: {
         '^.+\\.(t|j)s$': [
           'ts-jest',
@@ -40,11 +64,27 @@ module.exports = {
         ],
       },
       moduleFileExtensions: ['js', 'json', 'ts'],
+      moduleNameMapper: {
+        '^src/(.*)$': '<rootDir>/apps/api/src/$1',
+      },
       collectCoverageFrom: [
         'apps/api/src/**/*.(t|j)s',
-        '!**/*.d.ts',
-        '!**/node_modules/**',
+        '!apps/api/src/**/*.spec.ts',
+        '!apps/api/src/**/*.test.ts',
+        '!apps/api/src/**/main.ts',
+        '!apps/api/**/test/**',
+        '!apps/api/**/*.d.ts',
+        '!apps/api/**/node_modules/**',
       ],
+      coverageThreshold: {
+        global: {
+          branches: 70,
+          functions: 70,
+          lines: 70,
+          statements: 70,
+        },
+      },
+      coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
       coverageDirectory: '<rootDir>/apps/api/coverage',
     },
     // Shared Types
@@ -70,8 +110,8 @@ module.exports = {
     },
   ],
   collectCoverageFrom: [
-    'apps/*/src/**/*.{js,jsx,ts,tsx}',
-    'packages/*/src/**/*.{js,jsx,ts,tsx}',
+    'apps/**/src/**/*.{js,jsx,ts,tsx}',
+    'packages/**/src/**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
