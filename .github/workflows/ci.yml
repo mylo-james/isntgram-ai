@@ -34,7 +34,7 @@ jobs:
           npm run type-check
 
       - name: 🧪 Unit Tests with Coverage
-        run: npm test -- --coverage --watchAll=false
+        run: npm test -- --coverage --watchAll=false --coverageReporters=json-summary
 
       - name: 📦 Archive coverage artifacts
         run: |
