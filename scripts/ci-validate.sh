@@ -241,6 +241,39 @@ validate_action_versions() {
     fi
 }
 
+# Function to validate curl commands and other runtime issues
+validate_runtime_commands() {
+    print_step "Validating runtime commands..."
+    
+    # Check for malformed curl commands (URL on separate line)
+    local malformed_curl=$(grep -A 1 "curl.*-o" .github/workflows/ci.yml | grep -E "^[[:space:]]*https?://" || true)
+    
+    if [ -n "$malformed_curl" ]; then
+        print_error "Found malformed curl command - URL is on separate line:"
+        echo "$malformed_curl"
+        print_error "This will cause 'curl: (2) no URL specified' error"
+        print_error "Fix by combining curl command and URL on same line"
+        exit 1
+    fi
+    
+    # Check for other common runtime issues
+    local empty_run_blocks=$(grep -A 5 "run:" .github/workflows/ci.yml | grep -E "^[[:space:]]*$" | wc -l)
+    if [ "$empty_run_blocks" -gt 0 ]; then
+        print_warning "Found potentially empty run blocks"
+    fi
+    
+    # Check for missing environment variables in critical commands
+    local gitleaks_commands=$(grep -A 10 "gitleaks" .github/workflows/ci.yml || true)
+    if [ -n "$gitleaks_commands" ]; then
+        local has_github_token=$(echo "$gitleaks_commands" | grep -E "GITHUB_TOKEN|github_token" || true)
+        if [ -z "$has_github_token" ]; then
+            print_warning "Gitleaks commands found but no GITHUB_TOKEN environment variable detected"
+        fi
+    fi
+    
+    print_status "Runtime commands are valid"
+}
+
 # Function to run Jest tests for CI workflow
 run_ci_tests() {
     print_step "Running CI workflow tests..."
@@ -348,6 +381,7 @@ main() {
     validate_docker_commands
     validate_environment_variables
     validate_action_versions
+    validate_runtime_commands
     validate_step_consistency
     validate_artifact_consistency
     run_ci_tests
@@ -368,6 +402,7 @@ main() {
     print_result "Docker Commands" "PASS"
     print_result "Environment Variables" "PASS"
     print_result "Action Versions" "PASS"
+    print_result "Runtime Commands" "PASS"
     print_result "Step Consistency" "PASS"
     print_result "Artifact Consistency" "PASS"
     print_result "Coverage Workflow" "PASS"
