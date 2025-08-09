@@ -288,17 +288,14 @@ validate_artifact_consistency() {
 simulate_coverage_workflow() {
     print_step "Simulating coverage workflow..."
     
-    # Create test coverage directories
-    mkdir -p coverage apps/web/coverage apps/api/coverage packages/shared-types/coverage
+    # Create test coverage directory
+    mkdir -p coverage
     
-    # Create dummy coverage files
+    # Create dummy coverage file
     echo '{"coverage": "test"}' > coverage/coverage-summary.json
-    echo '{"coverage": "test"}' > apps/web/coverage/coverage-summary.json
-    echo '{"coverage": "test"}' > apps/api/coverage/coverage-summary.json
-    echo '{"coverage": "test"}' > packages/shared-types/coverage/coverage-summary.json
     
     # Simulate the archive command from CI
-    local archive_command="tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage"
+    local archive_command="tar -czf coverage-artifacts.tgz coverage/coverage-summary.json"
     
     print_step "Running archive command: $archive_command"
     eval "$archive_command"
@@ -314,10 +311,10 @@ simulate_coverage_workflow() {
         
         # Check if files were extracted correctly
         local extracted_files=$(find . -name "coverage-summary.json" | wc -l)
-        if [ "$extracted_files" -eq 4 ]; then
+        if [ "$extracted_files" -eq 1 ]; then
             print_status "Coverage extraction works correctly"
         else
-            print_error "Coverage extraction failed - expected 4 files, found $extracted_files"
+            print_error "Coverage extraction failed - expected 1 file, found $extracted_files"
             exit 1
         fi
         
@@ -329,7 +326,7 @@ simulate_coverage_workflow() {
     fi
     
     # Cleanup
-    rm -rf coverage apps/web/coverage apps/api/coverage packages/shared-types/coverage coverage-artifacts.tgz
+    rm -rf coverage coverage-artifacts.tgz
 }
 
 # Main validation function

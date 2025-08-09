@@ -147,9 +147,10 @@ module.exports = {
       coverageDirectory: "<rootDir>/packages/shared-types/coverage",
     },
   ],
-  // Removed root-level collectCoverageFrom to prevent cross-project instrumentation
+  // Root-level coverage configuration for combined reports
   coverageProvider: "babel",
-  // Removed root-level coverageDirectory; each project writes to its own directory
+  coverageReporters: ["text", "lcov", "html", "json-summary"],
+  coverageDirectory: "<rootDir>/coverage",
   reporters: [
     "default",
     [

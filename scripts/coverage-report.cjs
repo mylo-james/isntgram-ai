@@ -26,11 +26,8 @@ function readCoverageFile(filePath) {
 }
 
 function analyzeCoverage() {
-  const coverageFiles = [
-    'apps/web/coverage/coverage-summary.json',
-    'apps/api/coverage/coverage-summary.json',
-    'packages/shared-types/coverage/coverage-summary.json',
-  ];
+  // Jest generates a summary file when run from root
+  const coverageFile = 'coverage/coverage-summary.json';
 
   const results = [];
   let totalStatements = { covered: 0, total: 0 };
@@ -38,28 +35,28 @@ function analyzeCoverage() {
   let totalFunctions = { covered: 0, total: 0 };
   let totalLines = { covered: 0, total: 0 };
 
-  for (const file of coverageFiles) {
-    const coverage = readCoverageFile(file);
-    if (coverage && coverage.total) {
-      const packageName = file.split('/')[0] + '/' + file.split('/')[1];
-      const total = coverage.total;
+  const coverage = readCoverageFile(coverageFile);
+  if (coverage && coverage.total) {
+    // The summary file contains package-level coverage
+    for (const [packageName, packageData] of Object.entries(coverage)) {
+      if (packageName !== 'total') {
+        results.push({
+          package: packageName,
+          statements: (packageData.statements.pct || 0).toFixed(2),
+          branches: (packageData.branches.pct || 0).toFixed(2),
+          functions: (packageData.functions.pct || 0).toFixed(2),
+          lines: (packageData.lines.pct || 0).toFixed(2),
+        });
 
-      results.push({
-        package: packageName,
-        statements: (total.statements.pct || 0).toFixed(2),
-        branches: (total.branches.pct || 0).toFixed(2),
-        functions: (total.functions.pct || 0).toFixed(2),
-        lines: (total.lines.pct || 0).toFixed(2),
-      });
-
-      totalStatements.covered += total.statements.covered || 0;
-      totalStatements.total += total.statements.total || 0;
-      totalBranches.covered += total.branches.covered || 0;
-      totalBranches.total += total.branches.total || 0;
-      totalFunctions.covered += total.functions.covered || 0;
-      totalFunctions.total += total.functions.total || 0;
-      totalLines.covered += total.lines.covered || 0;
-      totalLines.total += total.lines.total || 0;
+        totalStatements.covered += packageData.statements.covered || 0;
+        totalStatements.total += packageData.statements.total || 0;
+        totalBranches.covered += packageData.branches.covered || 0;
+        totalBranches.total += packageData.branches.total || 0;
+        totalFunctions.covered += packageData.functions.covered || 0;
+        totalFunctions.total += packageData.functions.total || 0;
+        totalLines.covered += packageData.lines.covered || 0;
+        totalLines.total += packageData.lines.total || 0;
+      }
     }
   }
 
