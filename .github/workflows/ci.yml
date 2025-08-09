@@ -29,12 +29,25 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: 📦 Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-deps-
+
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm install
-          cd ../api && npm install
-          cd ../../packages/shared-types && npm install
+          cd apps/web && npm ci
+          cd ../api && npm ci
+          cd ../../packages/shared-types && npm ci
 
       - name: 🔍 Lint & Type Check
         run: |
@@ -78,12 +91,25 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: 📦 Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-deps-
+
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm install
-          cd ../api && npm install
-          cd ../../packages/shared-types && npm install
+          cd apps/web && npm ci
+          cd ../api && npm ci
+          cd ../../packages/shared-types && npm ci
 
       - name: 📥 Download Coverage
         uses: actions/download-artifact@v4
@@ -136,12 +162,25 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: 📦 Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-deps-
+
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm install
-          cd ../api && npm install
-          cd ../../packages/shared-types && npm install
+          cd apps/web && npm ci
+          cd ../api && npm ci
+          cd ../../packages/shared-types && npm ci
 
       - name: 🧱 Build Applications
         run: npm run build
@@ -171,12 +210,25 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: 📦 Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-deps-
+
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm install
-          cd ../api && npm install
-          cd ../../packages/shared-types && npm install
+          cd apps/web && npm ci
+          cd ../api && npm ci
+          cd ../../packages/shared-types && npm ci
 
       - name: 🧱 Build Applications
         run: npm run build
@@ -266,8 +318,25 @@ jobs:
           node-version: 20
           cache: "npm"
 
+      - name: 📦 Cache npm dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-deps-
+
       - name: 📦 Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          cd apps/web && npm ci
+          cd ../api && npm ci
+          cd ../../packages/shared-types && npm ci
 
       - name: 🧱 Build Applications
         run: npm run build
