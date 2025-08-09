@@ -61,7 +61,7 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: "npm run ci:start:web",
+      command: "cd apps/web && PORT=3000 npm run start",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
@@ -69,7 +69,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "npm run ci:start:api",
+      command: "cd apps/api && SKIP_DB=true PORT=3001 npm run start:prod",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,

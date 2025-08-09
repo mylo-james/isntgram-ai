@@ -6,13 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "build:local": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "jest",
-    "lint": "eslint src/**/*.ts --fix",
-    "lint:local": "eslint src/**/*.ts --fix",
-    "lint:check": "eslint src/**/*.ts --fix"
+    "lint": "eslint src/**/*.ts --fix"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
