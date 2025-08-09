@@ -278,7 +278,17 @@ validate_runtime_commands() {
 run_ci_tests() {
     print_step "Running CI workflow tests..."
     
-    # Skip Jest tests for now as the YAML parser needs improvement
+    # Run E2E configuration tests
+    print_step "Running E2E configuration tests..."
+    if npm run test:e2e:config >/dev/null 2>&1; then
+        print_status "E2E configuration tests passed"
+    else
+        print_error "E2E configuration tests failed"
+        print_error "Run 'npm run test:e2e:config' for details"
+        exit 1
+    fi
+    
+    # Skip other Jest tests for now as the YAML parser needs improvement
     print_warning "CI workflow Jest tests skipped (YAML parser needs improvement)"
     print_warning "The bash validation provides comprehensive CI testing"
 }
