@@ -165,8 +165,19 @@ jobs:
       - name: 🧱 Build Applications
         run: npm run build
 
-      - name: 🌐 Install Playwright
-        run: npx playwright install --with-deps
+      - name: Cache Playwright browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
 
       - name: 🌐 E2E Tests
         run: npm run test:e2e

@@ -155,6 +155,45 @@ describe('E2E Configuration Validation', () => {
     // We don't fail the test here because ports might be legitimately in use
     // But we log warnings to help debug issues
   });
+
+  test('should validate Playwright CI configuration', async () => {
+    const configPath = path.join(process.cwd(), 'playwright.config.ts');
+    const configContent = fs.readFileSync(configPath, 'utf8');
+    
+    // Check for CI-specific configuration
+    expect(configContent).toContain('process.env.CI');
+    
+    // Check that CI only runs Chromium (for speed)
+    expect(configContent).toContain('name: "chromium"');
+    
+    // Check for proper CI settings
+    expect(configContent).toContain('forbidOnly: !!process.env.CI');
+    expect(configContent).toContain('retries: process.env.CI ? 2 : 0');
+    expect(configContent).toContain('workers: process.env.CI ? 1 : undefined');
+    
+    // Check for proper reporters for CI
+    expect(configContent).toContain('junit');
+    expect(configContent).toContain('playwright-report/results.xml');
+  });
+
+  test('should validate CI workflow has Playwright caching', async () => {
+    const workflowPath = path.join(process.cwd(), '.github/workflows/ci.yml');
+    expect(fs.existsSync(workflowPath)).toBe(true);
+    
+    const workflowContent = fs.readFileSync(workflowPath, 'utf8');
+    
+    // Check for Playwright cache configuration
+    expect(workflowContent).toContain('Cache Playwright browsers');
+    expect(workflowContent).toContain('actions/cache@v4');
+    expect(workflowContent).toContain('~/.cache/ms-playwright');
+    expect(workflowContent).toContain('playwright-${{ runner.os }}');
+    
+    // Check for conditional installation
+    expect(workflowContent).toContain('cache-hit != \'true\'');
+    
+    // Check for optimized browser installation
+    expect(workflowContent).toContain('playwright install chromium');
+  });
 });
 
 describe('E2E Script Validation', () => {
