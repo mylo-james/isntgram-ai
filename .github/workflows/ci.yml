@@ -43,11 +43,7 @@ jobs:
             npm-deps-
 
       - name: 📦 Install dependencies
-        run: |
-          npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+        run: npm ci
 
       - name: 🔍 Lint & Type Check
         run: |
@@ -105,11 +101,7 @@ jobs:
             npm-deps-
 
       - name: 📦 Install dependencies
-        run: |
-          npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+        run: npm ci
 
       - name: 📥 Download Coverage
         uses: actions/download-artifact@v4
@@ -176,11 +168,7 @@ jobs:
             npm-deps-
 
       - name: 📦 Install dependencies
-        run: |
-          npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+        run: npm ci
 
       - name: 🧱 Build Applications
         run: npm run build
@@ -224,11 +212,7 @@ jobs:
             npm-deps-
 
       - name: 📦 Install dependencies
-        run: |
-          npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+        run: npm ci
 
       - name: 🧱 Build Applications
         run: npm run build
@@ -332,11 +316,7 @@ jobs:
             npm-deps-
 
       - name: 📦 Install dependencies
-        run: |
-          npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+        run: npm ci
 
       - name: 🔍 CodeQL Analysis
         uses: github/codeql-action/init@v3
