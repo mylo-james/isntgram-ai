@@ -54,7 +54,6 @@
     "test:ci": "bash scripts/ci-validate.sh",
     "test:ci:workflow": "npm test -- test/ci-workflow.test.ts --watchAll=false",
     "test:e2e:config": "npm test -- test/e2e-config.test.ts --watchAll=false",
-    "playwright:cache:info": "echo 'Playwright browsers are cached in CI to speed up E2E tests. Cache key: playwright-{os}-{package-lock-hash}'",
     "test:ci:pro": "bash scripts/ci-test-pro.sh",
     "setup:ci-tools": "bash scripts/ci-setup-tools.sh"
   },
