@@ -338,9 +338,6 @@ jobs:
           cd ../api && npm ci
           cd ../../packages/shared-types && npm ci
 
-      - name: 🧱 Build Applications
-        run: npm run build
-
       - name: 🔍 CodeQL Analysis
         uses: github/codeql-action/init@v3
         with:
