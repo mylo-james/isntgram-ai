@@ -10,7 +10,7 @@ Based on `jest.config.cjs` and `scripts/coverage-report.js`:
 
 ```bash
 apps/web/coverage/coverage-summary.json     # Web app coverage
-apps/api/coverage/coverage-summary.json     # API coverage  
+apps/api/coverage/coverage-summary.json     # API coverage
 packages/shared-types/coverage/coverage-summary.json  # Shared types coverage
 ```
 
@@ -54,22 +54,16 @@ sbom.xml                                   # Software Bill of Materials
 
 ```yaml
 # Current CI has complex conditional logic
-if [ -f coverage-artifacts.tgz ]; then
-  tar -xzf coverage-artifacts.tgz
-fi
-if [ -f coverage.zip ]; then
-  unzip -o coverage.zip
-fi
+if [ -f coverage-artifacts.tgz ]; then tar -xzf coverage-artifacts.tgz fi if [ -f coverage.zip ]; then unzip -o
+coverage.zip fi
 ```
 
 **Solution:**
 
 ```yaml
 # Deterministic approach - we know exactly what files exist
-tar -xzf coverage-artifacts.tgz
-ls -la apps/web/coverage/coverage-summary.json
-ls -la apps/api/coverage/coverage-summary.json
-ls -la packages/shared-types/coverage/coverage-summary.json
+tar -xzf coverage-artifacts.tgz ls -la apps/web/coverage/coverage-summary.json ls -la
+apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/coverage-summary.json
 ```
 
 ### **2. Remove Redundant Development Docker Build**
@@ -140,17 +134,16 @@ ls -la packages/shared-types/coverage/coverage-summary.json
 
 ```yaml
 # Archives entire directories with potential missing files
-tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage 2>/dev/null || true
+tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage 2>/dev/null
+|| true
 ```
 
 **Solution:**
 
 ```yaml
 # Archive only the specific files we know exist
-tar -czf coverage-artifacts.tgz \
-  apps/web/coverage/coverage-summary.json \
-  apps/api/coverage/coverage-summary.json \
-  packages/shared-types/coverage/coverage-summary.json
+tar -czf coverage-artifacts.tgz \ apps/web/coverage/coverage-summary.json \ apps/api/coverage/coverage-summary.json \
+packages/shared-types/coverage/coverage-summary.json
 ```
 
 ### **5. Remove Conditional Coverage Gate**
@@ -180,7 +173,7 @@ coverage-gate:
 
 ### **2. Redundant Database Environment Variables**
 
-- `DATABASE_URL` contains the same info as individual DB_* variables
+- `DATABASE_URL` contains the same info as individual DB\_\* variables
 - **Solution:** Use only `DATABASE_URL` for consistency
 
 ### **3. Unnecessary Coverage File Searching**
@@ -244,4 +237,5 @@ coverage-gate:
 4. **Remove any unused conditional logic** from scripts
 5. **Update documentation** to reflect deterministic approach
 
-This approach eliminates the need for complex file searching and conditional logic, making the CI pipeline more reliable, faster, and easier to maintain.
+This approach eliminates complex file searching and conditional logic, making the CI pipeline more reliable and
+maintainable.
