@@ -237,7 +237,7 @@ jobs:
           tags: isntgram-ai:prod
 
       - name: 🔍 Trivy Container Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: isntgram-ai:prod
           format: "table"
