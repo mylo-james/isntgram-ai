@@ -65,12 +65,16 @@ export default defineConfig({
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: process.env.CI ? "npm run ci:start:api" : "NODE_ENV=test npm run start:dev --workspace=apps/api",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 });
