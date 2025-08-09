@@ -32,9 +32,9 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+          cd apps/web && npm install
+          cd ../api && npm install
+          cd ../../packages/shared-types && npm install
 
       - name: 🔍 Lint & Type Check
         run: |
@@ -81,9 +81,9 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+          cd apps/web && npm install
+          cd ../api && npm install
+          cd ../../packages/shared-types && npm install
 
       - name: 📥 Download Coverage
         uses: actions/download-artifact@v4
@@ -139,9 +139,9 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+          cd apps/web && npm install
+          cd ../api && npm install
+          cd ../../packages/shared-types && npm install
 
       - name: 🧱 Build Applications
         run: npm run build
@@ -174,9 +174,9 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           npm ci
-          cd apps/web && npm ci
-          cd ../api && npm ci
-          cd ../../packages/shared-types && npm ci
+          cd apps/web && npm install
+          cd ../api && npm install
+          cd ../../packages/shared-types && npm install
 
       - name: 🧱 Build Applications
         run: npm run build
