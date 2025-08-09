@@ -35,9 +35,7 @@ jobs:
         with:
           path: |
             ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
+            .turbo
           key: npm-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             npm-deps-
@@ -93,9 +91,7 @@ jobs:
         with:
           path: |
             ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
+            .turbo
           key: npm-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             npm-deps-
@@ -160,9 +156,7 @@ jobs:
         with:
           path: |
             ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
+            .turbo
           key: npm-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             npm-deps-
@@ -204,9 +198,7 @@ jobs:
         with:
           path: |
             ~/.npm
-            node_modules
-            apps/*/node_modules
-            packages/*/node_modules
+            .turbo
           key: npm-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             npm-deps-
