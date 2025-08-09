@@ -15,8 +15,8 @@
     "isolatedModules": true,
     "noEmit": false,
     "allowJs": true,
-    "types": ["jest", "node"]
+    "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

@@ -7,4 +7,5 @@ coverage/
 **/.next/
 **/build/
 **/test-results/
-
+.bmad-core/
+**/.bmad-core/**

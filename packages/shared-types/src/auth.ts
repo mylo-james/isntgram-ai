@@ -1,14 +1,15 @@
 export interface User {
   id: string;
-  email: string;
   username: string;
-  firstName: string;
-  lastName?: string;
-  avatarUrl?: string;
+  fullName: string;
+  email: string;
+  profilePictureUrl?: string;
   bio?: string;
-  isVerified: boolean;
+  postsCount: number;
+  followerCount: number;
+  followingCount: number;
   createdAt: Date;
-  updatedAt?: Date;
+  updatedAt: Date;
 }
 
 export interface AuthResponse {
