@@ -41,7 +41,7 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should have all required jobs", () => {
-      const expectedJobs = ["quality", "coverage-gate", "integration", "e2e", "security", "container-security"];
+      const expectedJobs = ["quality", "coverage-gate", "integration", "e2e", "production-build", "security"];
       const actualJobs = Object.keys(workflow.jobs);
 
       expectedJobs.forEach((job) => {
@@ -58,7 +58,7 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should have correct job configuration", () => {
-      expect(qualityJob.name).toBe("Quality Checks");
+      expect(qualityJob.name).toBe("Code Quality");
       expect(qualityJob["runs-on"]).toBe("ubuntu-latest");
     });
 
@@ -258,31 +258,31 @@ describe("CI Workflow Tests", () => {
     });
   });
 
-  describe("Container Security Job", () => {
-    let containerJob: any;
+  describe("Production Build Job", () => {
+    let productionBuildJob: any;
 
     beforeAll(() => {
-      containerJob = workflow.jobs["container-security"];
+      productionBuildJob = workflow.jobs["production-build"];
     });
 
     test("should depend on integration job", () => {
-      expect(containerJob.needs).toEqual(["integration"]);
+      expect(productionBuildJob.needs).toEqual(["integration"]);
     });
 
     test("should build Docker images", () => {
-      const steps = containerJob.steps;
+      const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("🐳 Build Production Docker Image");
     });
 
     test("should have Trivy scan", () => {
-      const steps = containerJob.steps;
+      const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("🔍 Trivy Container Scan");
     });
 
     test("should generate SBOM", () => {
-      const steps = containerJob.steps;
+      const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("📋 Generate SBOM");
     });

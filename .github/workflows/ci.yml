@@ -15,9 +15,9 @@ env:
   CI: true
 
 jobs:
-  # Quality checks with deterministic file paths
+  # 1. CODE QUALITY - Lint, test, and coverage checks
   quality:
-    name: Quality Checks
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Checkout
@@ -95,9 +95,9 @@ jobs:
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
 
-  # Build and integration tests
+  # 2. INTEGRATION - Build and integration tests
   integration:
-    name: Build & Integration Tests
+    name: Integration Tests
     runs-on: ubuntu-latest
     needs: [quality]
     services:
@@ -144,7 +144,7 @@ jobs:
           path: test-results/junit/jest-junit.xml
           retention-days: 14
 
-  # E2E tests
+  # 3. E2E TESTS - End-to-end testing
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
@@ -189,7 +189,49 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
-  # Security scans
+  # 4. PRODUCTION BUILD - Container build and security
+  production-build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    needs: [integration]
+    steps:
+      - name: 🚀 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Build Production Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          load: true
+          tags: isntgram-ai:prod
+
+      - name: 🔍 Trivy Container Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: isntgram-ai:prod
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+
+      - name: 📋 Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-xml
+          output-file: sbom.xml
+
+      - name: 📤 Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.xml
+
+  # 5. SECURITY - Code security scans (runs in parallel with E2E and Production Build)
   security:
     name: Security Scans
     runs-on: ubuntu-latest
@@ -237,45 +279,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif
-
-  # Container security
-  container-security:
-    name: Container Security
-    runs-on: ubuntu-latest
-    needs: [integration]
-    steps:
-      - name: 🚀 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🔧 Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🐳 Build Production Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.prod
-          load: true
-          tags: isntgram-ai:prod
-
-      - name: 🔍 Trivy Container Scan
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: isntgram-ai:prod
-          format: "table"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
-          ignore-unfixed: true
-
-      - name: 📋 Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          path: .
-          format: cyclonedx-xml
-          output-file: sbom.xml
-
-      - name: 📤 Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.xml
