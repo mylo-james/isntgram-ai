@@ -5,7 +5,7 @@
   "description": "AI-powered social media platform",
   "private": true,
   "type": "module",
-  "workspaces": false,
+  "workspaces": [],
   "scripts": {
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
     "lint": "npm run lint:md && npm run lint:web && npm run lint:api && npm run lint:shared-types",
