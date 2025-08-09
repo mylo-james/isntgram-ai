@@ -105,9 +105,9 @@ describe("Script Circular Dependency Prevention", () => {
       expect(scripts["lint:shared-types"]).toContain("--workspace=packages/shared-types");
 
       // Should use distinct script names to avoid circular dependencies
-      expect(scripts["lint:web"]).toContain("lint:local");
-      expect(scripts["lint:api"]).toContain("lint:local");
-      expect(scripts["lint:shared-types"]).toContain("lint:local");
+      expect(scripts["lint:web"]).toContain("lint:check");
+      expect(scripts["lint:api"]).toContain("lint:check");
+      expect(scripts["lint:shared-types"]).toContain("lint:check");
     });
   });
 
@@ -152,15 +152,15 @@ describe("Script Circular Dependency Prevention", () => {
       expect(sharedTypesPackageJson.scripts["build:local"]).toBe(sharedTypesPackageJson.scripts.build);
     });
 
-    test("should have lint:local scripts in all packages", () => {
-      expect(webPackageJson.scripts["lint:local"]).toBeDefined();
-      expect(apiPackageJson.scripts["lint:local"]).toBeDefined();
-      expect(sharedTypesPackageJson.scripts["lint:local"]).toBeDefined();
+    test("should have lint:check scripts in all packages", () => {
+      expect(webPackageJson.scripts["lint:check"]).toBeDefined();
+      expect(apiPackageJson.scripts["lint:check"]).toBeDefined();
+      expect(sharedTypesPackageJson.scripts["lint:check"]).toBeDefined();
 
-      // Lint local scripts should match regular lint scripts
-      expect(webPackageJson.scripts["lint:local"]).toBe(webPackageJson.scripts.lint);
-      expect(apiPackageJson.scripts["lint:local"]).toBe(apiPackageJson.scripts.lint);
-      expect(sharedTypesPackageJson.scripts["lint:local"]).toBe(sharedTypesPackageJson.scripts.lint);
+      // Lint check scripts should match regular lint scripts
+      expect(webPackageJson.scripts["lint:check"]).toBe(webPackageJson.scripts.lint);
+      expect(apiPackageJson.scripts["lint:check"]).toBe(apiPackageJson.scripts.lint);
+      expect(sharedTypesPackageJson.scripts["lint:check"]).toBe(sharedTypesPackageJson.scripts.lint);
     });
   });
 

@@ -120,9 +120,9 @@ class ScriptValidator {
       "lint:shared-types",
     ];
 
-    const requiredWebScripts = ["start:e2e", "build:local", "lint:local"];
-    const requiredApiScripts = ["start:prod:e2e", "build:local", "lint:local"];
-    const requiredSharedTypesScripts = ["build:local", "lint:local"];
+    const requiredWebScripts = ["start:e2e", "build:local", "lint:check"];
+    const requiredApiScripts = ["start:prod:e2e", "build:local", "lint:check"];
+    const requiredSharedTypesScripts = ["build:local", "lint:check"];
 
     // Check root scripts
     requiredRootScripts.forEach((scriptName) => {
@@ -283,14 +283,14 @@ class ScriptValidator {
     }
 
     // Check that lint scripts are distinct
-    if (this.packages.web.scripts["lint:local"] === this.packages.web.scripts.lint) {
-      this.warnings.push("web lint:local should match web lint");
+    if (this.packages.web.scripts["lint:check"] === this.packages.web.scripts.lint) {
+      this.warnings.push("web lint:check should match web lint");
     }
-    if (this.packages.api.scripts["lint:local"] === this.packages.api.scripts.lint) {
-      this.warnings.push("api lint:local should match api lint");
+    if (this.packages.api.scripts["lint:check"] === this.packages.api.scripts.lint) {
+      this.warnings.push("api lint:check should match api lint");
     }
-    if (this.packages.sharedTypes.scripts["lint:local"] === this.packages.sharedTypes.scripts.lint) {
-      this.warnings.push("shared-types lint:local should match shared-types lint");
+    if (this.packages.sharedTypes.scripts["lint:check"] === this.packages.sharedTypes.scripts.lint) {
+      this.warnings.push("shared-types lint:check should match shared-types lint");
     }
 
     // Check build:local scripts match regular build scripts
