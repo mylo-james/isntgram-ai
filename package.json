@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
-    "lint": "npm run lint:md && turbo run lint",
+    "lint": "echo 'root lint noop'",
+    "lint:all": "npm run lint:md && turbo run lint --filter=./apps/* --filter=./packages/*",
     "lint:web": "npm -w web run lint",
     "lint:api": "npm -w api run lint",
     "lint:shared-types": "npm -w @isntgram-ai/shared-types run lint",

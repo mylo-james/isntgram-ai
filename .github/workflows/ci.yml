@@ -45,7 +45,7 @@ jobs:
 
       - name: 🔍 Lint & Type Check
         run: |
-          npm run lint
+          npm run lint:all
           npm run type-check
 
       - name: 🧪 Unit Tests with Coverage
