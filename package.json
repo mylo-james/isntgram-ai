@@ -102,6 +102,9 @@
       "bash -c 'cd packages/shared-types && npx tsc -p . --noEmit'",
       "jest --selectProjects shared-types"
     ],
+    "scripts/**/*.{js,cjs}": [
+      "prettier --write"
+    ],
     "*.{json,md}": [
       "markdownlint --fix",
       "prettier --write"
