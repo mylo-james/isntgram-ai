@@ -9,6 +9,7 @@
     "start": "next start",
     "start:e2e": "PORT=3000 next start",
     "lint": "next lint",
+    "lint:local": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

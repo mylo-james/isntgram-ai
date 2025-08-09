@@ -99,15 +99,15 @@ describe("Script Circular Dependency Prevention", () => {
       expect(scripts["lint:api"]).toBeDefined();
       expect(scripts["lint:shared-types"]).toBeDefined();
 
-      // Lint scripts should use cd commands
-      expect(scripts["lint:web"]).toContain("cd apps/web");
-      expect(scripts["lint:api"]).toContain("cd apps/api");
-      expect(scripts["lint:shared-types"]).toContain("cd packages/shared-types");
+      // Lint scripts should use workspace syntax for distinct scripts
+      expect(scripts["lint:web"]).toContain("--workspace=apps/web");
+      expect(scripts["lint:api"]).toContain("--workspace=apps/api");
+      expect(scripts["lint:shared-types"]).toContain("--workspace=packages/shared-types");
 
-      // Should use cd commands to avoid circular dependencies
-      expect(scripts["lint:web"]).toContain("cd apps/web");
-      expect(scripts["lint:api"]).toContain("cd apps/api");
-      expect(scripts["lint:shared-types"]).toContain("cd packages/shared-types");
+      // Should use distinct script names to avoid circular dependencies
+      expect(scripts["lint:web"]).toContain("lint:local");
+      expect(scripts["lint:api"]).toContain("lint:local");
+      expect(scripts["lint:shared-types"]).toContain("lint:local");
     });
   });
 
@@ -150,6 +150,17 @@ describe("Script Circular Dependency Prevention", () => {
       expect(webPackageJson.scripts["build:local"]).toBe(webPackageJson.scripts.build);
       expect(apiPackageJson.scripts["build:local"]).toBe(apiPackageJson.scripts.build);
       expect(sharedTypesPackageJson.scripts["build:local"]).toBe(sharedTypesPackageJson.scripts.build);
+    });
+
+    test("should have lint:local scripts in all packages", () => {
+      expect(webPackageJson.scripts["lint:local"]).toBeDefined();
+      expect(apiPackageJson.scripts["lint:local"]).toBeDefined();
+      expect(sharedTypesPackageJson.scripts["lint:local"]).toBeDefined();
+
+      // Lint local scripts should match regular lint scripts
+      expect(webPackageJson.scripts["lint:local"]).toBe(webPackageJson.scripts.lint);
+      expect(apiPackageJson.scripts["lint:local"]).toBe(apiPackageJson.scripts.lint);
+      expect(sharedTypesPackageJson.scripts["lint:local"]).toBe(sharedTypesPackageJson.scripts.lint);
     });
   });
 

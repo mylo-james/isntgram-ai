@@ -120,9 +120,9 @@ class ScriptValidator {
       "lint:shared-types",
     ];
 
-    const requiredWebScripts = ["start:e2e", "build:local"];
-    const requiredApiScripts = ["start:prod:e2e", "build:local"];
-    const requiredSharedTypesScripts = ["build:local"];
+    const requiredWebScripts = ["start:e2e", "build:local", "lint:local"];
+    const requiredApiScripts = ["start:prod:e2e", "build:local", "lint:local"];
+    const requiredSharedTypesScripts = ["build:local", "lint:local"];
 
     // Check root scripts
     requiredRootScripts.forEach((scriptName) => {
@@ -189,6 +189,20 @@ class ScriptValidator {
     }
     if (rootScripts["ci:start:api"] && !rootScripts["ci:start:api"].includes("--workspace=apps/api")) {
       this.errors.push("ci:start:api should use --workspace=apps/api syntax");
+    }
+
+    // Validate lint scripts use workspace syntax
+    if (rootScripts["lint:web"] && !rootScripts["lint:web"].includes("--workspace=apps/web")) {
+      this.errors.push("lint:web should use --workspace=apps/web syntax");
+    }
+    if (rootScripts["lint:api"] && !rootScripts["lint:api"].includes("--workspace=apps/api")) {
+      this.errors.push("lint:api should use --workspace=apps/api syntax");
+    }
+    if (
+      rootScripts["lint:shared-types"] &&
+      !rootScripts["lint:shared-types"].includes("--workspace=packages/shared-types")
+    ) {
+      this.errors.push("lint:shared-types should use --workspace=packages/shared-types syntax");
     }
   }
 
@@ -266,6 +280,17 @@ class ScriptValidator {
     }
     if (this.packages.api.scripts["start:prod:e2e"] === this.packages.api.scripts["start:prod"]) {
       this.errors.push("api start:prod:e2e should be different from api start:prod");
+    }
+
+    // Check that lint scripts are distinct
+    if (this.packages.web.scripts["lint:local"] === this.packages.web.scripts.lint) {
+      this.warnings.push("web lint:local should match web lint");
+    }
+    if (this.packages.api.scripts["lint:local"] === this.packages.api.scripts.lint) {
+      this.warnings.push("api lint:local should match api lint");
+    }
+    if (this.packages.sharedTypes.scripts["lint:local"] === this.packages.sharedTypes.scripts.lint) {
+      this.warnings.push("shared-types lint:local should match shared-types lint");
     }
 
     // Check build:local scripts match regular build scripts
