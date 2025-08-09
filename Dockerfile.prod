@@ -29,8 +29,8 @@ RUN npm install -g @nestjs/cli next
 # Copy source code
 COPY . .
 
-# Build applications
-RUN npm run build
+# Build applications (all workspaces)
+RUN npm run build:all
 
 # Production stage
 FROM node:20-alpine AS production
