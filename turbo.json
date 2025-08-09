@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "lint": {
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "apps/web/.next/**", "packages/shared-types/dist/**"]
+    },
+    "test": {
+      "outputs": []
+    }
+  }
+}

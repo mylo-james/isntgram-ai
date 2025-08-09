@@ -1,0 +1,35 @@
+# Test environment Dockerfile
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl
+
+# Copy package files
+COPY package*.json ./
+COPY apps/*/package*.json ./apps/
+COPY packages/*/package*.json ./packages/
+
+# Install all dependencies (including dev dependencies for testing)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create startup script for test environment
+RUN echo '#!/bin/sh' > /start-test.sh && \
+    echo 'echo "Test environment ready"' >> /start-test.sh && \
+    echo 'tail -f /dev/null' >> /start-test.sh && \
+    chmod +x /start-test.sh
+
+# Expose ports
+EXPOSE 3000 3001
+
+# Start the test environment
+CMD ["/start-test.sh"]

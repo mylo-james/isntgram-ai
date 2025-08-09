@@ -10,8 +10,8 @@ export default [
       sourceType: "module",
     },
     rules: {
-      "no-unused-vars": "warn",
-      "no-console": "warn",
+      "no-unused-vars": "error",
+      "no-console": "error",
     },
   },
   // TypeScript files
@@ -28,7 +28,11 @@ export default [
       sourceType: "module",
       parser: tseslint.parser,
       parserOptions: {
-        project: ["./apps/api/tsconfig.json", "./apps/web/tsconfig.json", "./packages/shared-types/tsconfig.json"],
+        project: [
+          "./apps/api/tsconfig.eslint.json",
+          "./apps/web/tsconfig.eslint.json",
+          "./packages/shared-types/tsconfig.eslint.json",
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -37,9 +41,9 @@ export default [
     },
     rules: {
       "no-unused-vars": "off", // Turn off base rule
-      "@typescript-eslint/no-unused-vars": "warn",
-      "no-console": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "error",
+      "no-console": "error",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true, allowDefinitionFiles: true }],
@@ -48,6 +52,15 @@ export default [
   // Test files - more lenient rules
   {
     files: ["**/*.{test,spec}.{ts,tsx}", "**/test/**/*.{ts,tsx}", "**/e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "module",
+      parser: tseslint.parser,
+      // Do not require a project for tests; we only need syntax parsing here
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-namespace": "off",

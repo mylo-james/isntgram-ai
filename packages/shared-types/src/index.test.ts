@@ -7,15 +7,18 @@ describe("Shared Types", () => {
         id: "1",
         email: "test@example.com",
         username: "testuser",
-        firstName: "Test",
-        isVerified: false,
+        fullName: "Test User",
+        postsCount: 0,
+        followerCount: 0,
+        followingCount: 0,
         createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       expect(user.id).toBeDefined();
       expect(user.email).toBeDefined();
       expect(user.username).toBeDefined();
-      expect(user.firstName).toBeDefined();
+      expect(user.fullName).toBeDefined();
     });
 
     it("should allow optional properties", () => {
@@ -23,17 +26,18 @@ describe("Shared Types", () => {
         id: "1",
         email: "test@example.com",
         username: "testuser",
-        firstName: "Test",
-        lastName: "User",
-        avatarUrl: "https://example.com/avatar.jpg",
+        fullName: "Test User",
+        profilePictureUrl: "https://example.com/avatar.jpg",
         bio: "Test bio",
-        isVerified: true,
+        postsCount: 0,
+        followerCount: 0,
+        followingCount: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      expect(user.lastName).toBe("User");
-      expect(user.avatarUrl).toBeDefined();
+      expect(user.fullName).toBe("Test User");
+      expect(user.profilePictureUrl).toBeDefined();
       expect(user.bio).toBeDefined();
     });
   });

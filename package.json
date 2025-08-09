@@ -1,6 +1,7 @@
 {
   "name": "isntgram-ai",
   "version": "1.0.0",
+  "packageManager": "npm@10.0.0",
   "description": "AI-powered social media platform",
   "private": true,
   "type": "module",
@@ -9,61 +10,81 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web & npm run dev --workspace=apps/api",
-    "dev:web": "npm run dev --workspace=apps/web",
-    "dev:api": "npm run dev --workspace=apps/api",
-    "build": "npm run build --workspaces",
-    "build:web": "npm run build --workspace=apps/web",
-    "build:api": "npm run build --workspace=apps/api",
-    "test": "jest",
-    "test:web": "jest --selectProjects web",
-    "test:api": "jest --selectProjects api",
-    "test:shared-types": "jest --selectProjects shared-types",
-    "type-check": "cd apps/web && npx tsc --noEmit && cd ../../apps/api && npx tsc --noEmit && cd ../../packages/shared-types && npx tsc --noEmit",
-    "lint": "npm run lint:md && npm run lint:workspaces",
-    "lint:workspaces": "npm run lint --workspaces",
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
-    "lint:web": "npm run lint --workspace=apps/web",
-    "lint:api": "npm run lint --workspace=apps/api",
-    "format": "npm run format --workspaces",
-    "format:web": "npm run format --workspace=apps/web",
-    "format:api": "npm run format --workspace=apps/api",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report",
-    "coverage": "jest --coverage",
-    "coverage:report": "node scripts/coverage-report.mjs",
-    "ci:start:web": "npm run start --workspace=apps/web -- -p 3000",
-    "ci:start:api": "SKIP_DB=true PORT=3001 npm run start:prod --workspace=apps/api",
+    "lint": "echo 'root lint noop'",
+    "lint:all": "npm run lint:md && turbo run lint --filter=./apps/* --filter=./packages/*",
+    "lint:web": "npm -w web run lint",
+    "lint:api": "npm -w api run lint",
+    "lint:shared-types": "npm -w @isntgram-ai/shared-types run lint",
+    "type-check": "npx tsc -p apps/web/tsconfig.json --noEmit && npx tsc -p apps/api/tsconfig.json --noEmit && npx tsc -p packages/shared-types/tsconfig.json --noEmit",
+    "test": "jest",
+    "test:integration": "jest --selectProjects api --testPathPatterns integration",
+    "test:e2e": "npm run build:all && playwright test",
+    "build": "echo 'root build noop'",
+    "build:all": "npm -w @isntgram-ai/shared-types run build && npm -w api run build && npm -w web run build",
+    "build:web": "npm -w web run build",
+    "build:api": "npm -w api run build",
+    "build:shared-types": "npm -w @isntgram-ai/shared-types run build",
+    "coverage:report": "node scripts/coverage-report.cjs",
+    "test:ci:workflow": "jest test/ci-workflow.test.ts --watchAll=false",
+    "test:ci:pro": "bash scripts/ci-test-pro.sh",
+    "setup:ci-tools": "bash scripts/ci-setup-tools.sh",
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@babel/plugin-proposal-decorators": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/js": "^9.32.0",
+    "@nestjs/cli": "^10.0.0",
     "@playwright/test": "^1.54.2",
+    "@swc/core": "^1.7.42",
+    "@swc/jest": "^0.2.39",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/supertest": "^6.0.3",
+    "babel-jest": "^30.0.5",
+    "babel-plugin-transform-typescript-metadata": "^0.3.2",
+    "concurrently": "^8.2.2",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.0.0",
     "identity-obj-proxy": "^3.0.0",
-    "lint-staged": "^15.0.0",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "jest-junit": "^16.0.0",
+    "js-yaml": "^4.1.0",
+    "lint-staged": "^16.1.5",
     "markdownlint-cli": "^0.37.0",
+    "next": "^14.0.0",
     "prettier": "^3.6.2",
+    "sqlite3": "^5.1.7",
+    "turbo": "^2.5.5",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.39.0"
   },
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "bash -c 'cd apps/api && npx tsc -p . --noEmit'",
+      "jest --selectProjects api --testPathIgnorePatterns=integration"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "bash -c 'cd apps/web && npx tsc -p . --noEmit'",
+      "jest --selectProjects web"
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix",
+      "bash -c 'cd packages/shared-types && npx tsc -p . --noEmit'",
+      "jest --selectProjects shared-types"
+    ],
+    "scripts/**/*.{js,cjs}": [
+      "prettier --write"
     ],
     "*.{json,md}": [
       "markdownlint --fix",
@@ -73,5 +94,15 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
-  }
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.6",
+    "jest-changed-files": {
+      "execa": {
+        "cross-spawn": "^7.0.6"
+      }
+    },
+    "execa": "^9.6.0"
+  },
+  "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files."
 }

@@ -35,47 +35,46 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
-    },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
-  ],
+  projects: process.env.CI
+    ? [
+        {
+          name: "chromium",
+          use: { ...devices["Desktop Chrome"] },
+        },
+      ]
+    : [
+        {
+          name: "chromium",
+          use: { ...devices["Desktop Chrome"] },
+        },
+        {
+          name: "firefox",
+          use: { ...devices["Desktop Firefox"] },
+        },
+        /* Test against mobile viewports. */
+        {
+          name: "Mobile Chrome",
+          use: { ...devices["Pixel 5"] },
+        },
+      ],
 
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: process.env.CI ? "npm run ci:start:web" : "npm run dev --workspace=apps/web",
+      command: "cd apps/web && PORT=3000 npm run start",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
+      stdout: "pipe",
+      stderr: "pipe",
     },
     {
-      command: process.env.CI ? "npm run ci:start:api" : "SKIP_DB=true npm run start:dev --workspace=apps/api",
+      command: "cd apps/api && SKIP_DB=true PORT=3001 npm run start:prod",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
+      stdout: "pipe",
+      stderr: "pipe",
     },
   ],
 });

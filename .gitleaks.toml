@@ -1,0 +1,21 @@
+title = "Isntgram AI Gitleaks Config"
+
+[allowlist]
+  description = "Global allowlist for generated artifacts and known test-only credentials"
+  paths = [
+    "node_modules/",
+    "coverage/",
+    "playwright-report/",
+    "test-results/",
+    "web-bundles/",
+    "dist/",
+    ".next/",
+    "build/",
+    ".bmad-core/",
+    ".github/workflows/ci.yml",
+  ]
+  regexes = [
+    "postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test",
+    "DB_PASSWORD: postgres",
+    "DB_USERNAME: postgres",
+  ]
