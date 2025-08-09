@@ -52,6 +52,15 @@ export default [
   // Test files - more lenient rules
   {
     files: ["**/*.{test,spec}.{ts,tsx}", "**/test/**/*.{ts,tsx}", "**/e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "module",
+      parser: tseslint.parser,
+      // Do not require a project for tests; we only need syntax parsing here
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-namespace": "off",

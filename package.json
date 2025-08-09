@@ -20,7 +20,7 @@
     "test": "jest",
     "test:integration": "jest --selectProjects api --testPathPatterns integration",
     "test:e2e": "npm run build && playwright test",
-    "build": "turbo run build",
+    "build": "turbo run build --filter=./apps/* --filter=./packages/*",
     "build:web": "npm -w web run build",
     "build:api": "npm -w api run build",
     "build:shared-types": "npm -w @isntgram-ai/shared-types run build",
