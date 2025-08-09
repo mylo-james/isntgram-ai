@@ -236,19 +236,19 @@ describe('E2E Script Validation', () => {
     expect(apiScript).toContain('run start:prod');
   });
 
-  test('should validate start:prod script syntax', async () => {
+  test('should validate start script syntax', async () => {
     const packagePath = path.join(process.cwd(), 'package.json');
     const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
     const scripts = packageContent.scripts || {};
     
-    const startProdScript = scripts['start:prod'];
-    expect(startProdScript).toBeDefined();
+    const startScript = scripts['start'];
+    expect(startScript).toBeDefined();
     
     // Should start both web and API
-    expect(startProdScript).toContain('ci:start:web');
-    expect(startProdScript).toContain('ci:start:api');
+    expect(startScript).toContain('ci:start:web');
+    expect(startScript).toContain('ci:start:api');
     
     // Should run them in parallel
-    expect(startProdScript).toContain('&');
+    expect(startScript).toContain('&');
   });
 });
