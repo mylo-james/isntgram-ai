@@ -10,8 +10,12 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+env:
+  NODE_ENV: ci
+  CI: true
+
 jobs:
-  # Single job to detect changes and run all checks
+  # Quality checks with deterministic file paths
   quality:
     name: Quality Checks
     runs-on: ubuntu-latest
@@ -38,7 +42,9 @@ jobs:
 
       - name: 📦 Archive coverage artifacts
         run: |
-          tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage 2>/dev/null || true
+          # Create coverage archive with the actual coverage file
+          tar -czf coverage-artifacts.tgz coverage/coverage-summary.json
+
       - name: 📊 Upload Coverage
         uses: actions/upload-artifact@v4
         with:
@@ -50,10 +56,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit
-          path: test-results/junit/
+          path: test-results/junit/jest-junit.xml
           retention-days: 14
 
-  # Coverage enforcement
+  # Coverage enforcement with deterministic paths
   coverage-gate:
     name: Coverage Gate
     runs-on: ubuntu-latest
@@ -79,15 +85,12 @@ jobs:
 
       - name: 📦 Extract Coverage
         run: |
-          if [ -f coverage-artifacts.tgz ]; then tar -xzf coverage-artifacts.tgz; fi
-          if [ -f coverage.zip ]; then unzip -o coverage.zip; fi
+          # Extract coverage file
+          tar -xzf coverage-artifacts.tgz
 
-      - name: 📂 Debug Coverage Files
-        run: |
-          echo "PWD: $(pwd)"
-          ls -la
-          echo "\nCoverage files found:"
-          find . \( -name "coverage*.json" -o -name "lcov.info" -o -name "coverage*.xml" \) -type f | sed 's|^| - |'
+          # Verify coverage file exists
+          echo "Verifying coverage file..."
+          ls -la coverage/coverage-summary.json
 
       - name: 📈 Enforce Coverage Thresholds
         run: npm run coverage:report
@@ -107,16 +110,14 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"  --health-interval 10s  --health-timeout 5s  --health-retries 10
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
-      NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_NAME: isntgram_test
-      CI: true
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -140,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-integration
-          path: test-results/junit/
+          path: test-results/junit/jest-junit.xml
           retention-days: 14
 
   # E2E tests
@@ -181,6 +182,7 @@ jobs:
   security:
     name: Security Scans
     runs-on: ubuntu-latest
+    needs: [quality]
     permissions:
       actions: read
       contents: read
@@ -215,10 +217,12 @@ jobs:
       - name: 🔍 Gitleaks Secrets Scan
         run: |
           GL_VERSION=8.24.3
-          curl -sSL -o gitleaks.tar.gz https://github.com/zricethezav/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz
+          curl -sSL -o gitleaks.tar.gz
+          https://github.com/zricethezav/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz
           tar -xzf gitleaks.tar.gz
           sudo mv gitleaks /usr/local/bin/gitleaks
-          gitleaks detect --redact --no-git --config=.gitleaks.toml --report-format=sarif --report-path=gitleaks.sarif
+          gitleaks detect --redact --no-git --config=.gitleaks.toml
+          --report-format=sarif --report-path=gitleaks.sarif
 
       - name: 📤 Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -237,17 +241,18 @@ jobs:
       - name: 🔧 Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🐳 Build Docker Image
+      - name: 🐳 Build Production Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.prod
           load: true
-          tags: isntgram-ai:ci
+          tags: isntgram-ai:prod
 
       - name: 🔍 Trivy Container Scan
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: isntgram-ai:ci
+          image-ref: isntgram-ai:prod
           format: "table"
           exit-code: "1"
           severity: "HIGH,CRITICAL"

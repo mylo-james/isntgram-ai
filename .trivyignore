@@ -1,0 +1,7 @@
+# Ignore cross-spawn vulnerability in development dependencies
+# This is a known issue with Jest 30.0.5 and jest-changed-files
+# The vulnerability is in a nested development dependency and not used in production
+# The vulnerability is in jest-changed-files/node_modules/execa which depends on cross-spawn ^7.0.3
+# This is a development-only dependency and doesn't affect production code
+# Jest team is working on updating jest-changed-files to use newer execa version
+CVE-2024-21538

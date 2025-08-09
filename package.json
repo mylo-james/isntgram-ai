@@ -41,14 +41,19 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "coverage": "jest --coverage",
-    "coverage:report": "node scripts/coverage-report.mjs",
+    "coverage:report": "node scripts/coverage-report.cjs",
     "ci:start:web": "npm --workspace=apps/web run start -- -p 3000",
     "ci:start:api": "SKIP_DB=true PORT=3001 npm --workspace=apps/api run start:prod",
+    "start:prod": "npm run ci:start:web & npm run ci:start:api",
     "db:start": "./scripts/dev-db.sh",
     "db:stop": "docker-compose down",
     "db:logs": "docker-compose logs postgres",
     "db:reset": "docker-compose down -v && ./scripts/dev-db.sh",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "test:ci": "bash scripts/ci-validate.sh",
+    "test:ci:workflow": "npm test -- test/ci-workflow.test.ts --watchAll=false",
+    "test:ci:pro": "bash scripts/ci-test-pro.sh",
+    "setup:ci-tools": "bash scripts/ci-setup-tools.sh"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
@@ -61,6 +66,7 @@
     "@playwright/test": "^1.54.2",
     "@swc/core": "^1.7.42",
     "@swc/jest": "^0.2.39",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/supertest": "^6.0.3",
     "babel-jest": "^30.0.5",
@@ -69,7 +75,8 @@
     "husky": "^9.0.0",
     "identity-obj-proxy": "^3.0.0",
     "jest-junit": "^16.0.0",
-    "lint-staged": "^15.0.0",
+    "js-yaml": "^4.1.0",
+    "lint-staged": "^16.1.5",
     "markdownlint-cli": "^0.37.0",
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
@@ -105,6 +112,13 @@
     "npm": ">=9.0.0"
   },
   "overrides": {
-    "cross-spawn": "^7.0.6"
-  }
+    "cross-spawn": "^7.0.6",
+    "jest-changed-files": {
+      "execa": {
+        "cross-spawn": "^7.0.6"
+      }
+    },
+    "execa": "^9.6.0"
+  },
+  "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files."
 }

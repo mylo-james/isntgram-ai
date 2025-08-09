@@ -1,5 +1,28 @@
 module.exports = {
   projects: [
+    // Root-level tests (CI workflow, etc.)
+    {
+      displayName: "root",
+      testEnvironment: "node",
+      testMatch: ["<rootDir>/test/**/*.test.ts"],
+      transform: {
+        "^.+\\.ts$": [
+          "babel-jest",
+          {
+            presets: [
+              [
+                "@babel/preset-env",
+                {
+                  targets: { node: "20" },
+                },
+              ],
+              "@babel/preset-typescript",
+            ],
+          },
+        ],
+      },
+      moduleFileExtensions: ["ts", "js"],
+    },
     // Next.js Web App
     {
       displayName: "web",

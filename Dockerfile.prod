@@ -1,0 +1,77 @@
+# Multi-stage build for production
+FROM node:20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Disable Husky during Docker builds
+ENV HUSKY=0
+
+# Install system dependencies for building
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++
+
+# Copy package manifests (preserve workspace structure)
+COPY package*.json ./
+COPY .npmrc ./.npmrc
+COPY apps/api/package*.json apps/api/
+COPY apps/web/package*.json apps/web/
+COPY packages/shared-types/package*.json packages/shared-types/
+
+# Install all dependencies (including dev dependencies for building)
+RUN npm ci --prefer-offline --no-audit
+
+# Install CLI tools globally for building
+RUN npm install -g @nestjs/cli next
+
+# Copy source code
+COPY . .
+
+# Build applications
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS production
+
+# Set working directory
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apk add --no-cache \
+    postgresql-client \
+    curl
+
+# Copy package manifests
+COPY package*.json ./
+COPY apps/api/package*.json apps/api/
+COPY apps/web/package*.json apps/web/
+COPY packages/shared-types/package*.json packages/shared-types/
+
+# Install only production dependencies (skip prepare script)
+RUN npm ci --only=production --prefer-offline --no-audit --ignore-scripts && \
+    npm cache clean --force
+
+# Copy built applications from builder stage
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Expose ports
+EXPOSE 3000 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3001/api/health || exit 1
+
+# Start the application in production mode
+CMD ["npm", "run", "start:prod"]
