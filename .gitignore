@@ -237,3 +237,6 @@ docker-compose.override.yml
 playwright-report/
 test-results/
 coverage/
+
+# Turborepo cache (local only; do not commit)
+.turbo/
