@@ -213,7 +213,7 @@ describe("CI Workflow Tests", () => {
     test("should install Playwright", () => {
       const steps = e2eJob.steps;
       const stepNames = steps.map((step: any) => step.name);
-      expect(stepNames).toContain("🌐 Install Playwright");
+      expect(stepNames).toContain("Install Playwright browsers");
     });
 
     test("should have E2E test step", () => {
