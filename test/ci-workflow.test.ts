@@ -17,6 +17,142 @@ describe("CI Workflow Tests", () => {
     workflow = yaml.load(workflowContent) as any;
   });
 
+  describe("Project Dependencies Validation", () => {
+    test("should have package.json in all projects", () => {
+      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      projects.forEach(project => {
+        const packagePath = join(process.cwd(), project, "package.json");
+        expect(existsSync(packagePath)).toBe(true);
+      });
+    });
+
+    test("should have valid package.json in all projects", () => {
+      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      projects.forEach(project => {
+        const packagePath = join(process.cwd(), project, "package.json");
+        const packageContent = readFileSync(packagePath, "utf8");
+        expect(() => JSON.parse(packageContent)).not.toThrow();
+      });
+    });
+
+    test("should have scripts in all project package.json files", () => {
+      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      projects.forEach(project => {
+        const packagePath = join(process.cwd(), project, "package.json");
+        const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+        expect(packageJson.scripts).toBeDefined();
+        expect(typeof packageJson.scripts).toBe("object");
+      });
+    });
+
+    test("should have required scripts in web app", () => {
+      const packagePath = join(process.cwd(), "apps/web", "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+      expect(packageJson.scripts.lint).toBeDefined();
+      expect(packageJson.scripts.build).toBeDefined();
+      expect(packageJson.scripts.dev).toBeDefined();
+    });
+
+    test("should have required scripts in api app", () => {
+      const packagePath = join(process.cwd(), "apps/api", "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+      expect(packageJson.scripts.lint).toBeDefined();
+      expect(packageJson.scripts.build).toBeDefined();
+      expect(packageJson.scripts["start:dev"]).toBeDefined();
+    });
+
+    test("should have required scripts in shared-types", () => {
+      const packagePath = join(process.cwd(), "packages/shared-types", "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+      expect(packageJson.scripts.lint).toBeDefined();
+      expect(packageJson.scripts.build).toBeDefined();
+    });
+  });
+
+  describe("Root Package.json Validation", () => {
+    test("should have all required CI scripts", () => {
+      const packagePath = join(process.cwd(), "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+      
+      const requiredScripts = [
+        "lint", "type-check", "test", "build", 
+        "test:integration", "test:e2e", "coverage:report"
+      ];
+      
+      requiredScripts.forEach(script => {
+        expect(packageJson.scripts[script]).toBeDefined();
+      });
+    });
+
+    test("should have valid workspaces configuration", () => {
+      const packagePath = join(process.cwd(), "package.json");
+      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+      
+      // Should be either an array or undefined, not false
+      expect(packageJson.workspaces).toBeDefined();
+      if (packageJson.workspaces !== undefined) {
+        expect(Array.isArray(packageJson.workspaces)).toBe(true);
+      }
+    });
+
+    test("should have package-lock.json at root", () => {
+      const lockPath = join(process.cwd(), "package-lock.json");
+      expect(existsSync(lockPath)).toBe(true);
+    });
+  });
+
+  describe("CI Workflow Command Validation", () => {
+    test("should have valid install commands in all jobs", () => {
+      const jobs = workflow.jobs;
+      Object.keys(jobs).forEach(jobName => {
+        const job = jobs[jobName];
+        if (job.steps) {
+          const installStep = job.steps.find((step: any) => 
+            step.name === "📦 Install dependencies"
+          );
+          
+          if (installStep) {
+            expect(installStep.run).toBeDefined();
+            expect(typeof installStep.run).toBe("string");
+            
+            // Should include npm ci at root
+            expect(installStep.run).toContain("npm ci");
+            
+            // Should include npm install for individual projects (multi-line commands)
+            if (installStep.run.includes("|")) {
+              expect(installStep.run).toContain("npm install");
+            }
+          }
+        }
+      });
+    });
+
+    test("should have valid build commands", () => {
+      const jobs = workflow.jobs;
+      Object.keys(jobs).forEach(jobName => {
+        const job = jobs[jobName];
+        if (job.steps) {
+          const buildStep = job.steps.find((step: any) => 
+            step.name === "🧱 Build Applications"
+          );
+          
+          if (buildStep) {
+            expect(buildStep.run).toBe("npm run build");
+          }
+        }
+      });
+    });
+
+    test("should have valid test commands", () => {
+      const qualityJob = workflow.jobs.quality;
+      const testStep = qualityJob.steps.find((step: any) => 
+        step.name === "🧪 Unit Tests with Coverage"
+      );
+      
+      expect(testStep.run).toBe("npm test -- --coverage --watchAll=false --coverageReporters=json-summary");
+    });
+  });
+
   describe("Workflow Structure", () => {
     test("should have correct workflow name", () => {
       expect(workflow.name).toBe("CI Pipeline");
