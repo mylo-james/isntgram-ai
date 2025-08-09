@@ -35,7 +35,7 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: process.env.CI 
+  projects: process.env.CI
     ? [
         {
           name: "chromium",
@@ -61,20 +61,20 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: process.env.CI ? "npm run ci:start:web" : "npm run dev --workspace=apps/web",
+      command: "npm run ci:start:web",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: "pipe",
+      stderr: "pipe",
     },
     {
-      command: process.env.CI ? "npm run ci:start:api" : "NODE_ENV=test npm run start:dev --workspace=apps/api",
+      command: "npm run ci:start:api",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: "pipe",
+      stderr: "pipe",
     },
   ],
 });

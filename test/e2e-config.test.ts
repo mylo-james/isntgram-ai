@@ -33,9 +33,9 @@ describe('E2E Configuration Validation', () => {
     expect(scripts['ci:start:api']).toBeDefined();
     expect(scripts['start']).toBeDefined();
     
-    // Validate script content
-    expect(scripts['ci:start:web']).toContain('PORT=3000');
-    expect(scripts['ci:start:api']).toContain('PORT=3001');
+    // Validate script content - now using workspace scripts
+    expect(scripts['ci:start:web']).toContain('start:e2e');
+    expect(scripts['ci:start:api']).toContain('start:prod:e2e');
   });
 
   test('should have valid web app start script', async () => {
@@ -64,20 +64,16 @@ describe('E2E Configuration Validation', () => {
     const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
     const scripts = packageContent.scripts || {};
     
-    // Check that web and API use different ports
+    // Check that web and API use workspace scripts
     const webScript = scripts['ci:start:web'];
     const apiScript = scripts['ci:start:api'];
     
-    expect(webScript).toContain('PORT=3000');
-    expect(apiScript).toContain('PORT=3001');
+    expect(webScript).toContain('start:e2e');
+    expect(apiScript).toContain('start:prod:e2e');
     
-    // Ensure ports are different
-    const webPort = webScript.match(/PORT=(\d+)/)?.[1];
-    const apiPort = apiScript.match(/PORT=(\d+)/)?.[1];
-    
-    expect(webPort).not.toBe(apiPort);
-    expect(webPort).toBe('3000');
-    expect(apiPort).toBe('3001');
+    // Ensure they use different workspace scripts
+    expect(webScript).toContain('apps/web');
+    expect(apiScript).toContain('apps/api');
   });
 
   test('should have proper Playwright webServer configuration', async () => {
@@ -96,8 +92,8 @@ describe('E2E Configuration Validation', () => {
     expect(configContent).toContain('url: "http://127.0.0.1:3001/api"');
     
     // Check for proper stdout/stderr configuration
-    expect(configContent).toContain('stdout: \'pipe\'');
-    expect(configContent).toContain('stderr: \'pipe\'');
+    expect(configContent).toContain('stdout: "pipe"');
+    expect(configContent).toContain('stderr: "pipe"');
   });
 
   test('should have proper timeout configuration', async () => {
@@ -113,8 +109,8 @@ describe('E2E Configuration Validation', () => {
     const configContent = fs.readFileSync(configPath, 'utf8');
     
     // Check for CI-specific command handling
-    expect(configContent).toContain('process.env.CI ? "npm run ci:start:web"');
-    expect(configContent).toContain('process.env.CI ? "npm run ci:start:api"');
+    expect(configContent).toContain('"npm run ci:start:web"');
+    expect(configContent).toContain('"npm run ci:start:api"');
     
     // Check for reuseExistingServer configuration
     expect(configContent).toContain('reuseExistingServer: !process.env.CI');
@@ -205,14 +201,14 @@ describe('E2E Script Validation', () => {
     const webScript = scripts['ci:start:web'];
     expect(webScript).toBeDefined();
     
-    // Should use PORT environment variable
-    expect(webScript).toContain('PORT=3000');
+    // Should use workspace script
+    expect(webScript).toContain('start:e2e');
     
-    // Should change to web directory
-    expect(webScript).toContain('cd apps/web');
+    // Should use workspace syntax
+    expect(webScript).toContain('--workspace=apps/web');
     
-    // Should call the start script
-    expect(webScript).toContain('npm run start');
+    // Should call the workspace script
+    expect(webScript).toContain('npm run start:e2e');
   });
 
   test('should validate ci:start:api script syntax', async () => {
@@ -223,17 +219,14 @@ describe('E2E Script Validation', () => {
     const apiScript = scripts['ci:start:api'];
     expect(apiScript).toBeDefined();
     
-    // Should skip database in CI
-    expect(apiScript).toContain('SKIP_DB=true');
+    // Should use workspace script
+    expect(apiScript).toContain('start:prod:e2e');
     
-    // Should use PORT environment variable
-    expect(apiScript).toContain('PORT=3001');
+    // Should use workspace syntax
+    expect(apiScript).toContain('--workspace=apps/api');
     
-    // Should change to api directory
-    expect(apiScript).toContain('cd apps/api');
-    
-    // Should call the start:prod script
-    expect(apiScript).toContain('npm run start:prod');
+    // Should call the workspace script
+    expect(apiScript).toContain('npm run start:prod:e2e');
   });
 
   test('should validate start script syntax', async () => {
@@ -244,9 +237,9 @@ describe('E2E Script Validation', () => {
     const startScript = scripts['start'];
     expect(startScript).toBeDefined();
     
-    // Should start both web and API
-    expect(startScript).toContain('ci:start:web');
-    expect(startScript).toContain('ci:start:api');
+    // Should start both web and API directly
+    expect(startScript).toContain('cd apps/web');
+    expect(startScript).toContain('cd apps/api');
     
     // Should run them in parallel
     expect(startScript).toContain('&');
@@ -261,23 +254,23 @@ describe('E2E Script Validation', () => {
     const webScript = scripts['ci:start:web'];
     expect(webScript).toBeDefined();
     
-    // Should call the workspace start script (not the root start script)
-    expect(webScript).toContain('npm run start');
+    // Should call the workspace start:e2e script
+    expect(webScript).toContain('start:e2e');
     
-    // Check that ci:start:api calls the workspace start:prod script correctly
+    // Check that ci:start:api calls the workspace start:prod:e2e script correctly
     const apiScript = scripts['ci:start:api'];
     expect(apiScript).toBeDefined();
     
-    // Should call the workspace start:prod script
-    expect(apiScript).toContain('npm run start:prod');
+    // Should call the workspace start:prod:e2e script
+    expect(apiScript).toContain('start:prod:e2e');
     
     // Check that root start script doesn't create infinite loops
     const startScript = scripts['start'];
     expect(startScript).toBeDefined();
     
-    // Should only call the CI scripts, not itself
-    expect(startScript).toContain('ci:start:web');
-    expect(startScript).toContain('ci:start:api');
+    // Should only call direct commands, not scripts
+    expect(startScript).toContain('cd apps/web');
+    expect(startScript).toContain('cd apps/api');
     expect(startScript).not.toContain('npm run start');
     
     // Verify the script chain doesn't create circular dependencies
@@ -295,17 +288,17 @@ describe('E2E Script Validation', () => {
     const executionChain = {
       'ci:start:web': {
         script: scripts['ci:start:web'],
-        expectedSteps: ['cd apps/web', 'PORT=3000', 'npm run start'],
+        expectedSteps: ['start:e2e', '--workspace=apps/web'],
         finalCommand: 'next start' // From apps/web/package.json
       },
       'ci:start:api': {
         script: scripts['ci:start:api'],
-        expectedSteps: ['cd apps/api', 'SKIP_DB=true', 'PORT=3001', 'npm run start:prod'],
+        expectedSteps: ['start:prod:e2e', '--workspace=apps/api'],
         finalCommand: 'node dist/main' // From apps/api/package.json
       },
       'start': {
         script: scripts['start'],
-        expectedSteps: ['ci:start:web', 'ci:start:api', '&'],
+        expectedSteps: ['cd apps/web', 'cd apps/api', '&'],
         shouldNotContain: ['npm run start', 'npm run start:prod'] // Prevent circular calls
       }
     };
@@ -340,8 +333,8 @@ describe('E2E Script Validation', () => {
     
     // Ensure ci:start:api doesn't call any root-level scripts that could cause loops
     expect(apiScript).not.toContain('npm run ci:start:');
-    // But it SHOULD call the workspace start:prod script
-    expect(apiScript).toContain('npm run start:prod');
+    // But it SHOULD call the workspace start:prod:e2e script
+    expect(apiScript).toContain('start:prod:e2e');
     
     // Ensure start script only calls the CI scripts, not itself
     expect(startScript).not.toContain('npm run start');
