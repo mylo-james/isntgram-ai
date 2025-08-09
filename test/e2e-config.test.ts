@@ -208,11 +208,11 @@ describe('E2E Script Validation', () => {
     // Should use PORT environment variable
     expect(webScript).toContain('PORT=3000');
     
-    // Should use workspace syntax
-    expect(webScript).toContain('--workspace=apps/web');
+    // Should change to web directory
+    expect(webScript).toContain('cd apps/web');
     
     // Should call the start script
-    expect(webScript).toContain('run start');
+    expect(webScript).toContain('npm run start');
   });
 
   test('should validate ci:start:api script syntax', async () => {
@@ -229,11 +229,11 @@ describe('E2E Script Validation', () => {
     // Should use PORT environment variable
     expect(apiScript).toContain('PORT=3001');
     
-    // Should use workspace syntax
-    expect(apiScript).toContain('--workspace=apps/api');
+    // Should change to api directory
+    expect(apiScript).toContain('cd apps/api');
     
     // Should call the start:prod script
-    expect(apiScript).toContain('run start:prod');
+    expect(apiScript).toContain('npm run start:prod');
   });
 
   test('should validate start script syntax', async () => {
@@ -250,5 +250,101 @@ describe('E2E Script Validation', () => {
     
     // Should run them in parallel
     expect(startScript).toContain('&');
+  });
+
+  test('should validate script execution without circular dependencies', async () => {
+    const packagePath = path.join(process.cwd(), 'package.json');
+    const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    const scripts = packageContent.scripts || {};
+    
+    // Check that ci:start:web calls the workspace start script correctly
+    const webScript = scripts['ci:start:web'];
+    expect(webScript).toBeDefined();
+    
+    // Should call the workspace start script (not the root start script)
+    expect(webScript).toContain('npm run start');
+    
+    // Check that ci:start:api calls the workspace start:prod script correctly
+    const apiScript = scripts['ci:start:api'];
+    expect(apiScript).toBeDefined();
+    
+    // Should call the workspace start:prod script
+    expect(apiScript).toContain('npm run start:prod');
+    
+    // Check that root start script doesn't create infinite loops
+    const startScript = scripts['start'];
+    expect(startScript).toBeDefined();
+    
+    // Should only call the CI scripts, not itself
+    expect(startScript).toContain('ci:start:web');
+    expect(startScript).toContain('ci:start:api');
+    expect(startScript).not.toContain('npm run start');
+    
+    // Verify the script chain doesn't create circular dependencies
+    // ci:start:web -> cd apps/web && npm run start -> next start ✅
+    // ci:start:api -> cd apps/api && npm run start:prod -> node dist/main ✅
+    // start -> ci:start:web & ci:start:api ✅
+  });
+
+  test('should validate complete script execution chain', async () => {
+    const packagePath = path.join(process.cwd(), 'package.json');
+    const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    const scripts = packageContent.scripts || {};
+    
+    // Validate the complete execution chain to prevent circular dependencies
+    const executionChain = {
+      'ci:start:web': {
+        script: scripts['ci:start:web'],
+        expectedSteps: ['cd apps/web', 'PORT=3000', 'npm run start'],
+        finalCommand: 'next start' // From apps/web/package.json
+      },
+      'ci:start:api': {
+        script: scripts['ci:start:api'],
+        expectedSteps: ['cd apps/api', 'SKIP_DB=true', 'PORT=3001', 'npm run start:prod'],
+        finalCommand: 'node dist/main' // From apps/api/package.json
+      },
+      'start': {
+        script: scripts['start'],
+        expectedSteps: ['ci:start:web', 'ci:start:api', '&'],
+        shouldNotContain: ['npm run start', 'npm run start:prod'] // Prevent circular calls
+      }
+    };
+    
+    // Validate each script in the chain
+    Object.entries(executionChain).forEach(([scriptName, validation]) => {
+      const script = validation.script;
+      expect(script).toBeDefined();
+      
+      // Check expected steps
+      validation.expectedSteps.forEach(step => {
+        expect(script).toContain(step);
+      });
+      
+      // Check forbidden patterns (for circular dependency prevention)
+      if (validation.shouldNotContain) {
+        validation.shouldNotContain.forEach(forbidden => {
+          expect(script).not.toContain(forbidden);
+        });
+      }
+    });
+    
+    // Verify the chain terminates properly (no infinite loops)
+    // This is a static analysis that can catch obvious circular dependencies
+    const webScript = scripts['ci:start:web'];
+    const apiScript = scripts['ci:start:api'];
+    const startScript = scripts['start'];
+    
+    // Ensure ci:start:web doesn't call any root-level scripts that could cause loops
+    expect(webScript).not.toContain('npm run start:prod');
+    expect(webScript).not.toContain('npm run ci:start:');
+    
+    // Ensure ci:start:api doesn't call any root-level scripts that could cause loops
+    expect(apiScript).not.toContain('npm run ci:start:');
+    // But it SHOULD call the workspace start:prod script
+    expect(apiScript).toContain('npm run start:prod');
+    
+    // Ensure start script only calls the CI scripts, not itself
+    expect(startScript).not.toContain('npm run start');
+    expect(startScript).not.toContain('npm run start:prod');
   });
 });
