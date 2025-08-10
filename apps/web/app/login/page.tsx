@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Form from "@/components/ui/Form";
@@ -17,12 +19,31 @@ interface FormErrors {
   password?: string;
 }
 
-export default function LoginPage() {
+function LoginInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+
   const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
+
+  // Check for success message from registration
+  useEffect(() => {
+    const message = searchParams.get("message");
+    if (message) {
+      setSuccessMessage(message);
+    }
+  }, [searchParams]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push("/");
+    }
+  }, [status, session, router]);
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -59,17 +80,38 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
+    setSuccessMessage("");
 
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setSuccessMessage("");
+
     try {
-      await new Promise((r) => setTimeout(r, 1000));
-      setSuccessMessage("Login successful!");
-      setFormData({ email: "", password: "" });
-    } catch {
-      setFormError("Login failed. Please try again.");
+      const result = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        let message = result.error;
+        if (message === "CredentialsSignin") {
+          message = "Invalid credentials";
+        } else if (message === "Configuration") {
+          message = "Authentication configuration error";
+        }
+        setFormError(message);
+      } else if (result?.ok) {
+        setSuccessMessage("Login successful! Redirecting...");
+        setFormData({ email: "", password: "" });
+        // Redirect to main feed after successful login
+        setTimeout(() => {
+          router.push("/");
+        }, 1000);
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Login failed. Please try again.";
+      setFormError(message);
     } finally {
       setIsLoading(false);
     }
@@ -133,5 +175,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center">Loading...</div>}>
+      <LoginInner />
+    </Suspense>
   );
 }

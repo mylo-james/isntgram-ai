@@ -1,7 +1,7 @@
 {
   "name": "isntgram-ai",
   "version": "1.0.0",
-  "packageManager": "npm@10.0.0",
+  "packageManager": "pnpm@9.12.3",
   "description": "AI-powered social media platform",
   "private": true,
   "type": "module",
@@ -12,23 +12,27 @@
   "scripts": {
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
     "lint": "echo 'root lint noop'",
-    "lint:all": "npm run lint:md && turbo run lint --filter=./apps/* --filter=./packages/*",
-    "lint:web": "npm -w web run lint",
-    "lint:api": "npm -w api run lint",
-    "lint:shared-types": "npm -w @isntgram-ai/shared-types run lint",
-    "type-check": "npx tsc -p apps/web/tsconfig.json --noEmit && npx tsc -p apps/api/tsconfig.json --noEmit && npx tsc -p packages/shared-types/tsconfig.json --noEmit",
+    "lint:all": "pnpm run lint:md && pnpm -r --if-present lint",
+    "lint:web": "pnpm --filter web lint",
+    "lint:api": "pnpm --filter api lint",
+    "lint:shared-types": "pnpm --filter @isntgram-ai/shared-types lint",
+    "type-check": "pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p packages/shared-types/tsconfig.json --noEmit",
     "test": "jest",
     "test:integration": "jest --selectProjects api --testPathPatterns integration",
-    "test:e2e": "npm run build:all && playwright test",
+    "test:e2e": "pnpm run build:all && playwright test",
     "build": "echo 'root build noop'",
-    "build:all": "npm -w @isntgram-ai/shared-types run build && npm -w api run build && npm -w web run build",
-    "build:web": "npm -w web run build",
-    "build:api": "npm -w api run build",
-    "build:shared-types": "npm -w @isntgram-ai/shared-types run build",
+    "build:all": "pnpm -r --if-present build",
+    "build:web": "pnpm --filter web build",
+    "build:api": "pnpm --filter api build",
+    "build:shared-types": "pnpm --filter @isntgram-ai/shared-types build",
     "coverage:report": "node scripts/coverage-report.cjs",
     "test:ci:workflow": "jest test/ci-workflow.test.ts --watchAll=false",
     "test:ci:pro": "bash scripts/ci-test-pro.sh",
     "setup:ci-tools": "bash scripts/ci-setup-tools.sh",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:db": "bash scripts/dev-db.sh",
+    "dev:all": "pnpm run dev:db && concurrently -n web,api -c green,cyan \"NEXT_PUBLIC_API_URL=http://localhost:3001 pnpm --filter web dev\" \"pnpm --filter api start:dev\"",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -60,27 +64,26 @@
     "next": "^14.0.0",
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
-    "turbo": "^2.5.5",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.39.0"
   },
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix",
-      "bash -c 'cd apps/api && npx tsc -p . --noEmit'",
+      "bash -c 'cd apps/api && pnpm exec eslint --fix'",
+      "bash -c 'cd apps/api && pnpm exec tsc -p . --noEmit'",
       "jest --selectProjects api --testPathIgnorePatterns=integration"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix",
-      "bash -c 'cd apps/web && npx tsc -p . --noEmit'",
+      "bash -c 'cd apps/web && pnpm exec eslint --fix'",
+      "bash -c 'cd apps/web && pnpm exec tsc -p . --noEmit'",
       "jest --selectProjects web"
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "eslint --fix",
-      "bash -c 'cd packages/shared-types && npx tsc -p . --noEmit'",
+      "pnpm --filter @isntgram-ai/shared-types run lint -- --fix",
+      "bash -c 'cd packages/shared-types && pnpm exec tsc -p . --noEmit'",
       "jest --selectProjects shared-types"
     ],
     "scripts/**/*.{js,cjs}": [
@@ -93,7 +96,7 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "pnpm": ">=9.0.0"
   },
   "overrides": {
     "cross-spawn": "^7.0.6",
@@ -104,5 +107,8 @@
     },
     "execa": "^9.6.0"
   },
-  "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files."
+  "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files.",
+  "dependencies": {
+    "next-auth": "^5.0.0-beta.29"
+  }
 }

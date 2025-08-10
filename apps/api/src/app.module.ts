@@ -14,9 +14,9 @@ function getDatabaseModules() {
     return [];
   }
 
-  // Use SQLite for local tests, PostgreSQL for production and CI
-  const isLocalTest = process.env.NODE_ENV === 'test' && !process.env.CI;
-  const databaseConfig = isLocalTest
+  // Use SQLite for tests (including CI E2E), PostgreSQL for other environments
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  const databaseConfig = isTestEnv
     ? {
         type: 'sqlite' as const,
         database: ':memory:',

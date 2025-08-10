@@ -100,8 +100,8 @@ describe("CI Workflow Tests", () => {
       }
     });
 
-    test("should have package-lock.json at root", () => {
-      const lockPath = join(process.cwd(), "package-lock.json");
+    test("should have pnpm-lock.yaml at root", () => {
+      const lockPath = join(process.cwd(), "pnpm-lock.yaml");
       expect(existsSync(lockPath)).toBe(true);
     });
   });
@@ -118,13 +118,8 @@ describe("CI Workflow Tests", () => {
             expect(installStep.run).toBeDefined();
             expect(typeof installStep.run).toBe("string");
 
-            // Should include npm ci at root
-            expect(installStep.run).toContain("npm ci");
-
-            // Should include npm install for individual projects (multi-line commands)
-            if (installStep.run.includes("|")) {
-              expect(installStep.run).toContain("npm install");
-            }
+            // Should include pnpm install at root
+            expect(installStep.run).toContain("pnpm install");
           }
         }
       });
@@ -138,7 +133,7 @@ describe("CI Workflow Tests", () => {
           const buildStep = job.steps.find((step: any) => step.name === "🧱 Build Applications");
 
           if (buildStep) {
-            expect(buildStep.run).toBe("npm run build:all");
+            expect(buildStep.run).toBe("pnpm run build:all");
           }
         }
       });
@@ -148,7 +143,7 @@ describe("CI Workflow Tests", () => {
       const qualityJob = workflow.jobs.quality;
       const testStep = qualityJob.steps.find((step: any) => step.name === "🧪 Unit Tests with Coverage");
 
-      expect(testStep.run).toBe("npm test -- --coverage --watchAll=false --coverageReporters=json-summary");
+      expect(testStep.run).toBe("pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary");
     });
   });
 
@@ -215,15 +210,13 @@ describe("CI Workflow Tests", () => {
       const nodeStep = qualityJob.steps.find((step: any) => step.name === "🔧 Setup Node.js");
       expect(typeof nodeStep.uses).toBe("string");
       expect(nodeStep.uses).toMatch(/^actions\/setup-node@/);
-      expect(nodeStep.with).toEqual({
-        "node-version": 20,
-        cache: "npm",
-      });
+      expect(nodeStep.with["node-version"]).toBe(20);
+      expect(["npm", "pnpm"]).toContain(nodeStep.with.cache);
     });
 
     test("should have correct test command", () => {
       const testStep = qualityJob.steps.find((step: any) => step.name === "🧪 Unit Tests with Coverage");
-      expect(testStep.run).toBe("npm test -- --coverage --watchAll=false --coverageReporters=json-summary");
+      expect(testStep.run).toBe("pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary");
     });
 
     test("should archive coverage files from correct locations", () => {
@@ -260,7 +253,8 @@ describe("CI Workflow Tests", () => {
       const steps = coverageJob.steps;
       const stepNames = steps.map((step: any) => step.name);
 
-      const expectedOrder = [
+      // Required steps present
+      const requiredSteps = [
         "🚀 Checkout",
         "🔧 Setup Node.js",
         "📦 Install dependencies",
@@ -269,9 +263,27 @@ describe("CI Workflow Tests", () => {
         "📈 Enforce Coverage Thresholds",
       ];
 
-      expectedOrder.forEach((expectedStep, index) => {
-        expect(stepNames[index]).toBe(expectedStep);
-      });
+      requiredSteps.forEach((name) => expect(stepNames).toContain(name));
+
+      // Optional pnpm setup step may exist
+      const pnpmIdx = stepNames.indexOf("🧰 Setup pnpm");
+      const checkoutIdx = stepNames.indexOf("🚀 Checkout");
+      const nodeIdx = stepNames.indexOf("🔧 Setup Node.js");
+      const installIdx = stepNames.indexOf("📦 Install dependencies");
+      const downloadIdx = stepNames.indexOf("📥 Download Coverage");
+      const extractIdx = stepNames.indexOf("📦 Extract Coverage");
+      const enforceIdx = stepNames.indexOf("📈 Enforce Coverage Thresholds");
+
+      // Enforce relative ordering of critical steps
+      expect(checkoutIdx).toBeLessThan(nodeIdx);
+      if (pnpmIdx !== -1) {
+        // pnpm setup must run before install
+        expect(pnpmIdx).toBeLessThan(installIdx);
+      }
+      expect(nodeIdx).toBeLessThan(installIdx);
+      expect(installIdx).toBeLessThan(downloadIdx);
+      expect(downloadIdx).toBeLessThan(extractIdx);
+      expect(extractIdx).toBeLessThan(enforceIdx);
     });
 
     test("should download coverage artifact with correct name", () => {
@@ -292,7 +304,7 @@ describe("CI Workflow Tests", () => {
 
     test("should run coverage report command", () => {
       const reportStep = coverageJob.steps.find((step: any) => step.name === "📈 Enforce Coverage Thresholds");
-      expect(reportStep.run).toBe("npm run coverage:report");
+      expect(reportStep.run).toBe("pnpm run coverage:report");
     });
   });
 
@@ -323,10 +335,6 @@ describe("CI Workflow Tests", () => {
       expect(env.DB_USERNAME).toBe("postgres");
       expect(env.DB_PASSWORD).toBe("postgres");
       expect(env.DB_NAME).toBe("isntgram_test");
-      // Turbo remote cache env (optional)
-      expect(env.TURBO_TEAM).toBeDefined();
-      expect(typeof env.TURBO_TEAM).toBe("string");
-      expect(env.TURBO_TOKEN).toBeDefined();
     });
 
     test("should have integration test step", () => {
@@ -337,7 +345,7 @@ describe("CI Workflow Tests", () => {
 
     test("should run integration tests with correct flags", () => {
       const testStep = integrationJob.steps.find((step: any) => step.name === "🔗 Integration Tests");
-      expect(testStep.run).toBe("npm run test:integration -- --runInBand --watchAll=false");
+      expect(testStep.run).toBe("pnpm run test:integration -- --runInBand --watchAll=false");
     });
   });
 
@@ -372,7 +380,7 @@ describe("CI Workflow Tests", () => {
 
     test("should run E2E tests", () => {
       const testStep = e2eJob.steps.find((step: any) => step.name === "🌐 E2E Tests");
-      expect(testStep.run).toBe("npm run test:e2e");
+      expect(testStep.run).toBe("pnpm run test:e2e");
     });
   });
 

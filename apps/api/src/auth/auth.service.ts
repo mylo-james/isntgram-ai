@@ -1,7 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
+import argon2 from 'argon2';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 
@@ -33,9 +33,10 @@ export class AuthService {
       throw new ConflictException('Username already taken');
     }
 
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Hash password with argon2id only
+    const hashedPassword = await argon2.hash(password, {
+      type: argon2.argon2id,
+    });
 
     // Create new user
     const user = this.userRepository.create({
@@ -61,7 +62,7 @@ export class AuthService {
       where: { email },
     });
 
-    if (user && (await bcrypt.compare(password, user.hashedPassword))) {
+    if (user && (await argon2.verify(user.hashedPassword, password))) {
       return user;
     }
 

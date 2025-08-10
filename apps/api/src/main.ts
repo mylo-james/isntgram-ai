@@ -2,18 +2,45 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const nodeEnv = configService.get('NODE_ENV', 'development');
+
+  // Security headers
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'none'"],
+          baseUri: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      referrerPolicy: { policy: 'no-referrer' },
+    }),
+  );
   const logger = new Logger('Bootstrap');
 
   // Enable CORS
+  const corsOrigin = configService.get<string>('CORS_ORIGIN');
+  const allowedOrigins =
+    nodeEnv === 'production'
+      ? (() => {
+          if (!corsOrigin) {
+            throw new Error('CORS_ORIGIN must be set in production');
+          }
+          return [corsOrigin];
+        })()
+      : [corsOrigin || 'http://localhost:3000', 'http://127.0.0.1:3000'];
+
   app.enableCors({
-    origin: [
-      configService.get('CORS_ORIGIN', 'http://localhost:3000'),
-      'http://127.0.0.1:3000',
-    ],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -51,7 +78,7 @@ async function bootstrap() {
   await app.listen(port, host);
 
   logger.log(`🚀 Application is running on: http://${host}:${port}`);
-  logger.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
+  logger.log(`📊 Environment: ${nodeEnv}`);
 }
 
 bootstrap().catch((error) => {

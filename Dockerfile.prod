@@ -7,6 +7,13 @@ WORKDIR /app
 # Disable Husky during Docker builds
 ENV HUSKY=0
 
+# Build-time placeholders to satisfy Next.js production build checks
+# Do not use real secrets here; runtime stage does not inherit these
+ARG AUTH_SECRET="__build_placeholder__"
+ARG NEXTAUTH_SECRET="__build_placeholder__"
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+
 # Install system dependencies for building
 RUN apk add --no-cache \
     python3 \
@@ -15,22 +22,22 @@ RUN apk add --no-cache \
 
 # Copy package manifests (preserve workspace structure)
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 COPY .npmrc ./.npmrc
 COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
-# Install all dependencies (including dev dependencies for building)
-RUN npm ci --prefer-offline --no-audit
-
-# Install CLI tools globally for building
-RUN npm install -g @nestjs/cli next
+# Install pnpm via corepack and install deps
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build applications (all workspaces)
-RUN npm run build:all
+RUN pnpm run build:all
 
 # Production stage
 FROM node:20-alpine AS production
@@ -45,13 +52,17 @@ RUN apk add --no-cache \
 
 # Copy package manifests
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
+COPY .npmrc ./.npmrc
 COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
 # Install only production dependencies (skip prepare script)
-RUN npm ci --only=production --prefer-offline --no-audit --ignore-scripts && \
-    npm cache clean --force
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate && \
+    pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    pnpm store prune
 
 # Copy built applications from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
@@ -74,4 +85,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3001/api/health || exit 1
 
 # Start the application in production mode
-CMD ["npm", "run", "start:prod"]
+CMD ["pnpm", "run", "start:prod"]

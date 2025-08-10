@@ -23,17 +23,18 @@ COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
-# Install all dependencies (including dev dependencies for testing)
-RUN npm ci --prefer-offline --no-audit && npm dedupe && npm cache clean --force
+# Install pnpm via corepack and install dependencies
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN pnpm install --no-frozen-lockfile && pnpm store prune
 
 # Install CLI tools globally (optional for build)
-RUN npm install -g @nestjs/cli next
+RUN pnpm add -g @nestjs/cli next
 
 # Copy source code
 COPY . .
 
 # Build applications
-RUN npm run build && npm prune --omit=dev && npm cache clean --force
+RUN pnpm run build && pnpm prune --prod && pnpm store prune
 
 # Initialize PostgreSQL for development
 RUN mkdir -p /var/lib/postgresql/data && \
@@ -47,7 +48,7 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'su postgres -c "pg_ctl -D /var/lib/postgresql/data -l logfile start"' >> /start.sh && \
     echo 'sleep 3' >> /start.sh && \
     echo 'su postgres -c "createdb isntgram"' >> /start.sh && \
-    echo 'npm run start:dev' >> /start.sh && \
+    echo 'pnpm run start:dev' >> /start.sh && \
     chmod +x /start.sh
 
 # Expose ports

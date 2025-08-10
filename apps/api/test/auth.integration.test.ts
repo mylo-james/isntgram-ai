@@ -54,6 +54,8 @@ describe('Auth Integration Tests', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Match production global prefix
+    app.setGlobalPrefix('api');
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
 

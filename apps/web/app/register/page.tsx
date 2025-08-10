@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { apiClient } from "@/lib/api-client";
 import {
   validateEmail,
   validatePassword,
@@ -27,6 +29,7 @@ interface FormErrors {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     email: "",
     fullName: "",
@@ -98,12 +101,19 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     setSuccessMessage("");
+    setErrors({});
 
     try {
-      // Placeholder API call - will be implemented in future stories
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the registration API
+      await apiClient.register({
+        email: formData.email,
+        username: formData.username,
+        fullName: formData.fullName,
+        password: formData.password,
+      });
 
-      setSuccessMessage("Registration successful!");
+      setSuccessMessage("Registration successful! Redirecting to login...");
+
       // Reset form after successful submission
       setFormData({
         email: "",
@@ -111,8 +121,35 @@ export default function RegisterPage() {
         username: "",
         password: "",
       });
-    } catch {
-      setErrors({ email: "Registration failed. Please try again." });
+
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        router.push("/login?message=Registration successful! Please log in.");
+      }, 2000);
+    } catch (error: unknown) {
+      // Handle different types of errors
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message
+      ) {
+        // Backend validation error
+        const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message as string;
+        if (errorMessage.includes("email")) {
+          setErrors({ email: errorMessage });
+        } else if (errorMessage.includes("username")) {
+          setErrors({ username: errorMessage });
+        } else {
+          setErrors({ email: errorMessage });
+        }
+      } else if (error instanceof Error && error.message) {
+        // Network or other error
+        setErrors({ email: error.message });
+      } else {
+        setErrors({ email: "Registration failed. Please try again." });
+      }
     } finally {
       setIsLoading(false);
     }

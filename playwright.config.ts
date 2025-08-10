@@ -67,9 +67,14 @@ export default defineConfig({
       timeout: 300 * 1000,
       stdout: "pipe",
       stderr: "pipe",
+      env: {
+        NEXTAUTH_URL: "http://127.0.0.1:3000",
+        NEXTAUTH_SECRET: "test_secret_for_e2e_only",
+        AUTH_SECRET: "test_secret_for_e2e_only",
+      },
     },
     {
-      command: "cd apps/api && SKIP_DB=true PORT=3001 npm run start:prod",
+      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
