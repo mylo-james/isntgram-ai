@@ -12,11 +12,11 @@ describe("AuthProvider", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    (useDispatch as jest.Mock).mockReturnValue(mockDispatch);
+    (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
   });
 
   it("dispatches setUser when authenticated", () => {
-    (useSession as jest.Mock).mockReturnValue({
+    (useSession as unknown as jest.Mock).mockReturnValue({
       status: "authenticated",
       data: {
         user: { id: "1", email: "a@b.com", name: "A B", username: "ab" },
@@ -31,13 +31,13 @@ describe("AuthProvider", () => {
     );
 
     expect(mockDispatch).toHaveBeenCalled();
-    const types = mockDispatch.mock.calls.map((call: { type: string }) => call[0].type);
+    const types = (mockDispatch.mock.calls as unknown[]).map((call: unknown) => (call as any)[0].type as string);
     expect(types.some((t: string) => t.includes("auth/setUser"))).toBe(true);
     expect(types.some((t: string) => t.includes("auth/setAccessToken"))).toBe(false);
   });
 
   it("dispatches clearAuth when unauthenticated", () => {
-    (useSession as jest.Mock).mockReturnValue({ status: "unauthenticated", data: null });
+    (useSession as unknown as jest.Mock).mockReturnValue({ status: "unauthenticated", data: null });
 
     render(
       <AuthProvider>
@@ -46,12 +46,12 @@ describe("AuthProvider", () => {
     );
 
     expect(mockDispatch).toHaveBeenCalled();
-    const types = mockDispatch.mock.calls.map((call: { type: string }) => call[0].type);
+    const types = (mockDispatch.mock.calls as unknown[]).map((call: unknown) => (call as any)[0].type as string);
     expect(types.some((t: string) => t.includes("auth/clearAuth"))).toBe(true);
   });
 
   it("does not dispatch when loading", () => {
-    (useSession as jest.Mock).mockReturnValue({ status: "loading", data: null });
+    (useSession as unknown as jest.Mock).mockReturnValue({ status: "loading", data: null });
 
     render(
       <AuthProvider>

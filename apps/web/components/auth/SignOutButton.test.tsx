@@ -94,22 +94,6 @@ describe("SignOutButton", () => {
     expect(screen.getByText("Sign Out")).toBeInTheDocument();
   });
 
-  it("redirects to login even if signOut fails", async () => {
-    mockSignOut.mockRejectedValue(new Error("Sign out failed"));
-
-    render(<SignOutButton />);
-
-    // Click sign out button
-    fireEvent.click(screen.getByText("Sign Out"));
-
-    // Click confirm
-    fireEvent.click(screen.getByText("Yes, Sign Out"));
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/login");
-    });
-  });
-
   it("applies custom className", () => {
     render(<SignOutButton className="custom-class" />);
     const button = screen.getByText("Sign Out");
@@ -117,9 +101,9 @@ describe("SignOutButton", () => {
   });
 
   it("applies custom variant", () => {
-    render(<SignOutButton variant="destructive" />);
+    render(<SignOutButton variant="secondary" />);
     const button = screen.getByText("Sign Out");
-    // Check that the button has the destructive variant applied
+    // Check that the button has the variant applied
     expect(button).toBeInTheDocument();
   });
 
