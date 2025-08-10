@@ -65,8 +65,8 @@ export default defineConfig({
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
-      stdout: "pipe",
-      stderr: "pipe",
+      stdout: "ignore",
+      stderr: "ignore",
       env: {
         NEXTAUTH_URL: "http://127.0.0.1:3000",
         NEXTAUTH_SECRET: "test_secret_for_e2e_only",
@@ -78,8 +78,8 @@ export default defineConfig({
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
-      stdout: "pipe",
-      stderr: "pipe",
+      stdout: "ignore",
+      stderr: "ignore",
     },
   ],
 });

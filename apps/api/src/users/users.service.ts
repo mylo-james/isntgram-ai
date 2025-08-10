@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -36,9 +40,25 @@ export class UsersService {
     return user;
   }
 
-  async getUserProfile(username: string): Promise<UserProfileDto> {
-    const user = await this.findByUsername(username);
+  async findByEmail(email: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException(`User with email "${email}" not found`);
+    }
+    return user;
+  }
 
+  async isUsernameTaken(
+    username: string,
+    excludeUserId?: string,
+  ): Promise<boolean> {
+    const existing = await this.userRepository.findOne({ where: { username } });
+    if (!existing) return false;
+    if (excludeUserId && existing.id === excludeUserId) return false;
+    return true;
+  }
+
+  async toUserProfileDto(user: User): Promise<UserProfileDto> {
     return {
       id: user.id,
       username: user.username,
@@ -54,6 +74,11 @@ export class UsersService {
     };
   }
 
+  async getUserProfile(username: string): Promise<UserProfileDto> {
+    const user = await this.findByUsername(username);
+    return this.toUserProfileDto(user);
+  }
+
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
@@ -64,5 +89,24 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async updateProfile(
+    id: string,
+    updates: { fullName: string; username: string },
+  ): Promise<UserProfileDto> {
+    const user = await this.findById(id);
+
+    // Username uniqueness check (exclude current user)
+    const usernameTaken = await this.isUsernameTaken(updates.username, id);
+    if (usernameTaken) {
+      throw new ConflictException('Username already taken');
+    }
+
+    user.fullName = updates.fullName;
+    user.username = updates.username;
+
+    const saved = await this.userRepository.save(user);
+    return this.toUserProfileDto(saved);
   }
 }

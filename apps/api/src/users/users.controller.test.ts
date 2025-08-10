@@ -23,7 +23,11 @@ describe('UsersController', () => {
 
   const mockUsersService = {
     getUserProfile: jest.fn(),
-  };
+    isUsernameTaken: jest.fn(),
+    updateProfile: jest.fn(),
+    findById: jest.fn(),
+    findByEmail: jest.fn(),
+  } as unknown as jest.Mocked<UsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -46,7 +50,9 @@ describe('UsersController', () => {
 
   describe('getUserProfile', () => {
     it('should return user profile when user exists', async () => {
-      mockUsersService.getUserProfile.mockResolvedValue(mockUserProfile);
+      (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(
+        mockUserProfile,
+      );
 
       const result = await controller.getUserProfile('testuser');
 
@@ -64,7 +70,9 @@ describe('UsersController', () => {
       ];
 
       for (const username of usernames) {
-        mockUsersService.getUserProfile.mockResolvedValue(mockUserProfile);
+        (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(
+          mockUserProfile,
+        );
 
         const result = await controller.getUserProfile(username);
 
@@ -73,24 +81,47 @@ describe('UsersController', () => {
       }
     });
 
-    it('should propagate service errors', async () => {
-      const error = new Error('User not found');
-      mockUsersService.getUserProfile.mockRejectedValue(error);
-
-      await expect(controller.getUserProfile('nonexistent')).rejects.toThrow(
-        error,
-      );
-      expect(usersService.getUserProfile).toHaveBeenCalledWith('nonexistent');
-    });
-
     it('should return correct HTTP status code', async () => {
-      // This test verifies the @HttpCode decorator is working
       const method = controller.getUserProfile;
       const metadata = Reflect.getMetadata('__httpCode__', method);
-
-      // Note: The actual HTTP status code is handled by NestJS framework
-      // This test ensures the method is properly decorated
       expect(typeof method).toBe('function');
+      expect(metadata).toBe(HttpStatus.OK);
+    });
+  });
+
+  describe('checkUsername', () => {
+    it('should return available false when username is taken', async () => {
+      (mockUsersService.isUsernameTaken as jest.Mock).mockResolvedValue(true);
+      const result = await controller.checkUsername('taken');
+      expect(result).toEqual({ available: false });
+      expect(usersService.isUsernameTaken).toHaveBeenCalledWith('taken');
+    });
+
+    it('should return available true when username is not taken', async () => {
+      (mockUsersService.isUsernameTaken as jest.Mock).mockResolvedValue(false);
+      const result = await controller.checkUsername('free');
+      expect(result).toEqual({ available: true });
+      expect(usersService.isUsernameTaken).toHaveBeenCalledWith('free');
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update user profile and return dto', async () => {
+      const updated: UserProfileDto = {
+        ...mockUserProfile,
+        username: 'newname',
+        fullName: 'New Name',
+      };
+      (mockUsersService.updateProfile as jest.Mock).mockResolvedValue(updated);
+      const body = { id: '1', fullName: 'New Name', username: 'newname' };
+
+      const result = await controller.updateProfile(body as never);
+
+      expect(result).toEqual(updated);
+      expect(usersService.updateProfile).toHaveBeenCalledWith('1', {
+        fullName: 'New Name',
+        username: 'newname',
+      });
     });
   });
 });

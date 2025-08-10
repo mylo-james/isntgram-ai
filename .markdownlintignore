@@ -1,3 +1,4 @@
+.bmad-core/
 node_modules/
 web-bundles/
 playwright-report/
@@ -7,5 +8,3 @@ coverage/
 **/.next/
 **/build/
 **/test-results/
-.bmad-core/
-**/.bmad-core/**

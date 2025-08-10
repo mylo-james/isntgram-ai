@@ -92,7 +92,7 @@ class ApiClient {
         // Handle different error scenarios
         if (error.response) {
           // Server responded with error status
-          const errorMessage = error.response.data?.message || "An error occurred";
+          const errorMessage = (error.response.data as unknown as { message?: string })?.message || "An error occurred";
           return Promise.reject(new Error(errorMessage));
         } else if (error.request) {
           // Network error
@@ -137,6 +137,29 @@ class ApiClient {
   // Get user profile by username
   async getUserProfile(username: string): Promise<UserProfile> {
     const response = await this.client.get<UserProfile>(`/api/users/${username}`);
+    return response.data;
+  }
+
+  // Get current user's profile by id or email
+  async getMyProfile(params: { id?: string; email?: string }): Promise<UserProfile> {
+    const search = params.id
+      ? `id=${encodeURIComponent(params.id)}`
+      : `email=${encodeURIComponent(params.email || "")}`;
+    const response = await this.client.get<UserProfile>(`/api/users/me?${search}`);
+    return response.data;
+  }
+
+  // Check if a username is available
+  async checkUsernameAvailability(username: string): Promise<{ available: boolean }> {
+    const response = await this.client.get<{ available: boolean }>(
+      `/api/users/check-username/${encodeURIComponent(username)}`,
+    );
+    return response.data;
+  }
+
+  // Update current user's profile
+  async updateProfile(data: { id: string; fullName: string; username: string }): Promise<UserProfile> {
+    const response = await this.client.put<UserProfile>("/api/users/profile", data);
     return response.data;
   }
 

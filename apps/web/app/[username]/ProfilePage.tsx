@@ -61,6 +61,10 @@ export default function ProfilePage({ username, currentUser }: ProfilePageProps)
     fetchProfile();
   }, [username]);
 
+  const handleProfileUpdated = (updated: { fullName: string; username: string }) => {
+    setProfile((prev) => (prev ? { ...prev, fullName: updated.fullName, username: updated.username } : prev));
+  };
+
   if (loading) {
     return <ProfilePageSkeleton />;
   }
@@ -105,7 +109,12 @@ export default function ProfilePage({ username, currentUser }: ProfilePageProps)
         <div className="max-w-4xl mx-auto px-4 py-8">
           <ProfileHeader profile={profile} />
           <ProfileStats profile={profile} />
-          <ProfileActions profile={profile} currentUser={currentUser} isOwnProfile={isOwnProfile} />
+          <ProfileActions
+            profile={profile}
+            currentUser={currentUser}
+            isOwnProfile={isOwnProfile}
+            onProfileUpdated={handleProfileUpdated}
+          />
         </div>
       </div>
     </ErrorBoundary>
