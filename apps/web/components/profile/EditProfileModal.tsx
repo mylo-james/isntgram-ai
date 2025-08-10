@@ -38,7 +38,7 @@ export default function EditProfileModal({
 
   useEffect(() => {
     reset(initialValues);
-  }, [initialValues.fullName, initialValues.username, reset]);
+  }, [initialValues, reset]);
 
   useEffect(() => {
     if (!open) return;

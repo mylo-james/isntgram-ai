@@ -31,7 +31,7 @@ describe("AuthProvider", () => {
     );
 
     expect(mockDispatch).toHaveBeenCalled();
-    const types = (mockDispatch.mock.calls as unknown[]).map((call: unknown) => (call as any)[0].type as string);
+    const types = (mockDispatch.mock.calls as unknown[][]).map(([action]) => (action as { type: string }).type);
     expect(types.some((t: string) => t.includes("auth/setUser"))).toBe(true);
     expect(types.some((t: string) => t.includes("auth/setAccessToken"))).toBe(false);
   });
@@ -46,7 +46,7 @@ describe("AuthProvider", () => {
     );
 
     expect(mockDispatch).toHaveBeenCalled();
-    const types = (mockDispatch.mock.calls as unknown[]).map((call: unknown) => (call as any)[0].type as string);
+    const types = (mockDispatch.mock.calls as unknown[][]).map(([action]) => (action as { type: string }).type);
     expect(types.some((t: string) => t.includes("auth/clearAuth"))).toBe(true);
   });
 

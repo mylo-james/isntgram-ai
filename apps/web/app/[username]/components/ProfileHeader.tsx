@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 interface UserProfile {
   id: string;
   username: string;
@@ -23,9 +25,11 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
         {/* Profile Picture */}
         <div className="flex-shrink-0">
           {profile.profilePictureUrl ? (
-            <img
+            <Image
               src={profile.profilePictureUrl}
               alt={`${profile.username}'s profile picture`}
+              width={96}
+              height={96}
               className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
             />
           ) : (
