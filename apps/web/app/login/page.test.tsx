@@ -5,8 +5,9 @@ jest.mock("next-auth/react", () => ({
 }));
 
 // Mock Next.js navigation
+const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -80,6 +81,23 @@ describe("LoginPage", () => {
     });
   });
 
+  it("renders success message from search params", async () => {
+    // Override only for this test to provide a message param
+    jest.doMock("next/navigation", () => ({
+      useRouter: () => ({ push: mockPush }),
+      useSearchParams: () => new URLSearchParams("message=Welcome%20back%21"),
+    }));
+
+    // Re-require after mocking
+    const { default: LoginPageWithMessage } = await import("./page");
+
+    render(<LoginPageWithMessage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
+    });
+  });
+
   it("shows loading state during submission", () => {
     const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
     signIn.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
@@ -123,6 +141,36 @@ describe("LoginPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+    });
+  });
+
+  it("maps Configuration error to a friendly message", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: false, error: "Configuration" });
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/authentication configuration error/i)).toBeInTheDocument();
+    });
+  });
+
+  it("redirects when already authenticated", async () => {
+    const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
+    useSession.mockReturnValue({
+      data: { user: { id: "1", email: "a@b.com", name: "A B" } },
+      status: "authenticated",
+    });
+
+    render(<LoginPage />);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/");
     });
   });
 });

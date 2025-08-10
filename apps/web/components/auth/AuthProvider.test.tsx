@@ -49,4 +49,16 @@ describe("AuthProvider", () => {
     const types = mockDispatch.mock.calls.map((call: { type: string }) => call[0].type);
     expect(types.some((t: string) => t.includes("auth/clearAuth"))).toBe(true);
   });
+
+  it("does not dispatch when loading", () => {
+    (useSession as jest.Mock).mockReturnValue({ status: "loading", data: null });
+
+    render(
+      <AuthProvider>
+        <div>children</div>
+      </AuthProvider>,
+    );
+
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
 });

@@ -193,4 +193,62 @@ describe("RegisterPage", () => {
       expect(screen.getByText(/email already exists/i)).toBeInTheDocument();
     });
   });
+
+  it("handles username-specific backend error mapping", async () => {
+    mockRegister.mockRejectedValue({
+      response: { data: { message: "Username already taken" }, status: 409 },
+    });
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/username already taken/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles network/unknown errors gracefully", async () => {
+    // Unknown error shape (non-Error instance)
+    mockRegister.mockRejectedValue({ message: "Something weird" });
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/registration failed\. please try again\./i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles Error instance branch gracefully", async () => {
+    // Reject with actual Error to hit error instanceof Error branch
+    mockRegister.mockRejectedValue(new Error("Network down"));
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/network down/i)).toBeInTheDocument();
+    });
+  });
 });
