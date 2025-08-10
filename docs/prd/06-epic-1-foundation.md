@@ -4,8 +4,9 @@
 
 **Expanded Goal**: The goal is to establish the complete, testable foundation for the application. This involves setting
 up the monorepo, initializing the frontend and backend applications, and establishing the full TDD testing harness and
-CI/CD pipeline as you requested. Once this foundation is laid, the epic will deliver the first piece of core user value:
-a complete, secure authentication system and the ability for users to manage and view their profiles.
+CI/CD pipeline with Docker-based continuous delivery as you requested. Once this foundation is laid, the epic will
+deliver the first piece of core user value: a complete, secure authentication system and the ability for users to manage
+and view their profiles.
 
 ### Story 1.1: Monorepo & Project Scaffolding
 
@@ -22,20 +23,45 @@ that I have a clean, organized structure for full-stack development.
 
 ### Story 1.2: TDD Test Harness & CI Pipeline Setup
 
-**As a developer**, I want a complete testing harness (unit, integration, E2E) and a basic CI pipeline configured, so
-that I can practice TDD from the very beginning and ensure code quality automatically.
+**As a developer**, I want a complete testing harness (unit, integration, E2E) and a comprehensive CI pipeline
+configured with caching and optimization, so that I can practice TDD from the very beginning and ensure code quality
+automatically.
 
 **Acceptance Criteria**:
 
 - Jest and React Testing Library are configured for the Next.js frontend.
 - Jest is configured for the NestJS backend.
-- An E2E testing framework (e.g., Cypress or Playwright) is installed and configured.
-- A basic CI pipeline (e.g., using GitHub Actions) is created that installs dependencies and runs all tests on every
-  push to the main branch.
+- An E2E testing framework (Playwright) is installed and configured.
+- A comprehensive CI pipeline (using GitHub Actions) is created that includes:
+  - Code quality checks (ESLint, Prettier, markdownlint)
+  - Unit and integration tests with coverage reporting
+  - E2E tests with Playwright
+  - Optimized caching for npm dependencies, Turborepo, and build artifacts
+  - Security scanning (CodeQL, Gitleaks, Trivy)
+  - SBOM generation for supply chain security
 - A sample passing unit test exists in both the frontend and backend to prove the configuration.
-- The CI pipeline runs successfully on the initial commit.
+- The CI pipeline runs successfully on the initial commit with all checks passing.
 
-### Story 1.3: User Registration & Login UI
+### Story 1.3: Docker Containerization & CD Pipeline
+
+**As a developer**, I want Docker containers and a continuous delivery pipeline configured, so that the application can
+be reliably deployed to production environments.
+
+**Acceptance Criteria**:
+
+- Multi-stage Dockerfile.prod is created for optimized production builds.
+- Docker Compose configuration for local development and production orchestration.
+- GitHub Container Registry (GHCR) integration for storing container images.
+- CI/CD pipeline includes:
+  - Building and pushing Docker images to GHCR on successful CI
+  - Image tagging with commit SHA and latest tags
+  - Docker Buildx caching for faster builds
+  - Automated deployment job with environment approval gates
+  - Health check validation for deployment success
+- Bootstrap scripts for server setup and deployment automation.
+- Documentation for deployment procedures, rollback processes, and infrastructure management.
+
+### Story 1.4: User Registration & Login UI
 
 **As a new user**, I want to see and interact with registration and login forms, so that I can create an account or sign
 in to the application.
@@ -48,7 +74,7 @@ in to the application.
 - The forms are styled with Tailwind CSS to match the modern, clean aesthetic.
 - Form submission is wired to placeholder functions; direct API integration is not required in this story.
 
-### Story 1.4: User Authentication Backend
+### Story 1.5: User Authentication Backend
 
 **As a developer**, I want to integrate Auth.js and set up the backend endpoints for user registration and login, so
 that users can be securely created and authenticated.
@@ -62,7 +88,7 @@ that users can be securely created and authenticated.
 - Upon successful login, a secure session is established for the user.
 - Appropriate error handling is implemented for duplicate usernames/emails or incorrect login credentials.
 
-### Story 1.5: Frontend-Backend Authentication Integration
+### Story 1.6: Frontend-Backend Authentication Integration
 
 **As a user**, I want to submit the registration and login forms and be securely authenticated, so that I can access the
 application's protected features.
@@ -76,7 +102,7 @@ application's protected features.
   Redux).
 - A "Sign Out" mechanism is implemented that clears the session and redirects to the login page.
 
-### Story 1.6: Basic User Profile Page
+### Story 1.7: Basic User Profile Page
 
 **As a logged-in user**, I want to view my own profile page and other users' profile pages, so that I can see basic user
 information.
@@ -91,7 +117,7 @@ information.
   in Epic 2).
 - The page displays a clear "User not found" message if the username in the URL does not exist.
 
-### Story 1.7: Edit Profile Functionality
+### Story 1.8: Edit Profile Functionality
 
 **As a logged-in user**, I want to edit my profile information, so that I can keep my details up to date.
 
@@ -104,7 +130,7 @@ information.
 - Submitting the form successfully updates the user's information in the database.
 - The profile page reflects the updated information upon successful submission.
 
-### Story 1.8: Demo Mode Access
+### Story 1.9: Demo Mode Access
 
 **As a recruiter**, I want a "Try our demo" button on the login page, so that I can instantly access the application
 without registering.

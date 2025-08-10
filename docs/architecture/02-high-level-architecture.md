@@ -5,33 +5,36 @@
 ### Technical Summary
 
 The architecture for Isntgram is a modern, full-stack monorepo designed for performance, scalability, and
-cost-efficiency. The system features a Next.js frontend hosted on Vercel for optimal performance and user experience,
-communicating with a monolithic NestJS API backend. The backend will be containerized and deployed on Railway, which
-will also host the PostgreSQL database. This platform choice is driven by the strict sub-$20/month budget. User
-authentication is managed by Auth.js, and image assets are stored in AWS S3. This architecture directly supports the PRD
-goals of creating a high-fidelity, portfolio-ready application with a focus on clean patterns and a seamless developer
-experience.
+cost-efficiency. The system features a Next.js frontend and NestJS API backend, both containerized using Docker and
+deployed on cost-effective cloud infrastructure. The application uses GitHub Container Registry (GHCR) for image storage
+and automated CI/CD pipelines for reliable deployments. The backend communicates with a managed PostgreSQL database, and
+user authentication is managed by Auth.js. Image assets are stored in AWS S3. This architecture directly supports the
+PRD goals of creating a high-fidelity, portfolio-ready application with a focus on clean patterns, seamless developer
+experience, and cost-effective production deployment.
 
 ### Platform and Infrastructure Choice
 
-**Platform**: Vercel (Frontend) & Railway (Backend/Database)
+**Platform**: Docker Containers on Cost-Effective Cloud VM
 
 **Key Services**:
 
-- Vercel: Next.js Hosting, Edge Network/CDN
-- Railway: Docker Container Hosting, PostgreSQL Database
-- AWS: S3 for image storage
+- GitHub Container Registry (GHCR): Container image storage and distribution
+- Cloud VM Provider (Hetzner/DigitalOcean): Application hosting
+- Managed PostgreSQL (Neon/Supabase): Database hosting
+- AWS S3: Image storage
+- Cloudflare: DNS, CDN, and security
+- Caddy/Traefik: Reverse proxy with automatic SSL
 
 **Deployment Host and Regions**:
 
-- Vercel: Global Edge Network
-- Railway/AWS: us-east-1 (or nearest cost-effective region)
+- Application: Cloud VM (Hetzner CX11 ~€4-5/mo or DigitalOcean $6/mo)
+- Database: Managed PostgreSQL (Neon/Supabase free tier)
+- CDN: Cloudflare global network
 
-**Rationale**: This hybrid-platform approach is optimized for our specific technology stack and budget. Vercel provides
-best-in-class performance and a seamless deployment experience for Next.js applications with a generous free tier.
-Railway offers a simple, Git-based deployment workflow for containerized applications like our NestJS backend and
-includes a free-tier PostgreSQL database, making it highly cost-effective and developer-friendly. This combination
-allows us to leverage premier services while staying comfortably within the project's budget constraints.
+**Rationale**: This Docker-based approach provides maximum control, cost efficiency, and scalability while maintaining
+modern deployment practices. Using containerization ensures consistent environments across development and production.
+The choice of cost-effective cloud providers keeps monthly costs under $10 while providing reliable infrastructure.
+GitHub Container Registry integrates seamlessly with our CI/CD pipeline and provides secure, private image storage.
 
 ### Repository Structure
 
@@ -49,43 +52,73 @@ graph TD
         A[Browser]
     end
 
-    subgraph Vercel
-        B[Next.js Frontend]
+    subgraph Cloud VM
+        B[Next.js Frontend Container]
+        C[NestJS API Container]
+        D[Reverse Proxy - Caddy/Traefik]
     end
 
-    subgraph Railway
-        C[NestJS API] --> D[PostgreSQL DB]
+    subgraph Managed Database
+        E[PostgreSQL Database]
     end
 
     subgraph AWS
-        E[S3 Image Storage]
+        F[S3 Image Storage]
     end
 
-    F[Auth.js]
+    subgraph GitHub
+        G[Container Registry - GHCR]
+        H[CI/CD Pipeline]
+    end
 
-    A -- Interacts --> B
+    I[Auth.js]
+
+    A -- Interacts --> D
+    D -- Routes --> B
+    D -- Routes --> C
     B -- API Calls --> C
-    B -- Secure Uploads --> E
-    C -- Authenticates via --> F
-    C -- CRUD Operations --> D
-    C -- Manages Image URLs --> E
+    B -- Secure Uploads --> F
+    C -- Authenticates via --> I
+    C -- CRUD Operations --> E
+    C -- Manages Image URLs --> F
+    H -- Builds & Pushes --> G
+    G -- Pulls Images --> B
+    G -- Pulls Images --> C
 
     style B fill:#000,stroke:#fff,stroke-width:2px,color:#fff
     style C fill:#E10098,stroke:#fff,stroke-width:2px,color:#fff
-    style D fill:#336791,stroke:#fff,stroke-width:2px,color:#fff
-    style E fill:#FF9900,stroke:#fff,stroke-width:2px,color:#fff
+    style E fill:#336791,stroke:#fff,stroke-width:2px,color:#fff
+    style F fill:#FF9900,stroke:#fff,stroke-width:2px,color:#fff
+    style G fill:#181717,stroke:#fff,stroke-width:2px,color:#fff
 ```
 
 ### Architectural and Design Patterns
 
-- **Jamstack Architecture**: The frontend will be built following Jamstack principles, utilizing Next.js to pre-render
-  static assets and interface with the backend API, ensuring optimal performance and scalability.
+- **Containerized Microservices**: The frontend and backend are deployed as separate Docker containers, enabling
+  independent scaling, deployment, and maintenance while maintaining the benefits of a monorepo for development.
 
-- **Monolithic API**: The backend will be a single, cohesive NestJS application. This simplifies development and
-  deployment for the MVP while maintaining internal modularity for potential future evolution.
+- **Reverse Proxy Pattern**: A reverse proxy (Caddy/Traefik) handles SSL termination, routing, and load balancing,
+  providing a single entry point for all traffic and automatic SSL certificate management.
 
 - **Repository Pattern**: The backend will use the repository pattern to abstract data access logic. This decouples
   business logic from the data source, which is critical for meeting our strict TDD and 95%+ test coverage requirement.
 
 - **Component-Based UI**: The frontend will be built as a collection of reusable React components, adhering to the UI/UX
   specification. This ensures a consistent, maintainable, and scalable user interface.
+
+- **Infrastructure as Code**: Docker Compose and bootstrap scripts ensure consistent environment setup and deployment
+  across different stages (development, staging, production).
+
+### Cost Analysis
+
+**Monthly Costs (Estimated)**:
+
+- Cloud VM: €4-6/mo (Hetzner CX11 or DigitalOcean $6/mo)
+- Managed Database: Free tier (Neon/Supabase)
+- Container Registry: Free (GHCR)
+- CDN/DNS: Free (Cloudflare)
+- S3 Storage: ~$0.50/mo for typical usage
+- **Total**: ~€5-7/mo (~$6-8/mo)
+
+This architecture provides enterprise-grade reliability and scalability while maintaining the strict sub-$20/month
+budget requirement.

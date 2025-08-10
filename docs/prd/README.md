@@ -35,7 +35,7 @@ sections for easier navigation and reference.
 
 ### 6. [Epic 1: Foundation, Authentication, and User Profiles](./06-epic-1-foundation.md)
 
-- Stories 1.1-1.8: Complete foundation setup and user authentication
+- Stories 1.1-1.9: Complete foundation setup, Docker CD pipeline, and user authentication
 
 ### 7. [Epic 2: Core Social Graph & Interactions](./07-epic-2-social-graph.md)
 
@@ -51,12 +51,17 @@ sections for easier navigation and reference.
 
 ### 10. [Epic List Overview](./10-epic-list.md)
 
-- High-level summary of all four epics
+- High-level summary of all five epics
 
 ### 11. [Checklist Results Report](./11-checklist-results.md)
 
 - Quality assessment results
 - Recommendations and next steps
+
+### 12. [Epic 5: Production Deployment & Infrastructure](./12-epic-5-production-deployment.md)
+
+- Stories 5.1-5.10: Docker production builds, GHCR integration, infrastructure setup, automated deployment, monitoring,
+  security, disaster recovery, performance optimization, and documentation
 
 ## Usage
 

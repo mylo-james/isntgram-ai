@@ -84,6 +84,14 @@ sections for easier navigation and reference.
 - Error categories and response formats
 - Monitoring and alerting
 
+### 13. [Deployment & Infrastructure](./13-deployment-infrastructure.md)
+
+- Docker-based deployment strategy
+- CI/CD pipeline architecture
+- Cloud infrastructure components
+- Security and monitoring considerations
+- Cost optimization and scaling
+
 ## Usage
 
 Each document can be read independently or as part of the complete architecture. The sharded structure allows for:
