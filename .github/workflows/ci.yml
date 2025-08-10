@@ -29,11 +29,10 @@ jobs:
           node-version: 20
           cache: "pnpm"
 
-      - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+      - name: �� Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -81,10 +80,9 @@ jobs:
           cache: "pnpm"
 
       - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -141,10 +139,9 @@ jobs:
           cache: "pnpm"
 
       - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -187,10 +184,9 @@ jobs:
           cache: "pnpm"
 
       - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
       - name: ♻️ Cache Next.js build cache
         uses: actions/cache@v4
@@ -295,10 +291,9 @@ jobs:
           cache: "pnpm"
 
       - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.3 --activate
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
