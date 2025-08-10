@@ -256,6 +256,7 @@ describe("CI Workflow Tests", () => {
       const expectedOrder = [
         "🚀 Checkout",
         "🔧 Setup Node.js",
+        "🧰 Setup pnpm",
         "📦 Install dependencies",
         "📥 Download Coverage",
         "📦 Extract Coverage",
