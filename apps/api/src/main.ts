@@ -12,7 +12,15 @@ async function bootstrap() {
   // Security headers
   app.use(
     helmet({
-      contentSecurityPolicy: false, // keep off until CSP is configured
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'none'"],
+          baseUri: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       referrerPolicy: { policy: 'no-referrer' },
     }),
