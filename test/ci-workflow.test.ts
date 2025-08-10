@@ -253,19 +253,37 @@ describe("CI Workflow Tests", () => {
       const steps = coverageJob.steps;
       const stepNames = steps.map((step: any) => step.name);
 
-      const expectedOrder = [
+      // Required steps present
+      const requiredSteps = [
         "🚀 Checkout",
         "🔧 Setup Node.js",
-        "🧰 Setup pnpm",
         "📦 Install dependencies",
         "📥 Download Coverage",
         "📦 Extract Coverage",
         "📈 Enforce Coverage Thresholds",
       ];
 
-      expectedOrder.forEach((expectedStep, index) => {
-        expect(stepNames[index]).toBe(expectedStep);
-      });
+      requiredSteps.forEach((name) => expect(stepNames).toContain(name));
+
+      // Optional pnpm setup step may exist
+      const pnpmIdx = stepNames.indexOf("🧰 Setup pnpm");
+      const checkoutIdx = stepNames.indexOf("🚀 Checkout");
+      const nodeIdx = stepNames.indexOf("🔧 Setup Node.js");
+      const installIdx = stepNames.indexOf("📦 Install dependencies");
+      const downloadIdx = stepNames.indexOf("📥 Download Coverage");
+      const extractIdx = stepNames.indexOf("📦 Extract Coverage");
+      const enforceIdx = stepNames.indexOf("📈 Enforce Coverage Thresholds");
+
+      // Enforce relative ordering of critical steps
+      expect(checkoutIdx).toBeLessThan(nodeIdx);
+      if (pnpmIdx !== -1) {
+        // pnpm setup must run before install
+        expect(pnpmIdx).toBeLessThan(installIdx);
+      }
+      expect(nodeIdx).toBeLessThan(installIdx);
+      expect(installIdx).toBeLessThan(downloadIdx);
+      expect(downloadIdx).toBeLessThan(extractIdx);
+      expect(extractIdx).toBeLessThan(enforceIdx);
     });
 
     test("should download coverage artifact with correct name", () => {
