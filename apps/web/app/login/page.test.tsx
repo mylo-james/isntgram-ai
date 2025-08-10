@@ -1,11 +1,29 @@
+// Mock NextAuth.js before importing
+jest.mock("next-auth/react", () => ({
+  signIn: jest.fn(),
+  useSession: jest.fn(),
+}));
+
+// Mock Next.js navigation
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "./page";
 
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
-
 describe("LoginPage", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock unauthenticated session
+    const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
+    useSession.mockReturnValue({
+      data: null,
+      status: "unauthenticated",
+    });
+  });
+
   it("renders login form with required fields", () => {
     render(<LoginPage />);
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
@@ -38,7 +56,10 @@ describe("LoginPage", () => {
     });
   });
 
-  it("submits valid form and shows success", async () => {
+  it("submits valid form and calls Auth.js signIn", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
@@ -46,15 +67,23 @@ describe("LoginPage", () => {
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
 
-    await waitFor(
-      () => {
-        expect(screen.getByText(/login successful/i)).toBeInTheDocument();
-      },
-      { timeout: 5000 },
-    );
+    await waitFor(() => {
+      expect(signIn).toHaveBeenCalledWith("credentials", {
+        email: "test@example.com",
+        password: "password123",
+        redirect: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/login successful/i)).toBeInTheDocument();
+    });
   });
 
   it("shows loading state during submission", () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
@@ -63,5 +92,37 @@ describe("LoginPage", () => {
     if (form) fireEvent.submit(form);
 
     expect(screen.getByText(/logging in/i)).toBeInTheDocument();
+  });
+
+  it("handles authentication errors", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: false, error: "Invalid credentials" });
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+    });
+  });
+
+  it("maps CredentialsSignin to a friendly error message", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: false, error: "CredentialsSignin" });
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+    });
   });
 });

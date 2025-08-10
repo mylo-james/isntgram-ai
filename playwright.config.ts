@@ -69,7 +69,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "cd apps/api && SKIP_DB=true PORT=3001 npm run start:prod",
+      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
       url: "http://127.0.0.1:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,

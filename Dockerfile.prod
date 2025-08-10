@@ -20,17 +20,18 @@ COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
-# Install all dependencies (including dev dependencies for building)
-RUN npm ci --prefer-offline --no-audit
+# Install pnpm via corepack and install deps
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN pnpm install --frozen-lockfile
 
 # Install CLI tools globally for building
-RUN npm install -g @nestjs/cli next
+RUN pnpm add -g @nestjs/cli next
 
 # Copy source code
 COPY . .
 
 # Build applications (all workspaces)
-RUN npm run build:all
+RUN pnpm run build:all
 
 # Production stage
 FROM node:20-alpine AS production
@@ -50,8 +51,9 @@ COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
 
 # Install only production dependencies (skip prepare script)
-RUN npm ci --only=production --prefer-offline --no-audit --ignore-scripts && \
-    npm cache clean --force
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate && \
+    pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    pnpm store prune
 
 # Copy built applications from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
@@ -74,4 +76,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3001/api/health || exit 1
 
 # Start the application in production mode
-CMD ["npm", "run", "start:prod"]
+CMD ["pnpm", "run", "start:prod"]

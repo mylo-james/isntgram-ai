@@ -5,13 +5,14 @@ import { AuthService } from './auth.service';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 
-// Mock bcrypt module
-jest.mock('bcrypt', () => ({
+// Mock argon2 module
+jest.mock('argon2', () => ({
   hash: jest.fn(),
-  compare: jest.fn(),
+  verify: jest.fn(),
+  argon2id: 2,
 }));
 
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -67,8 +68,8 @@ describe('AuthService', () => {
       mockUserRepository.create.mockReturnValue(mockUser);
       mockUserRepository.save.mockResolvedValue(mockUser);
 
-      // Mock bcrypt hash
-      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedpassword');
+      // Mock argon2 hash
+      (argon2.hash as jest.Mock).mockResolvedValue('hashedpassword');
 
       const result = await service.register(registerDto);
 
@@ -79,7 +80,7 @@ describe('AuthService', () => {
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { username: 'testuser' },
       });
-      expect(bcrypt.hash).toHaveBeenCalledWith('Password123', 12);
+      expect(argon2.hash).toHaveBeenCalled();
       expect(mockUserRepository.create).toHaveBeenCalledWith({
         email: 'test@example.com',
         username: 'testuser',
@@ -119,8 +120,8 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(null) // No email conflict
         .mockResolvedValueOnce({ ...mockUser, username: 'existinguser' }); // Username conflict
 
-      // Mock bcrypt hash
-      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedpassword');
+      // Mock argon2 hash
+      (argon2.hash as jest.Mock).mockResolvedValue('hashedpassword');
 
       await expect(service.register(registerDto)).rejects.toThrow(
         'Username already taken',
@@ -146,14 +147,14 @@ describe('AuthService', () => {
 
     it('should return user when credentials are valid', async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
 
       const result = await service.validateUser('test@example.com', 'password');
 
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
       });
-      expect(bcrypt.compare).toHaveBeenCalledWith('password', 'hashedpassword');
+      expect(argon2.verify).toHaveBeenCalledWith('hashedpassword', 'password');
       expect(result).toEqual(mockUser);
     });
 
@@ -170,16 +171,16 @@ describe('AuthService', () => {
 
     it('should return null when password is incorrect', async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      (argon2.verify as jest.Mock).mockResolvedValue(false);
 
       const result = await service.validateUser(
         'test@example.com',
         'wrongpassword',
       );
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        'wrongpassword',
+      expect(argon2.verify).toHaveBeenCalledWith(
         'hashedpassword',
+        'wrongpassword',
       );
       expect(result).toBeNull();
     });

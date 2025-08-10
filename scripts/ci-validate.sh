@@ -284,7 +284,7 @@ run_ci_tests() {
         print_status "E2E configuration tests passed"
     else
         print_error "E2E configuration tests failed"
-        print_error "Run 'npm run test:e2e:config' for details"
+        print_error "Run 'pnpm run test:e2e:config' for details"
         exit 1
     fi
     

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthNextAuthController } from './auth-nextauth.controller';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('AuthNextAuthController', () => {
   let controller: AuthNextAuthController;
@@ -20,7 +21,7 @@ describe('AuthNextAuthController', () => {
   } as unknown as Response;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const moduleBuilder = Test.createTestingModule({
       controllers: [AuthNextAuthController],
       providers: [
         {
@@ -28,7 +29,13 @@ describe('AuthNextAuthController', () => {
           useValue: mockAuthService,
         },
       ],
-    }).compile();
+    });
+
+    moduleBuilder
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: jest.fn().mockReturnValue(true) });
+
+    const module: TestingModule = await moduleBuilder.compile();
 
     controller = module.get<AuthNextAuthController>(AuthNextAuthController);
     authService = module.get<AuthService>(AuthService);

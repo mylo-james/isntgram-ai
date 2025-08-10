@@ -68,7 +68,7 @@ if docker info > /dev/null 2>&1; then
     print_status "Integration tests passed"
 else
     print_warning "Docker not available, skipping integration tests"
-    print_warning "Run 'npm run test:with-db' to run integration tests with database"
+    print_warning "Run 'pnpm run test:with-db' to run integration tests with database"
 fi
 
 # Step 4: Run E2E tests

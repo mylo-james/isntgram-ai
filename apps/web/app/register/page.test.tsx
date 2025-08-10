@@ -2,15 +2,29 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import RegisterPage from "./page";
 
 // Mock Next.js router
+const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
   }),
 }));
 
+// Mock API client
+jest.mock("@/lib/api-client", () => ({
+  apiClient: {
+    register: jest.fn(),
+  },
+}));
+
 describe("RegisterPage", () => {
+  const mockRegister = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Setup API client mock
+    const { apiClient } = jest.requireMock("@/lib/api-client") as { apiClient: { register: jest.Mock } };
+    apiClient.register = mockRegister;
   });
 
   afterEach(() => {
@@ -81,14 +95,24 @@ describe("RegisterPage", () => {
     });
   });
 
-  it("submits form with valid data", async () => {
+  it("submits form with valid data and calls API", async () => {
+    // Mock successful API response
+    mockRegister.mockResolvedValue({
+      user: {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        fullName: "Test User",
+      },
+      message: "User registered successfully",
+    });
+
     render(<RegisterPage />);
 
     const emailInput = screen.getByLabelText(/email/i);
     const fullNameInput = screen.getByLabelText(/full name/i);
     const usernameInput = screen.getByLabelText(/username/i);
     const passwordInput = screen.getByLabelText(/password/i);
-    // const submitButton = screen.getByRole('button', { name: /sign up/i });
 
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
@@ -100,16 +124,26 @@ describe("RegisterPage", () => {
       fireEvent.submit(form);
     }
 
-    // Wait for loading state to complete
-    await waitFor(
-      () => {
-        expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
-      },
-      { timeout: 5000 },
-    );
+    // Verify API was called with correct data
+    await waitFor(() => {
+      expect(mockRegister).toHaveBeenCalledWith({
+        email: "test@example.com",
+        username: "testuser",
+        fullName: "Test User",
+        password: "password123",
+      });
+    });
+
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
+    });
   });
 
   it("shows loading state during form submission", async () => {
+    // Mock slow API response
+    mockRegister.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+
     render(<RegisterPage />);
 
     const emailInput = screen.getByLabelText(/email/i);
@@ -126,5 +160,37 @@ describe("RegisterPage", () => {
 
     expect(submitButton).toBeDisabled();
     expect(screen.getByText(/signing up/i)).toBeInTheDocument();
+  });
+
+  it("handles API errors and displays error messages", async () => {
+    // Mock API error
+    mockRegister.mockRejectedValue({
+      response: {
+        data: { message: "Email already exists" },
+        status: 409,
+      },
+    });
+
+    render(<RegisterPage />);
+
+    const emailInput = screen.getByLabelText(/email/i);
+    const fullNameInput = screen.getByLabelText(/full name/i);
+    const usernameInput = screen.getByLabelText(/username/i);
+    const passwordInput = screen.getByLabelText(/password/i);
+
+    fireEvent.change(emailInput, { target: { value: "existing@example.com" } });
+    fireEvent.change(fullNameInput, { target: { value: "Test User" } });
+    fireEvent.change(usernameInput, { target: { value: "testuser" } });
+    fireEvent.change(passwordInput, { target: { value: "password123" } });
+
+    const form = emailInput.closest("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    // Wait for error message
+    await waitFor(() => {
+      expect(screen.getByText(/email already exists/i)).toBeInTheDocument();
+    });
   });
 });

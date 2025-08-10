@@ -7,10 +7,13 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { UseGuards } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 
-@Controller('api/auth')
+@UseGuards(ThrottlerGuard)
+@Controller('auth')
 export class AuthNextAuthController {
   constructor(private readonly authService: AuthService) {}
 

@@ -14,58 +14,21 @@ interface ExtendedAdapterUser extends AdapterUser {
   password?: string;
 }
 
+// Disabled insecure adapter: it could store plaintext passwords if used.
+// Keeping the class exported for potential future implementation, but methods are no-ops.
 export class NestJSAdapter implements Adapter {
   constructor(private userRepository: Repository<User>) {}
 
-  async createUser(user: AdapterUser) {
-    const extendedUser = user as ExtendedAdapterUser;
-    const newUser = this.userRepository.create({
-      email: user.email || '',
-      username: extendedUser.username || '',
-      fullName: user.name || '',
-      hashedPassword: extendedUser.password || '', // This should be hashed
-      postsCount: 0,
-      followerCount: 0,
-      followingCount: 0,
-    });
-
-    const savedUser = await this.userRepository.save(newUser);
-    return {
-      id: savedUser.id,
-      email: savedUser.email,
-      name: savedUser.fullName,
-      emailVerified: null, // Add required field
-    };
+  async createUser(_user: AdapterUser): Promise<AdapterUser> {
+    throw new Error('Adapter disabled: not implemented securely');
   }
 
-  async getUser(id: string) {
-    const user = await this.userRepository.findOne({
-      where: { id },
-    });
-
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.fullName,
-      emailVerified: null, // Add required field
-    };
+  async getUser(_id: string) {
+    return null;
   }
 
-  async getUserByEmail(email: string) {
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
-
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.fullName,
-      emailVerified: null, // Add required field
-    };
+  async getUserByEmail(_email: string) {
+    return null;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -78,42 +41,12 @@ export class NestJSAdapter implements Adapter {
   }
 
   async updateUser(
-    user: Partial<AdapterUser> & Pick<AdapterUser, 'id'>,
+    _user: Partial<AdapterUser> & Pick<AdapterUser, 'id'>,
   ): Promise<AdapterUser> {
-    const existingUser = await this.userRepository.findOne({
-      where: { id: user.id },
-    });
-
-    if (!existingUser) {
-      throw new Error('User not found');
-    }
-
-    const extendedUser = user as ExtendedAdapterUser;
-    Object.assign(existingUser, {
-      email: user.email,
-      fullName: user.name,
-      username: extendedUser.username,
-    });
-
-    const updatedUser = await this.userRepository.save(existingUser);
-
-    return {
-      id: updatedUser.id,
-      email: updatedUser.email,
-      name: updatedUser.fullName,
-      emailVerified: null, // Add required field
-    };
+    throw new Error('Adapter disabled: not implemented securely');
   }
 
-  async deleteUser(userId: string) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) return;
-
-    await this.userRepository.remove(user);
-  }
+  async deleteUser(_userId: string) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async linkAccount(account: AdapterAccount): Promise<void> {
