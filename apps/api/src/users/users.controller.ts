@@ -1,14 +1,7 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { UsersService, UserProfileDto } from './users.service';
 
-@Controller('api/users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

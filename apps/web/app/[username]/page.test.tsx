@@ -43,8 +43,8 @@ describe("UserProfilePage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    const { auth } = require("@/lib/auth");
-    auth.mockResolvedValue({
+    const authModule = jest.requireMock("@/lib/auth");
+    authModule.auth.mockResolvedValue({
       user: { id: "1", username: "testuser", email: "test@example.com" },
     } as never);
   });
@@ -88,8 +88,8 @@ describe("UserProfilePage", () => {
     const mockSession = {
       user: { id: "1", username: "currentuser", email: "current@example.com" },
     };
-    const { auth } = require("@/lib/auth");
-    auth.mockResolvedValue(mockSession as never);
+    const authModule = jest.requireMock("@/lib/auth");
+    authModule.auth.mockResolvedValue(mockSession as never);
 
     const params = { username: "testuser" };
 
@@ -101,8 +101,8 @@ describe("UserProfilePage", () => {
   });
 
   it("handles null session gracefully", async () => {
-    const { auth } = require("@/lib/auth");
-    auth.mockResolvedValue(null as never);
+    const authModule = jest.requireMock("@/lib/auth");
+    authModule.auth.mockResolvedValue(null as never);
 
     const params = { username: "testuser" };
 
