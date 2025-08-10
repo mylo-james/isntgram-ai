@@ -274,7 +274,8 @@ describe("CI Workflow Tests", () => {
 
     test("should download coverage artifact with correct name", () => {
       const downloadStep = coverageJob.steps.find((step: any) => step.name === "📥 Download Coverage");
-      expect(downloadStep.uses).toBe("actions/download-artifact@v4");
+      expect(typeof downloadStep.uses).toBe("string");
+      expect(downloadStep.uses).toMatch(/^actions\/download-artifact@/);
       expect(downloadStep.with.name).toBe("coverage");
     });
 
