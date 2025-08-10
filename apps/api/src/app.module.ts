@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './users/entities/user.entity';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 function getDatabaseModules() {
@@ -49,7 +50,7 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule];
+  return [AuthModule, UsersModule];
 }
 
 @Module({
