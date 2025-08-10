@@ -7,6 +7,13 @@ WORKDIR /app
 # Disable Husky during Docker builds
 ENV HUSKY=0
 
+# Build-time placeholders to satisfy Next.js production build checks
+# Do not use real secrets here; runtime stage does not inherit these
+ARG AUTH_SECRET="__build_placeholder__"
+ARG NEXTAUTH_SECRET="__build_placeholder__"
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+
 # Install system dependencies for building
 RUN apk add --no-cache \
     python3 \
@@ -15,6 +22,8 @@ RUN apk add --no-cache \
 
 # Copy package manifests (preserve workspace structure)
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
 COPY .npmrc ./.npmrc
 COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
@@ -23,9 +32,6 @@ COPY packages/shared-types/package*.json packages/shared-types/
 # Install pnpm via corepack and install deps
 RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
 RUN pnpm install --frozen-lockfile
-
-# Install CLI tools globally for building
-RUN pnpm add -g @nestjs/cli next
 
 # Copy source code
 COPY . .
@@ -46,6 +52,9 @@ RUN apk add --no-cache \
 
 # Copy package manifests
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
+COPY .npmrc ./.npmrc
 COPY apps/api/package*.json apps/api/
 COPY apps/web/package*.json apps/web/
 COPY packages/shared-types/package*.json packages/shared-types/
