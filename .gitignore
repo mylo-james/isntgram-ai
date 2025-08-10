@@ -240,3 +240,6 @@ coverage/
 
 # Turborepo cache (local only; do not commit)
 .turbo/
+
+# Turborepo
+.turbo
