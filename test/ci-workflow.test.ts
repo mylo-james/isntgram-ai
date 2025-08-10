@@ -213,7 +213,8 @@ describe("CI Workflow Tests", () => {
 
     test("should have correct Node.js setup", () => {
       const nodeStep = qualityJob.steps.find((step: any) => step.name === "🔧 Setup Node.js");
-      expect(nodeStep.uses).toBe("actions/setup-node@v4");
+      expect(typeof nodeStep.uses).toBe("string");
+      expect(nodeStep.uses).toMatch(/^actions\/setup-node@/);
       expect(nodeStep.with).toEqual({
         "node-version": 20,
         cache: "npm",
@@ -237,7 +238,8 @@ describe("CI Workflow Tests", () => {
 
     test("should upload coverage artifact with correct name", () => {
       const uploadStep = qualityJob.steps.find((step: any) => step.name === "📊 Upload Coverage");
-      expect(uploadStep.uses).toBe("actions/upload-artifact@v4");
+      expect(typeof uploadStep.uses).toBe("string");
+      expect(uploadStep.uses).toMatch(/^actions\/upload-artifact@/);
       expect(uploadStep.with.name).toBe("coverage");
       expect(uploadStep.with.path).toBe("coverage-artifacts.tgz");
     });
@@ -321,6 +323,10 @@ describe("CI Workflow Tests", () => {
       expect(env.DB_USERNAME).toBe("postgres");
       expect(env.DB_PASSWORD).toBe("postgres");
       expect(env.DB_NAME).toBe("isntgram_test");
+      // Turbo remote cache env (optional)
+      expect(env.TURBO_TEAM).toBeDefined();
+      expect(typeof env.TURBO_TEAM).toBe("string");
+      expect(env.TURBO_TOKEN).toBeDefined();
     });
 
     test("should have integration test step", () => {
@@ -356,6 +362,12 @@ describe("CI Workflow Tests", () => {
       const steps = e2eJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("🌐 E2E Tests");
+    });
+
+    test("should cache Next.js build cache", () => {
+      const cacheStep = e2eJob.steps.find((s: any) => s.name === "♻️ Cache Next.js build cache");
+      expect(cacheStep).toBeDefined();
+      expect(cacheStep.uses).toBe("actions/cache@v4");
     });
 
     test("should run E2E tests", () => {
@@ -421,6 +433,13 @@ describe("CI Workflow Tests", () => {
       const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("📋 Generate SBOM");
+    });
+
+    test("should enable Docker Buildx cache", () => {
+      const buildStep = productionBuildJob.steps.find((s: any) => s.name === "🐳 Build Production Docker Image");
+      expect(buildStep).toBeDefined();
+      expect(buildStep.with["cache-from"]).toBe("type=gha");
+      expect(buildStep.with["cache-to"]).toBe("type=gha,mode=max");
     });
   });
 

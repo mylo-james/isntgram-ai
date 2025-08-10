@@ -127,6 +127,8 @@ jobs:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_NAME: isntgram_test
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -148,6 +150,16 @@ jobs:
 
       - name: 📦 Install dependencies
         run: npm ci
+
+      - name: ♻️ Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key:
+            next-cache-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
+          restore-keys: |
+            next-cache-${{ runner.os }}-
 
       - name: 🧱 Build Applications
         run: npm run build:all
@@ -185,6 +197,16 @@ jobs:
           key: turbo-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             turbo-${{ runner.os }}-
+
+      - name: ♻️ Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key:
+            next-cache-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
+          restore-keys: |
+            next-cache-${{ runner.os }}-
 
       - name: 📦 Install dependencies
         run: npm ci
@@ -235,6 +257,8 @@ jobs:
           file: Dockerfile.prod
           load: true
           tags: isntgram-ai:prod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy Container Scan
         uses: aquasecurity/trivy-action@0.32.0
