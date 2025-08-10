@@ -53,4 +53,4 @@ This decision is fully delegated to the Architect to select the most cost-effect
 ### Hosting/Infrastructure
 
 This decision is delegated to the Architect. The solution must respect the hard budget constraint of <$20/month.
-Evaluation of Firebase, Vercel, Supabase, AWS, Railway, or other providers is expected.
+Evaluation of Firebase, Supabase, AWS, Railway, or other providers is expected.

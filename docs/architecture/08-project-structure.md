@@ -34,8 +34,8 @@ The local development setup process and common npm scripts (`dev`, `build`, `tes
 
 ## Deployment Architecture
 
-A hybrid deployment strategy is defined:
+A containerized deployment strategy is defined:
 
-- **Frontend (Next.js)**: Deployed to Vercel for its global CDN and preview deployments.
+- **Frontend (Next.js)**: Containerized with Docker for consistent deployment.
 - **Backend (NestJS)**: Containerized with Docker and deployed to Railway.
 - **CI/CD**: Automated via GitHub Actions for linting, testing, and building.
