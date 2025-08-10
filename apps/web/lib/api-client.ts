@@ -33,6 +33,20 @@ export interface LoginResponse {
   accessToken: string;
 }
 
+export interface UserProfile {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  profilePictureUrl?: string;
+  bio?: string;
+  postCount: number;
+  followerCount: number;
+  followingCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -117,6 +131,12 @@ class ApiClient {
   // Logout endpoint
   async logout(): Promise<{ message: string }> {
     const response = await this.client.post<{ message: string }>("/api/auth/signout");
+    return response.data;
+  }
+
+  // Get user profile by username
+  async getUserProfile(username: string): Promise<UserProfile> {
+    const response = await this.client.get<UserProfile>(`/api/users/${username}`);
     return response.data;
   }
 
