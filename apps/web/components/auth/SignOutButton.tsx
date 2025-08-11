@@ -7,11 +7,11 @@ import Button from "@/components/ui/Button";
 
 interface SignOutButtonProps {
   className?: string;
-  variant?: "primary" | "secondary" | "outline";
+  variant?: "primary" | "secondary" | "outline" | "destructive";
   size?: "sm" | "md" | "lg";
 }
 
-export default function SignOutButton({ className = "", variant = "outline", size = "md" }: SignOutButtonProps) {
+export default function SignOutButton({ className = "", variant = "destructive", size = "md" }: SignOutButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const router = useRouter();
@@ -48,10 +48,16 @@ export default function SignOutButton({ className = "", variant = "outline", siz
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-600">Are you sure?</span>
-        <Button variant="secondary" size="sm" onClick={handleSignOut} loading={isLoading} loadingText="Signing out...">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleSignOut}
+          loading={isLoading}
+          loadingText="Signing out..."
+        >
           Yes, Sign Out
         </Button>
-        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isLoading}>
+        <Button variant="secondary" size="sm" onClick={handleCancel} disabled={isLoading}>
           Cancel
         </Button>
       </div>

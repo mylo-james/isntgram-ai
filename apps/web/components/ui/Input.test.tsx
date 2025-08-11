@@ -12,7 +12,7 @@ describe("Input", () => {
     render(<Input label="Test Label" id="test" error="This is an error" />);
 
     expect(screen.getByText("This is an error")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("")).toHaveClass("border-red-300");
+    expect(screen.getByDisplayValue("")).toHaveClass("border-red-500");
   });
 
   it("renders input with validation error", () => {
@@ -20,7 +20,7 @@ describe("Input", () => {
     render(<Input label="Test Label" id="test" validation={validation} />);
 
     expect(screen.getByText("Validation failed")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("")).toHaveClass("border-red-300");
+    expect(screen.getByDisplayValue("")).toHaveClass("border-red-500");
   });
 
   it("prioritizes error over validation message", () => {
@@ -60,7 +60,7 @@ describe("Input", () => {
     render(<Input label="Test Label" id="test" error="Error message" />);
 
     const input = screen.getByDisplayValue("");
-    expect(input).toHaveClass("border-red-300", "focus:ring-red-500", "focus:border-red-500");
+    expect(input).toHaveClass("border-red-500", "focus:ring-red-500", "focus:border-red-500");
   });
 
   it("applies error styling when validation fails", () => {
@@ -68,7 +68,7 @@ describe("Input", () => {
     render(<Input label="Test Label" id="test" validation={validation} />);
 
     const input = screen.getByDisplayValue("");
-    expect(input).toHaveClass("border-red-300", "focus:ring-red-500", "focus:border-red-500");
+    expect(input).toHaveClass("border-red-500", "focus:ring-red-500", "focus:border-red-500");
   });
 
   it("applies normal styling when no error", () => {
@@ -76,7 +76,7 @@ describe("Input", () => {
 
     const input = screen.getByDisplayValue("");
     expect(input).toHaveClass("border-gray-300", "focus:ring-blue-500", "focus:border-blue-500");
-    expect(input).not.toHaveClass("border-red-300", "focus:ring-red-500", "focus:border-red-500");
+    expect(input).not.toHaveClass("border-red-500", "focus:ring-red-500", "focus:border-red-500");
   });
 
   it("passes through all input props", () => {

@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import argon2 from 'argon2';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(
@@ -79,5 +81,41 @@ export class AuthService {
     return this.userRepository.findOne({
       where: { email },
     });
+  }
+
+  async getOrCreateDemoUser(): Promise<Omit<User, 'hashedPassword'>> {
+    const email =
+      this.configService.get<string>('DEMO_EMAIL') || 'demo@isntgram.ai';
+    const username = this.configService.get<string>('DEMO_USERNAME') || 'demo';
+    const fullName =
+      this.configService.get<string>('DEMO_FULL_NAME') || 'Demo User';
+    const demoPassword =
+      this.configService.get<string>('DEMO_PASSWORD') || 'demo';
+
+    const existing = await this.userRepository.findOne({ where: { email } });
+    if (existing) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { hashedPassword: _hp, ...userWithoutPassword } = existing;
+      return userWithoutPassword;
+    }
+
+    const hashedPassword = await argon2.hash(demoPassword, {
+      type: argon2.argon2id,
+    });
+
+    const demoUser = this.userRepository.create({
+      email,
+      username,
+      fullName,
+      hashedPassword,
+      postsCount: 3,
+      followerCount: 12,
+      followingCount: 7,
+    });
+
+    const saved = await this.userRepository.save(demoUser);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { hashedPassword: _hp2, ...userWithoutPassword2 } = saved;
+    return userWithoutPassword2;
   }
 }

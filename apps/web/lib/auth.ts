@@ -2,10 +2,10 @@ import NextAuth, { type NextAuthConfig, type Session, type User } from "next-aut
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 
-type JwtToken = JWT & { accessToken?: string; username?: string };
+type JwtToken = JWT & { accessToken?: string; username?: string; isDemoUser?: boolean };
 type AppSession = Session & {
   accessToken?: string;
-  user: NonNullable<Session["user"]> & { id: string; username?: string };
+  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
 };
 
 const authConfig: NextAuthConfig = {
@@ -43,6 +43,7 @@ const authConfig: NextAuthConfig = {
         const data = (await response.json()) as {
           user: { id: string; email: string; username: string; fullName: string };
           accessToken?: string;
+          isDemoUser?: boolean;
         };
 
         return {
@@ -51,6 +52,7 @@ const authConfig: NextAuthConfig = {
           name: data.user.fullName,
           username: data.user.username,
           accessToken: data.accessToken,
+          // isDemoUser will be set in jwt callback if present
         } as unknown as User & { username?: string; accessToken?: string };
       },
     }),
@@ -59,11 +61,20 @@ const authConfig: NextAuthConfig = {
   callbacks: {
     async jwt(params) {
       const token = params.token as JwtToken;
-      const user = params.user as (User & { accessToken?: string; username?: string }) | undefined;
+      const user = params.user as
+        | (User & { accessToken?: string; username?: string; isDemoUser?: boolean })
+        | undefined;
       if (user) {
         token.accessToken = user.accessToken;
-        token.username = user.username;
+        token.username = (user as unknown as { username?: string }).username;
       }
+
+      // If we can detect demo sign-in intent via custom env, set a stable flag when demo credentials are used
+      const maybeEmail = (params.account?.providerAccountId as string) || (user?.email as string | undefined);
+      if (maybeEmail && maybeEmail === (process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai")) {
+        token.isDemoUser = true;
+      }
+
       return token;
     },
     async session(params) {
@@ -73,6 +84,7 @@ const authConfig: NextAuthConfig = {
         if (token.sub) session.user.id = token.sub as string;
         if (token.username) session.user.username = token.username;
         if (token.accessToken) session.accessToken = token.accessToken;
+        if (token.isDemoUser) session.user.isDemoUser = true;
       }
       return session;
     },

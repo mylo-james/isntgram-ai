@@ -428,7 +428,7 @@ describe("CI Workflow Tests", () => {
     test("should build Docker images", () => {
       const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
-      expect(stepNames).toContain("🐳 Build Production Docker Image");
+      expect(stepNames).toContain("🐳 Build and Push Production Docker Image");
     });
 
     test("should have Trivy scan", () => {
@@ -444,7 +444,9 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should enable Docker Buildx cache", () => {
-      const buildStep = productionBuildJob.steps.find((s: any) => s.name === "🐳 Build Production Docker Image");
+      const buildStep = productionBuildJob.steps.find(
+        (s: any) => s.name === "🐳 Build and Push Production Docker Image",
+      );
       expect(buildStep).toBeDefined();
       expect(buildStep.with["cache-from"]).toBe("type=gha");
       expect(buildStep.with["cache-to"]).toBe("type=gha,mode=max");

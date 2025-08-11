@@ -15,6 +15,7 @@ interface EditProfileModalProps {
   initialValues: EditProfileInitialValues;
   onSubmit?: (values: EditProfileInitialValues) => Promise<void> | void;
   checkUsername?: (username: string) => Promise<boolean> | boolean; // returns true if available
+  isDemoUser?: boolean;
 }
 
 export default function EditProfileModal({
@@ -23,6 +24,7 @@ export default function EditProfileModal({
   initialValues,
   onSubmit,
   checkUsername,
+  isDemoUser = false,
 }: EditProfileModalProps) {
   const {
     register,
@@ -70,6 +72,8 @@ export default function EditProfileModal({
   };
 
   const submitHandler = async (values: EditProfileInitialValues) => {
+    if (isDemoUser) return; // read-only
+
     // Client-side validation
     const fullNameValidation = validateRequired(values.fullName, "Full name");
     if (!fullNameValidation.isValid) {
@@ -122,6 +126,11 @@ export default function EditProfileModal({
         </div>
 
         <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
+          {isDemoUser && (
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              Demo mode: profile editing is disabled.
+            </div>
+          )}
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
               Full Name
@@ -132,6 +141,7 @@ export default function EditProfileModal({
               {...register("fullName", { required: "Full name is required" })}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Enter your full name"
+              disabled={isDemoUser}
             />
             {errors.fullName?.message && (
               <p className="mt-1 text-sm text-red-600" role="alert">
@@ -153,6 +163,7 @@ export default function EditProfileModal({
               })}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Enter your username"
+              disabled={isDemoUser}
             />
             {errors.username?.message && (
               <p className="mt-1 text-sm text-red-600" role="alert">
@@ -175,7 +186,7 @@ export default function EditProfileModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isDemoUser}
               className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Saving..." : "Save"}

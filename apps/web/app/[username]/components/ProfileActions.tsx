@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { type Session } from "next-auth";
 import EditProfileModal from "@/components/profile/EditProfileModal";
+import SignOutButton from "@/components/auth/SignOutButton";
 import { apiClient } from "@/lib/api-client";
 import { useDispatch } from "react-redux";
 import { setUser } from "@/lib/store/auth-slice";
 
 // Extend the Session type to include username
 type AppSession = Session & {
-  user: NonNullable<Session["user"]> & { id: string; username?: string };
+  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
 };
 
 interface UserProfile {
@@ -40,6 +41,8 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
   const router = useRouter();
   const dispatch = useDispatch();
+
+  const isDemoUser = Boolean(currentUser?.isDemoUser);
 
   const handleEditProfile = async () => {
     // Refresh initial values from backend for own profile
@@ -78,7 +81,7 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   };
 
   const submitEdit = async (values: { fullName: string; username: string }) => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isDemoUser) return;
     const updated = await apiClient.updateProfile({
       id: currentUser.id,
       fullName: values.fullName,
@@ -119,23 +122,28 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
         <>
           <button
             onClick={handleEditProfile}
-            className="w-full px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium"
+            className="w-full px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium disabled:bg-gray-500 disabled:cursor-not-allowed"
+            disabled={isDemoUser}
+            title={isDemoUser ? "Demo mode: editing disabled" : undefined}
           >
             Edit Profile
           </button>
+          <SignOutButton className="w-full" />
           <EditProfileModal
             open={isEditOpen}
             onClose={() => setIsEditOpen(false)}
             initialValues={editInitial}
             checkUsername={checkUsername}
             onSubmit={submitEdit}
+            isDemoUser={isDemoUser}
           />
         </>
       ) : (
         <button
           onClick={handleFollow}
-          disabled={isLoading}
+          disabled={isLoading || isDemoUser}
           className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
+          title={isDemoUser ? "Demo mode: following disabled" : undefined}
         >
           {isLoading ? "Following..." : "Follow"}
         </button>
