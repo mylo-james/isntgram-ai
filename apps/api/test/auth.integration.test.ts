@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
+import { ConfigModule } from '@nestjs/config';
 
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
@@ -35,6 +36,7 @@ describe('Auth Integration Tests', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot(databaseConfig),
         // Disable throttling for tests
         ThrottlerModule.forRoot([

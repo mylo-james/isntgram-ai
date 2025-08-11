@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { type Session } from "next-auth";
 import EditProfileModal from "@/components/profile/EditProfileModal";
+import SignOutButton from "@/components/auth/SignOutButton";
 import { apiClient } from "@/lib/api-client";
 import { useDispatch } from "react-redux";
 import { setUser } from "@/lib/store/auth-slice";
 
 // Extend the Session type to include username
 type AppSession = Session & {
-  user: NonNullable<Session["user"]> & { id: string; username?: string };
+  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
 };
 
 interface UserProfile {
@@ -40,6 +41,8 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
   const router = useRouter();
   const dispatch = useDispatch();
+
+  const isDemoUser = Boolean(currentUser?.isDemoUser);
 
   const handleEditProfile = async () => {
     // Refresh initial values from backend for own profile
@@ -78,7 +81,7 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   };
 
   const submitEdit = async (values: { fullName: string; username: string }) => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isDemoUser) return;
     const updated = await apiClient.updateProfile({
       id: currentUser.id,
       fullName: values.fullName,
@@ -102,10 +105,10 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
 
   if (!currentUser) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={() => router.push("/login")}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
           Log in to interact
         </button>
@@ -114,28 +117,33 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg shadow-sm p-6">
       {isOwnProfile ? (
         <>
           <button
             onClick={handleEditProfile}
-            className="w-full px-6 py-3 bg-white text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium disabled:bg-gray-500 disabled:cursor-not-allowed"
+            disabled={isDemoUser}
+            title={isDemoUser ? "Demo mode: editing disabled" : undefined}
           >
             Edit Profile
           </button>
+          <SignOutButton className="w-full" />
           <EditProfileModal
             open={isEditOpen}
             onClose={() => setIsEditOpen(false)}
             initialValues={editInitial}
             checkUsername={checkUsername}
             onSubmit={submitEdit}
+            isDemoUser={isDemoUser}
           />
         </>
       ) : (
         <button
           onClick={handleFollow}
-          disabled={isLoading}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading || isDemoUser}
+          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
+          title={isDemoUser ? "Demo mode: following disabled" : undefined}
         >
           {isLoading ? "Following..." : "Follow"}
         </button>

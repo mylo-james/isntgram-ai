@@ -29,6 +29,7 @@ function LoginInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
+  const [demoLoading, setDemoLoading] = useState(false);
 
   // Check for success message from registration
   useEffect(() => {
@@ -117,17 +118,45 @@ function LoginInner() {
     }
   };
 
+  const handleDemoSignIn = async () => {
+    setFormError("");
+    setSuccessMessage("");
+    setDemoLoading(true);
+    try {
+      // Hit backend to ensure demo user exists and return user; NextAuth will not use this response directly,
+      // but this guarantees the account is present and DB is warmed.
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const res = await fetch(`${apiBase}/api/auth/demo`, { method: "POST" });
+      if (!res.ok) {
+        throw new Error("Demo sign-in failed");
+      }
+      // Now sign in via credentials using demo email/password pair
+      const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
+      const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";
+      const result = await signIn("credentials", { email: demoEmail, password: demoPassword, redirect: false });
+      if (result?.error) {
+        setFormError("Demo sign-in failed");
+      } else if (result?.ok) {
+        router.push("/");
+      }
+    } catch {
+      setFormError("Demo sign-in failed");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-semibold text-gray-900">Isntgram</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Isntgram</h1>
           <p className="mt-2 text-sm text-gray-600">Welcome back</p>
         </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-sm border border-gray-200 sm:rounded-xl sm:px-10">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <Form onSubmit={handleSubmit} errorMessage={formError}>
             <Input
               id="email"
@@ -156,15 +185,25 @@ function LoginInner() {
             />
 
             {successMessage && (
-              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
-                {successMessage}
-              </div>
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
             )}
 
             <Button type="submit" loading={isLoading} loadingText="Logging in..." className="w-full">
               Log In
             </Button>
           </Form>
+
+          <div className="mt-4">
+            <Button
+              type="button"
+              loading={demoLoading}
+              loadingText="Starting demo..."
+              className="w-full bg-gray-100 text-gray-800 hover:bg-gray-200"
+              onClick={handleDemoSignIn}
+            >
+              Try our demo
+            </Button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

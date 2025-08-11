@@ -14,9 +14,13 @@ jest.mock("next/navigation", () => ({
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "./page";
 
+// Mock fetch
+const originalFetch = global.fetch;
+
 describe("LoginPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn();
     // Mock unauthenticated session
     const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
     useSession.mockReturnValue({
@@ -25,11 +29,57 @@ describe("LoginPage", () => {
     });
   });
 
+  afterAll(() => {
+    (global as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+  });
+
   it("renders login form with required fields", () => {
     render(<LoginPage />);
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /log in/i })).toBeInTheDocument();
+  });
+
+  it("renders a Try our demo button", () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("button", { name: /try our demo/i })).toBeInTheDocument();
+  });
+
+  it("clicking demo button calls backend demo endpoint then signs in", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+
+    (global as unknown as { fetch: jest.Mock }).fetch.mockResolvedValue({ ok: true, status: 200 });
+
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect((global as unknown as { fetch: jest.Mock }).fetch).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(signIn).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("shows a generic error if demo backend call fails", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: false, error: "some error" });
+    (global as unknown as { fetch: jest.Mock }).fetch.mockResolvedValue({ ok: false, status: 500 });
+
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/demo sign-in failed/i)).toBeInTheDocument();
+    });
   });
 
   it("shows validation errors for empty fields on submit", async () => {

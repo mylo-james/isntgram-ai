@@ -61,4 +61,15 @@ export class AuthNextAuthController {
       user,
     });
   }
+
+  @Post('demo')
+  @HttpCode(HttpStatus.OK)
+  async demo(@Res() res: Response) {
+    const user = await this.authService.getOrCreateDemoUser();
+    return res.json({
+      message: 'Demo sign in successful',
+      user,
+      isDemoUser: true,
+    });
+  }
 }

@@ -15,6 +15,7 @@ interface EditProfileModalProps {
   initialValues: EditProfileInitialValues;
   onSubmit?: (values: EditProfileInitialValues) => Promise<void> | void;
   checkUsername?: (username: string) => Promise<boolean> | boolean; // returns true if available
+  isDemoUser?: boolean;
 }
 
 export default function EditProfileModal({
@@ -23,6 +24,7 @@ export default function EditProfileModal({
   initialValues,
   onSubmit,
   checkUsername,
+  isDemoUser = false,
 }: EditProfileModalProps) {
   const {
     register,
@@ -70,6 +72,8 @@ export default function EditProfileModal({
   };
 
   const submitHandler = async (values: EditProfileInitialValues) => {
+    if (isDemoUser) return; // read-only
+
     // Client-side validation
     const fullNameValidation = validateRequired(values.fullName, "Full name");
     if (!fullNameValidation.isValid) {
@@ -102,12 +106,12 @@ export default function EditProfileModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-profile-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onMouseDown={handleOverlayClick}
       data-testid="edit-profile-modal"
     >
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-4" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 id="edit-profile-title" className="text-lg font-semibold text-gray-900">
             Edit Profile
           </h2>
@@ -115,13 +119,18 @@ export default function EditProfileModal({
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="Close edit profile"
-            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-1"
+            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
           >
             ✕
           </button>
         </div>
 
         <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
+          {isDemoUser && (
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              Demo mode: profile editing is disabled.
+            </div>
+          )}
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
               Full Name
@@ -132,6 +141,7 @@ export default function EditProfileModal({
               {...register("fullName", { required: "Full name is required" })}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Enter your full name"
+              disabled={isDemoUser}
             />
             {errors.fullName?.message && (
               <p className="mt-1 text-sm text-red-600" role="alert">
@@ -153,6 +163,7 @@ export default function EditProfileModal({
               })}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Enter your username"
+              disabled={isDemoUser}
             />
             {errors.username?.message && (
               <p className="mt-1 text-sm text-red-600" role="alert">
@@ -169,14 +180,14 @@ export default function EditProfileModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting || isDemoUser}
+              className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Saving..." : "Save"}
             </button>
