@@ -102,10 +102,10 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
 
   if (!currentUser) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <button
           onClick={() => router.push("/login")}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           Log in to interact
         </button>
@@ -114,12 +114,12 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       {isOwnProfile ? (
         <>
           <button
             onClick={handleEditProfile}
-            className="w-full px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium"
+            className="w-full px-6 py-3 bg-white text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             Edit Profile
           </button>
@@ -135,7 +135,7 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
         <button
           onClick={handleFollow}
           disabled={isLoading}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
+          className="w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {isLoading ? "Following..." : "Follow"}
         </button>

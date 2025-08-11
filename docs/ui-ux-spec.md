@@ -145,28 +145,48 @@ on mobile.
 
 ## 6. Component Library / Design System
 
-- **Foundation**: We will use Shadcn/ui as a base for our components.
-- **Styling**: All components will be styled with Tailwind CSS.
-- **Core Components**: Button, Input, Modal, Card, Avatar, Toast.
+- **Foundation**: Shadcn/ui base components; Tailwind CSS for styling; icons via Lucide or Remix Icons.
+- **Theming Tokens**:
+  - Neutrals: bg #FFFFFF, surface #F9FAFB, border #E5E7EB, text #111827/#6B7280
+  - Primary: Blue #3B82F6 (hover #2563EB)
+  - Radius: 8/12
+  - Effects: subtle borders + light shadows
+- **Core Components (visual)**:
+  - Buttons: primary blue, secondary white/gray, destructive red
+  - Inputs: gray border, blue focus ring
+  - Cards: white, 1px border, radius 12
+  - Modals: radius 12, overlay 60%
+  - Avatars: 24–64, optional ring
+  - Toasts: top-right
+  - Skeletons: shimmer
 
 ## 7. Branding & Style Guide
 
-- **Aesthetic**: "Cute and full of personality, but still professional."
-- **Color Palette**: A vibrant, multi-color theme using a rainbow of pastel accents against a neutral background. The
-  primary colors will be soft, complementary shades of Red, Yellow, Green, Blue, and Purple.
-- **Typography**: A standard, highly-readable sans-serif system font.
-- **Iconography**: A clean, modern icon set like Lucide Icons.
+- **Aesthetic**: Clean, light, friendly; "Instagram-adjacent" without cloning. Subtle gradients, soft neutrals,
+  restrained motion. Informed by the legacy app’s white nav bars and thin borders.
+- **Color Palette**:
+  - Neutrals: bg #FFFFFF, surface #F9FAFB, border #E5E7EB, text #111827/#6B7280/#9CA3AF
+  - Primary: Blue #3B82F6 (hover/active #2563EB)
+  - Accents: Indigo #6366F1, Pink #EC4899, Purple #8B5CF6; Status: Success #10B981, Warn #F59E0B, Danger #EF4444
+- **Typography**: Geist Sans (preferred) → Inter/System fallback; 16px base; headings 500–600, body 400.
+- **Iconography**: Lucide/Remix line icons, 1.5–2px strokes, 16/20/24 sizes.
+- **Navigation style**: Desktop top bar and mobile bottom bar remain white with a thin gray border; active state uses
+  primary blue.
+- **Dark Mode (draft)**: Background #0B0F19, surface #111827, text #E5E7EB/#9CA3AF, borders #1F2937, primary shifts to
+  #60A5FA (hover #93C5FD).
 
 ## 8. Notifications & Feedback
 
-- **Standard**: Non-blocking feedback (e.g., "Profile updated") will be delivered via a toast notification library
-  (e.g., react-toastify).
-- **Critical Errors**: Form validation errors will appear inline, next to the relevant field.
+- **Toasts**: Top-right placement; success green, error red, neutral gray; 3–5s auto-close; avoid blocking actions.
+- **Inline Errors**: Field-level messages directly below inputs; error color #EF4444; keep copy concise and specific.
+- **Focus & States**: Visible 2px blue ring on interactive elements; disabled states use ~60% opacity.
 
 ## 9. Animation & Micro-interactions
 
-- **Principle**: Motion will be subtle and purposeful.
-- **Examples**: Gentle fade-in for modals, a "pop" effect for the like button, and skeleton loaders for feed content.
+- **Principle**: Subtle and purposeful; respect reduced motion preferences.
+- **Durations/Easing**: 150–250ms for hover/focus; 180–220ms for modals; ease-out on enter, ease-in on exit.
+- **Patterns**: Modal fade + 98%→100% scale; icon tap “pop” (0.98→1); list items fade-in; skeleton shimmer L→R
+  (~1200ms).
 
 ## 10. Performance Considerations
 

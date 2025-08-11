@@ -159,13 +159,13 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Isntgram</h1>
+          <h1 className="text-3xl font-semibold text-gray-900">Isntgram</h1>
           <p className="mt-2 text-sm text-gray-600">Share your moments with the world</p>
         </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 shadow-sm border border-gray-200 sm:rounded-xl sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-6">
             <Input
               id="email"
@@ -220,7 +220,9 @@ export default function RegisterPage() {
             />
 
             {successMessage && (
-              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
+                {successMessage}
+              </div>
             )}
 
             <Button type="submit" loading={isLoading} loadingText="Signing up..." className="w-full">
