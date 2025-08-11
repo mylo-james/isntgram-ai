@@ -256,7 +256,6 @@ jobs:
           file: Dockerfile.prod
           push: true
           tags: |
-            isntgram-ai:prod
             ghcr.io/${{ github.repository }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
@@ -265,7 +264,7 @@ jobs:
       - name: 🔍 Trivy Container Scan
         uses: aquasecurity/trivy-action@0.32.0
         with:
-          image-ref: isntgram-ai:prod
+          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
           format: "table"
           exit-code: "1"
           severity: "HIGH,CRITICAL"
