@@ -82,7 +82,7 @@
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "pnpm --filter @isntgram-ai/shared-types run lint -- --fix",
+      "bash -c 'cd packages/shared-types && pnpm exec eslint src/**/*.ts --fix'",
       "bash -c 'cd packages/shared-types && pnpm exec tsc -p . --noEmit'",
       "jest --selectProjects shared-types"
     ],

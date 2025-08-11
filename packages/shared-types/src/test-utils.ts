@@ -173,8 +173,36 @@ export class TestAssertions {
    * Assert that a value is a valid email
    */
   static isValidEmail(value: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(value);
+    if (!value) return false;
+    // Basic length constraints from RFC guidelines
+    if (value.length > 254) return false;
+    // Disallow common whitespace without regex to avoid ReDoS concerns
+    for (let i = 0; i < value.length; i++) {
+      const ch = value.charCodeAt(i);
+      // space, tab, CR, LF, vertical tab, form feed
+      if (ch === 32 || ch === 9 || ch === 10 || ch === 13 || ch === 11 || ch === 12) return false;
+    }
+
+    const atIndex = value.indexOf("@");
+    if (atIndex <= 0) return false; // must have at least one char before @
+    if (atIndex !== value.lastIndexOf("@")) return false; // only one @
+    if (atIndex === value.length - 1) return false; // nothing after @
+
+    const local = value.slice(0, atIndex);
+    const domain = value.slice(atIndex + 1);
+    if (!local || !domain) return false;
+    if (local.length > 64) return false;
+
+    const firstDot = domain.indexOf(".");
+    if (firstDot <= 0) return false; // must have a dot and not as first char
+
+    const labels = domain.split(".");
+    // No empty labels and simple TLD length check
+    if (labels.some((l) => l.length === 0)) return false;
+    const tld = labels[labels.length - 1];
+    if (tld.length < 2) return false;
+
+    return true;
   }
 
   /**
