@@ -51,7 +51,7 @@
     "@types/supertest": "^6.0.3",
     "babel-jest": "^30.0.5",
     "babel-plugin-transform-typescript-metadata": "^0.3.2",
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.0",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.0.0",
     "identity-obj-proxy": "^3.0.0",
