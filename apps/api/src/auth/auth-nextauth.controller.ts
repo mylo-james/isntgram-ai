@@ -10,12 +10,15 @@ import { Response } from 'express';
 import { UseGuards } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthNextAuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post('signin')
   @HttpCode(HttpStatus.OK)
@@ -37,9 +40,16 @@ export class AuthNextAuthController {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashedPassword, ...userWithoutPassword } = user;
 
+    const accessToken = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    });
+
     return res.json({
       message: 'Sign in successful',
       user: userWithoutPassword,
+      accessToken,
     });
   }
 
@@ -53,7 +63,7 @@ export class AuthNextAuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: RegisterDto, @Res() res: Response) {
+  async register(@Body() registerDto: any, @Res() res: Response) {
     const user = await this.authService.register(registerDto);
 
     return res.json({

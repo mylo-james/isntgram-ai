@@ -56,6 +56,7 @@ export interface ApiError {
 
 class ApiClient {
   private client: AxiosInstance;
+  private bearerToken: string | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -72,7 +73,13 @@ class ApiClient {
   private setupInterceptors(): void {
     // Request interceptor for authentication headers
     this.client.interceptors.request.use(
-      (config) => config,
+      async (config) => {
+        if (this.bearerToken) {
+          config.headers = config.headers || {};
+          (config.headers as Record<string, string>)["Authorization"] = `Bearer ${this.bearerToken}`;
+        }
+        return config;
+      },
       (error) => {
         console.error("Request Error:", error);
         return Promise.reject(error);
@@ -103,6 +110,10 @@ class ApiClient {
         }
       },
     );
+  }
+
+  setBearerToken(token: string | null): void {
+    this.bearerToken = token || null;
   }
 
   // Registration endpoint
@@ -161,6 +172,23 @@ class ApiClient {
   async updateProfile(data: { id: string; fullName: string; username: string }): Promise<UserProfile> {
     const response = await this.client.put<UserProfile>("/api/users/profile", data);
     return response.data;
+  }
+
+  // Follow a user by username
+  async followUser(username: string): Promise<void> {
+    await this.client.post(`/api/users/${encodeURIComponent(username)}/follow`);
+  }
+
+  // Unfollow a user by username
+  async unfollowUser(username: string): Promise<void> {
+    await this.client.delete(`/api/users/${encodeURIComponent(username)}/follow`);
+  }
+
+  async isFollowing(username: string): Promise<{ isFollowing: boolean }> {
+    const res = await this.client.get<{ isFollowing: boolean }>(
+      `/api/users/${encodeURIComponent(username)}/is-following`,
+    );
+    return res.data;
   }
 
   // Set auth token (for manual token management)

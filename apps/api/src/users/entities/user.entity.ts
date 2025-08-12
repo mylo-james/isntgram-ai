@@ -5,7 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
+import { Follows } from '../../follows/entities/follows.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -40,6 +42,12 @@ export class User {
 
   @Column({ type: 'integer', default: 0 })
   followingCount!: number;
+
+  @OneToMany(() => Follows, (follow) => follow.follower)
+  followingRelations?: Follows[];
+
+  @OneToMany(() => Follows, (follow) => follow.following)
+  followerRelations?: Follows[];
 
   @CreateDateColumn()
   createdAt!: Date;

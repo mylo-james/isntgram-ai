@@ -7,6 +7,7 @@ import request from 'supertest';
 import { Repository } from 'typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { Follows } from '../src/follows/entities/follows.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -22,14 +23,14 @@ describe('Auth Integration Tests', () => {
       ? {
           type: 'postgres' as const,
           url: process.env.DATABASE_URL,
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
           logging: false,
         }
       : {
           type: 'sqlite' as const,
           database: ':memory:',
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
           logging: false,
         };
