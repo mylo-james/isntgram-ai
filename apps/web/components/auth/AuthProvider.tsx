@@ -13,7 +13,12 @@ interface AuthProviderProps {
 
 export default function AuthProvider({ children }: AuthProviderProps) {
   const { data: session, status } = useSession() as {
-    data: (Session & { accessToken?: string; user?: Session["user"] & { id?: string; username?: string } }) | null;
+    data:
+      | (Session & {
+          accessToken?: string;
+          user?: Session["user"] & { id?: string; username?: string; isDemoUser?: boolean };
+        })
+      | null;
     status: "loading" | "authenticated" | "unauthenticated";
   };
   const dispatch = useDispatch();
@@ -29,6 +34,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         email: session.user.email || "",
         username: (session.user.username as string) || "",
         fullName: session.user.name || "",
+        isDemoUser: Boolean((session.user as unknown as { isDemoUser?: boolean }).isDemoUser),
         postsCount: 0,
         followerCount: 0,
         followingCount: 0,

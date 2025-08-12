@@ -13,6 +13,7 @@ jest.mock("next/navigation", () => ({
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "./page";
+import { signIn as nextAuthSignIn } from "next-auth/react";
 
 // Mock fetch
 const originalFetch = global.fetch;
@@ -66,6 +67,25 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/");
     });
+  });
+
+  it("signs in with demo email from env and redirects", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+    (global as unknown as { fetch: jest.Mock }).fetch.mockResolvedValue({ ok: true, status: 200 });
+
+    const originalEnv = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+    process.env.NEXT_PUBLIC_DEMO_EMAIL = "demo@isntgram.ai";
+
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect(signIn).toHaveBeenCalledWith("credentials", expect.objectContaining({ email: "demo@isntgram.ai" }));
+    });
+
+    process.env.NEXT_PUBLIC_DEMO_EMAIL = originalEnv;
   });
 
   it("shows a generic error if demo backend call fails", async () => {

@@ -40,4 +40,11 @@ test.describe("Auth E2E", () => {
 
     await expect(page.locator("text=Invalid credentials")).toBeVisible({ timeout: 5000 });
   });
+
+  test("demo sign-in button logs in and shows demo banner", async ({ page }) => {
+    await page.goto("/login");
+    await page.click('button:has-text("Try our demo")');
+    await page.waitForURL(/\/$/, { timeout: 20000 });
+    await expect(page.locator("text=Demo mode: this account is read-only")).toBeVisible({ timeout: 5000 });
+  });
 });

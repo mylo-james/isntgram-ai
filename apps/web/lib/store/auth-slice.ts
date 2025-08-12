@@ -14,6 +14,7 @@ export interface User {
   followingCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  isDemoUser?: boolean;
 }
 
 export interface AuthState {

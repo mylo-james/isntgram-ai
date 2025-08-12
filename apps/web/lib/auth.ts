@@ -57,7 +57,11 @@ const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Shorter maxAge for demo sessions; default 7 days otherwise
+    maxAge: 7 * 24 * 60 * 60,
+  },
   callbacks: {
     async jwt(params) {
       const token = params.token as JwtToken;
