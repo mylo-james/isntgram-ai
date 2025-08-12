@@ -20,6 +20,7 @@
     "migration:revert": "npm run typeorm migration:revert -- -d ormconfig.ts"
   },
   "dependencies": {
+    
     "@auth/core": "^0.40.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
@@ -30,10 +31,10 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
-    "argon2": "^0.41.1",
+    "argon2": "^0.44.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
-    "helmet": "^7.1.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",
@@ -54,7 +55,7 @@
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/parser": "^8.39.1",
     "eslint": "^8.0.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
