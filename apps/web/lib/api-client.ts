@@ -191,6 +191,34 @@ class ApiClient {
     return res.data;
   }
 
+  async getFollowers(
+    username: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    users: Array<{ id: string; username: string; fullName: string; profilePictureUrl?: string; isFollowing: boolean }>;
+    pagination: { page: number; limit: number; total: number; hasMore: boolean };
+  }> {
+    const res = await this.client.get(`/api/users/${encodeURIComponent(username)}/followers`, {
+      params: { page, limit },
+    });
+    return res.data as never;
+  }
+
+  async getFollowing(
+    username: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    users: Array<{ id: string; username: string; fullName: string; profilePictureUrl?: string; isFollowing: boolean }>;
+    pagination: { page: number; limit: number; total: number; hasMore: boolean };
+  }> {
+    const res = await this.client.get(`/api/users/${encodeURIComponent(username)}/following`, {
+      params: { page, limit },
+    });
+    return res.data as never;
+  }
+
   // Set auth token (for manual token management)
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   setAuthToken(): void {}

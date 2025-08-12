@@ -37,7 +37,7 @@ interface ProfileActionsProps {
 }
 
 export default function ProfileActions({ profile, currentUser, isOwnProfile, onProfileUpdated }: ProfileActionsProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  // Note: loading state currently not used; follow/unfollow button manages its own loading
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
   const [isFollowing, setIsFollowing] = useState(false);

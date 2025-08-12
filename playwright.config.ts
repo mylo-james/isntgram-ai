@@ -22,7 +22,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://localhost:3000",
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -62,20 +62,23 @@ export default defineConfig({
   webServer: [
     {
       command: "cd apps/web && PORT=3000 npm run start",
-      url: "http://127.0.0.1:3000",
+      url: "http://localhost:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",
       env: {
-        NEXTAUTH_URL: "http://127.0.0.1:3000",
+        NEXTAUTH_URL: "http://localhost:3000",
         NEXTAUTH_SECRET: "test_secret_for_e2e_only",
         AUTH_SECRET: "test_secret_for_e2e_only",
+        NEXT_PUBLIC_API_URL: "http://localhost:3001",
+        NEXT_PUBLIC_DEMO_EMAIL: "demo@isntgram.ai",
+        NEXT_PUBLIC_DEMO_PASSWORD: "demo",
       },
     },
     {
       command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
-      url: "http://127.0.0.1:3001/api",
+      url: "http://localhost:3001/api",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
       stdout: "ignore",

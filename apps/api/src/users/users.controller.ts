@@ -50,6 +50,30 @@ export class UsersController {
     return this.usersService.getUserProfile(username);
   }
 
+  @Get(':username/followers')
+  @HttpCode(HttpStatus.OK)
+  async getFollowers(
+    @Param('username') username: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const parsedPage = Number(page) || 1;
+    const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    return this.usersService.getFollowers(username, parsedPage, parsedLimit);
+  }
+
+  @Get(':username/following')
+  @HttpCode(HttpStatus.OK)
+  async getFollowing(
+    @Param('username') username: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const parsedPage = Number(page) || 1;
+    const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    return this.usersService.getFollowing(username, parsedPage, parsedLimit);
+  }
+
   @Put('profile')
   @HttpCode(HttpStatus.OK)
   async updateProfile(@Body() body: UpdateProfileDto): Promise<UserProfileDto> {

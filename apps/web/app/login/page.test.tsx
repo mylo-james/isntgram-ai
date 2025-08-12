@@ -13,7 +13,6 @@ jest.mock("next/navigation", () => ({
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "./page";
-import { signIn as nextAuthSignIn } from "next-auth/react";
 
 // Mock fetch
 const originalFetch = global.fetch;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
@@ -22,8 +22,12 @@ export const metadata: Metadata = {
   description: "Connect with meaningful content and conversations on Isntgram, the AI-powered social media platform.",
   keywords: ["social media", "AI", "connections", "content", "community"],
   authors: [{ name: "Isntgram Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { Follows } from '../follows/entities/follows.entity';
 
 export interface UserProfileDto {
   id: string;
@@ -26,6 +27,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Follows)
+    private readonly followsRepository: Repository<Follows>,
   ) {}
 
   async findByUsername(username: string): Promise<User> {
@@ -108,5 +111,57 @@ export class UsersService {
 
     const saved = await this.userRepository.save(user);
     return this.toUserProfileDto(saved);
+  }
+
+  async getFollowers(username: string, page = 1, limit = 20) {
+    const user = await this.findByUsername(username);
+    const [rows, total] = await this.followsRepository.findAndCount({
+      where: { followingId: user.id },
+      relations: ['follower'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+    return {
+      users: rows.map((f) => ({
+        id: f.follower.id,
+        username: f.follower.username,
+        fullName: f.follower.fullName,
+        profilePictureUrl: f.follower.profilePictureUrl,
+        isFollowing: false,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    };
+  }
+
+  async getFollowing(username: string, page = 1, limit = 20) {
+    const user = await this.findByUsername(username);
+    const [rows, total] = await this.followsRepository.findAndCount({
+      where: { followerId: user.id },
+      relations: ['following'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+    return {
+      users: rows.map((f) => ({
+        id: f.following.id,
+        username: f.following.username,
+        fullName: f.following.fullName,
+        profilePictureUrl: f.following.profilePictureUrl,
+        isFollowing: true,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    };
   }
 }
