@@ -65,7 +65,7 @@
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
     "typescript": "^5.0.0",
-    "typescript-eslint": "^8.39.0"
+    "typescript-eslint": "^8.39.1"
   },
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
