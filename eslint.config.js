@@ -1,10 +1,14 @@
 import tseslint from "typescript-eslint";
 
 export default [
+  // Global ignores for all configs
+  {
+    ignores: ["**/node_modules/**", "**/dist/**"],
+  },
   // JavaScript files
   {
     files: ["**/*.{js,jsx}"],
-    ignores: ["node_modules/**", "playwright.config.ts"],
+    ignores: ["node_modules/**", "playwright.config.ts", "dist/**"],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: "module",
@@ -18,11 +22,11 @@ export default [
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
     files: ["apps/**/**/*.{ts,tsx}", "packages/**/**/*.{ts,tsx}"],
-    ignores: ["node_modules/**"],
+    ignores: ["node_modules/**", "dist/**"],
   })),
   {
     files: ["apps/**/**/*.{ts,tsx}", "packages/**/**/*.{ts,tsx}"],
-    ignores: ["node_modules/**", "playwright.config.ts"],
+    ignores: ["node_modules/**", "playwright.config.ts", "dist/**"],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: "module",

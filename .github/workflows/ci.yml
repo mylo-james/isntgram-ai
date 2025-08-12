@@ -19,6 +19,7 @@ jobs:
   quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    environment: Test
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -69,6 +70,7 @@ jobs:
     name: Coverage Gate
     runs-on: ubuntu-latest
     needs: [quality]
+    environment: Test
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -110,6 +112,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [quality]
+    environment: Test
     services:
       postgres:
         image: postgres:16-alpine
@@ -122,6 +125,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -151,7 +155,8 @@ jobs:
         with:
           path: apps/web/.next/cache
           key:
-            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json', 'apps/web/next.config.mjs') }}
+            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
           restore-keys: |
             next-cache-${{ runner.os }}-
 
@@ -173,6 +178,17 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: [integration]
+    environment: Test
+    env:
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      AUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      NEXT_PUBLIC_DEMO_EMAIL: ${{ secrets.NEXT_PUBLIC_DEMO_EMAIL }}
+      NEXT_PUBLIC_DEMO_PASSWORD: ${{ secrets.NEXT_PUBLIC_DEMO_PASSWORD }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      NEXTAUTH_URL: ${{ vars.NEXTAUTH_URL }}
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NODE_ENV: ${{ vars.NODE_ENV }}
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -193,7 +209,8 @@ jobs:
         with:
           path: apps/web/.next/cache
           key:
-            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json', 'apps/web/next.config.mjs') }}
+            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
           restore-keys: |
             next-cache-${{ runner.os }}-
 
@@ -232,6 +249,7 @@ jobs:
     name: Production Build
     runs-on: ubuntu-latest
     needs: [integration]
+    environment: Test
     permissions:
       contents: read
       packages: write
@@ -288,6 +306,7 @@ jobs:
     name: Security Scans
     runs-on: ubuntu-latest
     needs: [quality]
+    environment: Test
     permissions:
       actions: read
       contents: read

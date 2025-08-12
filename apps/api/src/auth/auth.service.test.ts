@@ -50,7 +50,7 @@ describe('AuthService', () => {
           email: 'test@example.com',
           username: 'test',
           fullName: 'Test',
-          password: 'Password123!',
+          password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
@@ -66,7 +66,7 @@ describe('AuthService', () => {
           email: 'test2@example.com',
           username: 'test',
           fullName: 'Test',
-          password: 'Password123!',
+          password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
@@ -95,7 +95,7 @@ describe('AuthService', () => {
         email: 'ok@example.com',
         username: 'ok',
         fullName: 'Ok',
-        password: 'Password123!',
+        password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
       });
 
       expect(userRepository.save).toHaveBeenCalled();

@@ -29,9 +29,15 @@ function getDatabaseModules() {
       }
     : {
         type: 'postgres' as const,
-        url:
-          process.env.DATABASE_URL ||
-          'postgresql://postgres:password@localhost:5432/isntgram',
+        url: (() => {
+          const dbUrl = process.env.DATABASE_URL;
+          if (!dbUrl) {
+            throw new Error(
+              'DATABASE_URL must be set for non-test environments. See ENVIRONMENT.md for details.',
+            );
+          }
+          return dbUrl;
+        })(),
         entities: [User, Follows],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',

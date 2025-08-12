@@ -5,6 +5,7 @@ import SessionProvider from "@/components/providers/SessionProvider";
 import ReduxProvider from "@/components/providers/ReduxProvider";
 import AuthProvider from "@/components/auth/AuthProvider";
 import DemoBanner from "@/components/common/DemoBanner";
+import SiteHeader from "@/components/common/SiteHeader";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -42,6 +43,7 @@ export default function RootLayout({
           <SessionProvider>
             <AuthProvider>
               <DemoBanner />
+              <SiteHeader />
               {children}
             </AuthProvider>
           </SessionProvider>

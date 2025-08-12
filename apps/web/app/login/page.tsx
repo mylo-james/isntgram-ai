@@ -132,7 +132,7 @@ function LoginInner() {
       }
       // Now sign in via credentials using demo email/password pair
       const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
-      const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";
+      const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "changeme";
       const result = await signIn("credentials", { email: demoEmail, password: demoPassword, redirect: false });
       if (result?.error) {
         setFormError("Demo sign-in failed");

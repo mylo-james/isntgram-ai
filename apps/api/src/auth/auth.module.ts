@@ -16,7 +16,15 @@ import { JwtStrategy } from './jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'dev-secret',
+        secret: (() => {
+          const secret = config.get<string>('JWT_SECRET');
+          if (!secret) {
+            throw new Error(
+              'JWT_SECRET must be set. See ENVIRONMENT.md and apps/api/env.example.',
+            );
+          }
+          return secret;
+        })(),
         signOptions: {
           expiresIn: config.get<string>('JWT_EXPIRES_IN') || '7d',
         },

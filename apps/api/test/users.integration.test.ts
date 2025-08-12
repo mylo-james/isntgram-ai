@@ -53,7 +53,7 @@ describe('Users Integration Tests', () => {
         email: 'user@example.com',
         username: 'user1',
         fullName: 'User One',
-        password: 'Password123',
+        password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
       })
       .expect(201);
 

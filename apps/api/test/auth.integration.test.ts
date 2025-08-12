@@ -84,7 +84,7 @@ describe('Auth Integration Tests', () => {
       email: 'test@example.com',
       username: 'testuser',
       fullName: 'Test User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     it('should register a new user successfully', async () => {
@@ -219,7 +219,7 @@ describe('Auth Integration Tests', () => {
       email: 'signin@example.com',
       username: 'signinuser',
       fullName: 'Sign In User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     beforeEach(async () => {
@@ -250,7 +250,7 @@ describe('Auth Integration Tests', () => {
         .post('/api/auth/signin')
         .send({
           email: userData.email,
-          password: 'wrongpassword',
+          password: 'InvalidPassword!',
         })
         .expect(401);
 
@@ -262,7 +262,7 @@ describe('Auth Integration Tests', () => {
         .post('/api/auth/signin')
         .send({
           email: 'nonexistent@example.com',
-          password: 'password123',
+          password: 'SomePassword123',
         })
         .expect(401);
 

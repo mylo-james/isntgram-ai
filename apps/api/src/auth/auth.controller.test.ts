@@ -53,7 +53,7 @@ describe('AuthController', () => {
       email: 'test@example.com',
       username: 'testuser',
       fullName: 'Test User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     const mockUser = {

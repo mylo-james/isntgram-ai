@@ -90,7 +90,7 @@ export class AuthService {
     const fullName =
       this.configService.get<string>('DEMO_FULL_NAME') || 'Demo User';
     const demoPassword =
-      this.configService.get<string>('DEMO_PASSWORD') || 'demo';
+      this.configService.get<string>('DEMO_PASSWORD') || 'changeme';
 
     const existing = await this.userRepository.findOne({ where: { email } });
     if (existing) {

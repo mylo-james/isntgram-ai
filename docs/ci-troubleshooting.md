@@ -142,7 +142,7 @@ NODE_ENV=test
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=password
+DB_PASSWORD=<set-a-secure-password>
 DB_NAME=isntgram_test
 ```
 

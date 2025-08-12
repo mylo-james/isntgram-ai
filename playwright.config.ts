@@ -15,7 +15,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ["html"],
+    ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/results.json" }],
     ["junit", { outputFile: "playwright-report/results.xml" }],
   ],
@@ -61,25 +61,27 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: "cd apps/web && PORT=3000 npm run start",
+      // Use direct command so Playwright owns and reliably stops the server
+      command: "cd apps/web && PORT=3000 pnpm exec next start",
       url: "http://localhost:3000",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",
       env: {
         NEXTAUTH_URL: "http://localhost:3000",
-        NEXTAUTH_SECRET: "test_secret_for_e2e_only",
-        AUTH_SECRET: "test_secret_for_e2e_only",
+        NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "development_only_do_not_use_in_prod",
+        AUTH_SECRET: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "development_only_do_not_use_in_prod",
         NEXT_PUBLIC_API_URL: "http://localhost:3001",
-        NEXT_PUBLIC_DEMO_EMAIL: "demo@isntgram.ai",
-        NEXT_PUBLIC_DEMO_PASSWORD: "demo",
+        NEXT_PUBLIC_DEMO_EMAIL: process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai",
+        NEXT_PUBLIC_DEMO_PASSWORD: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "changeme",
       },
     },
     {
-      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
+      // Start NestJS directly to avoid npm wrapper processes lingering
+      command: "cd apps/api && NODE_ENV=test PORT=3001 node dist/main",
       url: "http://localhost:3001/api",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",

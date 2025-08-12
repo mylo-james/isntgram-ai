@@ -34,7 +34,7 @@ until eval "$COMPOSE_CMD exec -T postgres pg_isready -U postgres -d isntgram" >/
 done
 
 echo "✅ Database is ready!"
-echo "Database URL: postgresql://postgres:password@localhost:5432/isntgram"
+echo "Database URL: postgresql://postgres:<your_password>@localhost:5432/isntgram"
 echo ""
 echo "To stop the database, run: $COMPOSE_CMD down"
 echo "To view logs, run: $COMPOSE_CMD logs postgres"

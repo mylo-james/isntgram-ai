@@ -67,13 +67,13 @@ describe('Follows Integration Tests', () => {
       email: 'a@example.com',
       username: 'usera',
       fullName: 'User A',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     });
     await registerAndLogin(app, {
       email: 'b@example.com',
       username: 'userb',
       fullName: 'User B',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     });
 
     await request(app.getHttpServer())

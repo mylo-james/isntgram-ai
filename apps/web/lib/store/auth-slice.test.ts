@@ -185,7 +185,7 @@ describe("Auth Slice", () => {
           email: "test@example.com",
           username: "testuser",
           fullName: "Test User",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(registerUser(userData));
@@ -205,7 +205,7 @@ describe("Auth Slice", () => {
           email: "existing@example.com",
           username: "existinguser",
           fullName: "Existing User",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(registerUser(userData));
@@ -224,7 +224,7 @@ describe("Auth Slice", () => {
           email: "test@example.com",
           username: "testuser",
           fullName: "Test User",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(registerUser(userData));
@@ -242,7 +242,7 @@ describe("Auth Slice", () => {
           email: "test@example.com",
           username: "testuser",
           fullName: "Test User",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(registerUser(userData));
@@ -270,7 +270,7 @@ describe("Auth Slice", () => {
 
         const credentials = {
           email: "test@example.com",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(loginUser(credentials));
@@ -290,7 +290,7 @@ describe("Auth Slice", () => {
 
         const credentials = {
           email: "test@example.com",
-          password: "wrongpassword",
+          password: "TotallyWrongPass!",
         };
 
         await store.dispatch(loginUser(credentials));
@@ -307,7 +307,7 @@ describe("Auth Slice", () => {
 
         const credentials = {
           email: "test@example.com",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(loginUser(credentials));
@@ -323,7 +323,7 @@ describe("Auth Slice", () => {
 
         const credentials = {
           email: "test@example.com",
-          password: "password123",
+          password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         };
 
         await store.dispatch(loginUser(credentials));
@@ -508,7 +508,7 @@ describe("Auth Slice", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       const promise = store.dispatch(registerUser(userData));
@@ -536,7 +536,7 @@ describe("Auth Slice", () => {
 
       const credentials = {
         email: "test@example.com",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       const promise = store.dispatch(loginUser(credentials));
@@ -607,7 +607,7 @@ describe("Auth Slice", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await store.dispatch(registerUser(userData));
@@ -624,7 +624,7 @@ describe("Auth Slice", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await store.dispatch(registerUser(userData));
@@ -651,7 +651,7 @@ describe("Auth Slice", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await store.dispatch(registerUser(userData));
@@ -683,7 +683,7 @@ describe("Auth Slice", () => {
 
       const credentials = {
         email: "test@example.com",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await store.dispatch(loginUser(credentials));

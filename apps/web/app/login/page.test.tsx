@@ -132,7 +132,9 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" },
+    });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -140,7 +142,7 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(signIn).toHaveBeenCalledWith("credentials", {
         email: "test@example.com",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
         redirect: false,
       });
     });
@@ -187,7 +189,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "TotallyWrongPass!" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -203,7 +205,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "TotallyWrongPass!" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -219,7 +221,9 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" },
+    });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
