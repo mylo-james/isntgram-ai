@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🧰 Setup pnpm
         run: |
@@ -71,7 +71,7 @@ jobs:
     needs: [quality]
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🧰 Setup pnpm
         run: |
@@ -130,7 +130,7 @@ jobs:
       DB_NAME: isntgram_test
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🧰 Setup pnpm
         run: |
@@ -175,7 +175,7 @@ jobs:
     needs: [integration]
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🧰 Setup pnpm
         run: |
@@ -237,7 +237,7 @@ jobs:
       packages: write
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🔧 Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -294,7 +294,7 @@ jobs:
       security-events: write
     steps:
       - name: 🚀 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🧰 Setup pnpm
         run: |
