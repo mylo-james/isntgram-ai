@@ -20,7 +20,7 @@
     "migration:revert": "npm run typeorm migration:revert -- -d ormconfig.ts"
   },
   "dependencies": {
-    "helmet": "^7.1.0",
+    "helmet": "^8.1.0",
     "@auth/core": "^0.40.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
