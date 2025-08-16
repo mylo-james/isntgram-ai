@@ -27,6 +27,8 @@ describe('UsersController', () => {
     updateProfile: jest.fn(),
     findById: jest.fn(),
     findByEmail: jest.fn(),
+    getFollowers: jest.fn(),
+    getFollowing: jest.fn(),
   } as unknown as jest.Mocked<UsersService>;
 
   beforeEach(async () => {
@@ -122,6 +124,119 @@ describe('UsersController', () => {
         fullName: 'New Name',
         username: 'newname',
       });
+    });
+  });
+
+  describe('getCurrentUser', () => {
+    it('should return user profile when id is provided', async () => {
+      const mockUser = { id: '1', username: 'testuser' };
+      (mockUsersService.findById as jest.Mock).mockResolvedValue(mockUser);
+      (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(mockUserProfile);
+
+      const result = await controller.getCurrentUser('1', undefined);
+
+      expect(result).toEqual(mockUserProfile);
+      expect(usersService.findById).toHaveBeenCalledWith('1');
+      expect(usersService.getUserProfile).toHaveBeenCalledWith('testuser');
+    });
+
+    it('should return user profile when email is provided', async () => {
+      const mockUser = { id: '1', username: 'testuser' };
+      (mockUsersService.findByEmail as jest.Mock).mockResolvedValue(mockUser);
+      (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(mockUserProfile);
+
+      const result = await controller.getCurrentUser(undefined, 'test@example.com');
+
+      expect(result).toEqual(mockUserProfile);
+      expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
+      expect(usersService.getUserProfile).toHaveBeenCalledWith('testuser');
+    });
+
+    it('should return fallback when neither id nor email is provided', async () => {
+      (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(mockUserProfile);
+
+      const result = await controller.getCurrentUser(undefined, undefined);
+
+      expect(result).toEqual(mockUserProfile);
+      expect(usersService.getUserProfile).toHaveBeenCalledWith('');
+    });
+  });
+
+  describe('getFollowers', () => {
+    const mockFollowersResult = {
+      users: [mockUserProfile],
+      total: 1,
+      page: 1,
+      limit: 20,
+    };
+
+    it('should return followers with default pagination', async () => {
+      (mockUsersService.getFollowers as jest.Mock).mockResolvedValue(mockFollowersResult);
+
+      const result = await controller.getFollowers('testuser');
+
+      expect(result).toEqual(mockFollowersResult);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 20);
+    });
+
+    it('should return followers with custom pagination', async () => {
+      (mockUsersService.getFollowers as jest.Mock).mockResolvedValue(mockFollowersResult);
+
+      const result = await controller.getFollowers('testuser', 2, 10);
+
+      expect(result).toEqual(mockFollowersResult);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 2, 10);
+    });
+
+    it('should enforce limit boundaries', async () => {
+      (mockUsersService.getFollowers as jest.Mock).mockResolvedValue(mockFollowersResult);
+
+      // Test minimum limit
+      await controller.getFollowers('testuser', 1, 0);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 1);
+
+      // Test maximum limit
+      await controller.getFollowers('testuser', 1, 200);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 100);
+    });
+  });
+
+  describe('getFollowing', () => {
+    const mockFollowingResult = {
+      users: [mockUserProfile],
+      total: 1,
+      page: 1,
+      limit: 20,
+    };
+
+    it('should return following with default pagination', async () => {
+      (mockUsersService.getFollowing as jest.Mock).mockResolvedValue(mockFollowingResult);
+
+      const result = await controller.getFollowing('testuser');
+
+      expect(result).toEqual(mockFollowingResult);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 20);
+    });
+
+    it('should return following with custom pagination', async () => {
+      (mockUsersService.getFollowing as jest.Mock).mockResolvedValue(mockFollowingResult);
+
+      const result = await controller.getFollowing('testuser', 2, 10);
+
+      expect(result).toEqual(mockFollowingResult);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 2, 10);
+    });
+
+    it('should enforce limit boundaries', async () => {
+      (mockUsersService.getFollowing as jest.Mock).mockResolvedValue(mockFollowingResult);
+
+      // Test minimum limit
+      await controller.getFollowing('testuser', 1, 0);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 1);
+
+      // Test maximum limit
+      await controller.getFollowing('testuser', 1, 200);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 100);
     });
   });
 });

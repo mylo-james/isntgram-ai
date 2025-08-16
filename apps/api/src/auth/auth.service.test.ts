@@ -103,4 +103,162 @@ describe('AuthService', () => {
       expect((created as unknown as User).hashedPassword).toBeUndefined();
     });
   });
+
+  describe('validateUser', () => {
+    it('should return user when credentials are valid', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        hashedPassword: 'hashedPassword',
+      } as User;
+
+      (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.validateUser('test@example.com', 'password');
+
+      expect(result).toEqual(mockUser);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+      });
+      expect(argon2.verify).toHaveBeenCalledWith('hashedPassword', 'password');
+    });
+
+    it('should return null when user does not exist', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.validateUser('test@example.com', 'password');
+
+      expect(result).toBeNull();
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+      });
+    });
+
+    it('should return null when password is invalid', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        hashedPassword: 'hashedPassword',
+      } as User;
+
+      (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (argon2.verify as jest.Mock).mockResolvedValue(false);
+
+      const result = await service.validateUser('test@example.com', 'wrongpassword');
+
+      expect(result).toBeNull();
+      expect(argon2.verify).toHaveBeenCalledWith('hashedPassword', 'wrongpassword');
+    });
+  });
+
+  describe('findUserById', () => {
+    it('should return user when found', async () => {
+      const mockUser = { id: '1', email: 'test@example.com' } as User;
+      (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await service.findUserById('1');
+
+      expect(result).toEqual(mockUser);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+    });
+
+    it('should return null when user not found', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.findUserById('nonexistent');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findUserByEmail', () => {
+    it('should return user when found', async () => {
+      const mockUser = { id: '1', email: 'test@example.com' } as User;
+      (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await service.findUserByEmail('test@example.com');
+
+      expect(result).toEqual(mockUser);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+      });
+    });
+
+    it('should return null when user not found', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.findUserByEmail('nonexistent@example.com');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getOrCreateDemoUser', () => {
+    it('should return existing demo user when found', async () => {
+      const mockDemoUser = {
+        id: '1',
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+        hashedPassword: 'hashedPassword',
+      } as User;
+
+      (userRepository.findOne as jest.Mock).mockResolvedValue(mockDemoUser);
+
+      const result = await service.getOrCreateDemoUser();
+
+      expect(result).toEqual({
+        id: '1',
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+      });
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'demo@isntgram.ai' },
+      });
+    });
+
+    it('should create new demo user when not found', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValue(null);
+      (argon2.hash as jest.Mock).mockResolvedValue('hashedDemoPassword');
+
+      const mockCreatedUser = {
+        id: '1',
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+        hashedPassword: 'hashedDemoPassword',
+        postsCount: 3,
+        followerCount: 12,
+        followingCount: 7,
+      } as User;
+
+      (userRepository.save as jest.Mock).mockResolvedValue(mockCreatedUser);
+
+      const result = await service.getOrCreateDemoUser();
+
+      expect(result).toEqual({
+        id: '1',
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+        postsCount: 3,
+        followerCount: 12,
+        followingCount: 7,
+      });
+      expect(userRepository.create).toHaveBeenCalledWith({
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+        hashedPassword: 'hashedDemoPassword',
+        postsCount: 3,
+        followerCount: 12,
+        followingCount: 7,
+      });
+      expect(userRepository.save).toHaveBeenCalled();
+    });
+  });
 });
