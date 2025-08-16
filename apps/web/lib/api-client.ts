@@ -64,6 +64,28 @@ export interface FollowStatsResponse {
   isFollowing: boolean;
 }
 
+export interface CreatePostRequest {
+  caption: string;
+  imageUrl: string;
+}
+
+export interface PostResponse {
+  id: string;
+  userId: string;
+  caption: string;
+  imageUrl: string;
+  likesCount: number;
+  commentsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    profilePictureUrl?: string;
+  };
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -201,8 +223,8 @@ class ApiClient {
 
   // Unfollow user
   async unfollowUser(userId: string): Promise<{ message: string }> {
-    const response = await this.client.delete<{ message: string }>("/api/follows", { 
-      data: { userId } 
+    const response = await this.client.delete<{ message: string }>("/api/follows", {
+      data: { userId },
     });
     return response.data;
   }
@@ -222,6 +244,36 @@ class ApiClient {
   // Get following list
   async getFollowing(userId: string): Promise<UserProfile[]> {
     const response = await this.client.get<UserProfile[]>(`/api/follows/following/${userId}`);
+    return response.data;
+  }
+
+  // Create a new post
+  async createPost(data: CreatePostRequest): Promise<PostResponse> {
+    const response = await this.client.post<PostResponse>("/api/posts", data);
+    return response.data;
+  }
+
+  // Delete a post
+  async deletePost(postId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  // Get a single post
+  async getPost(postId: string): Promise<PostResponse> {
+    const response = await this.client.get<PostResponse>(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  // Get user posts
+  async getUserPosts(username: string, page = 1, limit = 12): Promise<PostResponse[]> {
+    const response = await this.client.get<PostResponse[]>(`/api/posts/user/${username}?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
+  // Get personalized feed
+  async getFeed(page = 1, limit = 10): Promise<PostResponse[]> {
+    const response = await this.client.get<PostResponse[]>(`/api/posts?page=${page}&limit=${limit}`);
     return response.data;
   }
 }
