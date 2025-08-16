@@ -9,7 +9,7 @@ This document describes the environment variables needed for the Isntgram AI app
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=password
+DB_PASSWORD=
 DB_NAME=isntgram
 
 # Application Configuration
@@ -17,11 +17,13 @@ NODE_ENV=development
 PORT=3000
 
 # JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# Must be provided securely; do not commit real secrets
+JWT_SECRET=
 
 # AWS S3 Configuration (for image storage)
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+# Set via environment or secret manager; do not commit real keys
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
 AWS_REGION=us-east-1
 AWS_S3_BUCKET=isntgram-images
 ```
@@ -34,10 +36,12 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
 # Auth.js Configuration
 NEXTAUTH_URL=http://localhost:3001
-NEXTAUTH_SECRET=your-nextauth-secret-change-this-in-production
+# Must be provided securely; do not commit real secrets
+NEXTAUTH_SECRET=
 
 # Database URL (for Auth.js)
-DATABASE_URL=postgresql://postgres:password@localhost:5432/isntgram
+# Provide locally via .env with a secure password
+DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@localhost:5432/isntgram
 ```
 
 ## Development Setup

@@ -7,11 +7,11 @@ test.describe("Basic Application Flow", () => {
     // Check that the page loads successfully
     await expect(page).toHaveTitle(/Isntgram/i);
 
-    // Verify main content is present
-    await expect(page.locator("text=Welcome to")).toBeVisible();
-    await expect(page.locator("text=Isntgram")).toBeVisible();
-    await expect(page.locator("text=Get Started")).toBeVisible();
-    await expect(page.locator("text=Create Account")).toBeVisible();
+    // Verify main content is present (target H1 to avoid ambiguity)
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome to");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Isntgram");
+    await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create Account" })).toBeVisible();
   });
 
   test("should navigate and display content correctly", async ({ page }) => {
@@ -23,20 +23,20 @@ test.describe("Basic Application Flow", () => {
     await expect(page.locator("text=Privacy First")).toBeVisible();
 
     // Verify the CTA navigation links exist
-    await expect(page.locator('a:has-text("Get Started")')).toBeVisible();
-    await expect(page.locator('a:has-text("Create Account")')).toBeVisible();
+    await expect(page.getByRole("link", { name: "Get Started" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create Account" })).toBeVisible();
   });
 
   test("should handle responsive design", async ({ page }) => {
     // Test desktop view
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
-    await expect(page.locator("text=Welcome to")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome to");
 
     // Test mobile view
     await page.setViewportSize({ width: 375, height: 667 });
     await page.reload();
-    await expect(page.locator("text=Welcome to")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome to");
   });
 });
 
@@ -62,7 +62,7 @@ test.describe("Performance", () => {
     const startTime = Date.now();
 
     await page.goto("/");
-    await expect(page.locator("text=Welcome to")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome to");
 
     const loadTime = Date.now() - startTime;
     expect(loadTime).toBeLessThan(3000); // Should load within 3 seconds

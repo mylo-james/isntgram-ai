@@ -32,7 +32,7 @@ export NODE_ENV=test
 export DB_HOST=localhost
 export DB_PORT=5432
 export DB_USERNAME=postgres
-export DB_PASSWORD=password
+export DB_PASSWORD=${DB_PASSWORD:-postgres}
 export DB_NAME=isntgram_test
 
 # Run the specified test command

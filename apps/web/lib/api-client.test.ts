@@ -24,7 +24,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       const result = await apiClient.register(registerData);
@@ -46,7 +46,7 @@ describe("API Client", () => {
         email: "existing@example.com",
         username: "existinguser",
         fullName: "Existing User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -60,7 +60,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toThrow("Network error");
@@ -77,11 +77,14 @@ describe("API Client", () => {
       };
       mockAxiosInstance.post.mockResolvedValue(mockResponse);
 
-      const result = await apiClient.login({ email: "a@b.com", password: "pass12345" });
+      const result = await apiClient.login({
+        email: "a@b.com",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
+      });
 
       expect(mockAxiosInstance.post).toHaveBeenCalledWith("/api/auth/signin", {
         email: "a@b.com",
-        password: "pass12345",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       });
       expect(result).toEqual(mockResponse.data);
     });
@@ -90,7 +93,9 @@ describe("API Client", () => {
       const mockError = new Error("Invalid credentials");
       mockAxiosInstance.post.mockRejectedValue(mockError);
 
-      await expect(apiClient.login({ email: "a@b.com", password: "wrong" })).rejects.toThrow("Invalid credentials");
+      await expect(apiClient.login({ email: "a@b.com", password: "TotallyWrongPass!" })).rejects.toThrow(
+        "Invalid credentials",
+      );
     });
   });
 
@@ -171,7 +176,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -190,7 +195,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -209,7 +214,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -228,7 +233,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -247,7 +252,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -266,7 +271,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -285,7 +290,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
@@ -304,7 +309,7 @@ describe("API Client", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       };
 
       await expect(apiClient.register(registerData)).rejects.toEqual(mockError);

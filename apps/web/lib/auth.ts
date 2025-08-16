@@ -2,10 +2,20 @@ import NextAuth, { type NextAuthConfig, type Session, type User } from "next-aut
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 
-type JwtToken = JWT & { accessToken?: string; username?: string; isDemoUser?: boolean };
+type JwtToken = JWT & {
+  accessToken?: string;
+  username?: string;
+  isDemoUser?: boolean;
+  demoExpiresAt?: number;
+};
 type AppSession = Session & {
   accessToken?: string;
-  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
+  user: NonNullable<Session["user"]> & {
+    id: string;
+    username?: string;
+    isDemoUser?: boolean;
+    demoExpiresAt?: number;
+  };
 };
 
 const authConfig: NextAuthConfig = {
@@ -57,7 +67,10 @@ const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60,
+  },
   callbacks: {
     async jwt(params) {
       const token = params.token as JwtToken;
@@ -73,6 +86,8 @@ const authConfig: NextAuthConfig = {
       const maybeEmail = (params.account?.providerAccountId as string) || (user?.email as string | undefined);
       if (maybeEmail && maybeEmail === (process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai")) {
         token.isDemoUser = true;
+        const ttlSeconds = Number(process.env.DEMO_SESSION_MAX_AGE_SECONDS || 3600);
+        token.demoExpiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
       }
 
       return token;
@@ -85,6 +100,7 @@ const authConfig: NextAuthConfig = {
         if (token.username) session.user.username = token.username;
         if (token.accessToken) session.accessToken = token.accessToken;
         if (token.isDemoUser) session.user.isDemoUser = true;
+        if (token.demoExpiresAt) session.user.demoExpiresAt = token.demoExpiresAt;
       }
       return session;
     },

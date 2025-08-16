@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
+import { Follows } from '../follows/entities/follows.entity';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -52,7 +53,7 @@ describe('AuthController', () => {
       email: 'test@example.com',
       username: 'testuser',
       fullName: 'Test User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     const mockUser = {
@@ -105,7 +106,7 @@ describe('Auth demo endpoint (integration)', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
         }),
         ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),

@@ -3,6 +3,7 @@ import { AuthNextAuthController } from './auth-nextauth.controller';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthNextAuthController', () => {
   let controller: AuthNextAuthController;
@@ -12,6 +13,10 @@ describe('AuthNextAuthController', () => {
     validateUser: jest.fn(),
     register: jest.fn(),
   };
+
+  const mockJwtService = {
+    sign: jest.fn().mockReturnValue('test-token'),
+  } as unknown as JwtService;
 
   const mockResponse = {
     status: jest.fn().mockReturnThis(),
@@ -27,6 +32,10 @@ describe('AuthNextAuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
         },
       ],
     });
@@ -48,7 +57,7 @@ describe('AuthNextAuthController', () => {
   describe('signIn', () => {
     const credentials = {
       email: 'test@example.com',
-      password: 'password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     const mockUser = {
@@ -80,6 +89,7 @@ describe('AuthNextAuthController', () => {
           id: 'test-uuid',
           email: 'test@example.com',
         }),
+        accessToken: expect.any(String),
       });
     });
 
@@ -115,7 +125,7 @@ describe('AuthNextAuthController', () => {
       email: 'test@example.com',
       username: 'testuser',
       fullName: 'Test User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     const mockUser = {

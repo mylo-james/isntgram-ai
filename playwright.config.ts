@@ -15,14 +15,14 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ["html"],
+    ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/results.json" }],
     ["junit", { outputFile: "playwright-report/results.xml" }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://localhost:3000",
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -61,25 +61,37 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: "cd apps/web && PORT=3000 npm run start",
-      url: "http://127.0.0.1:3000",
-      reuseExistingServer: !process.env.CI,
+      // Use direct command so Playwright owns and reliably stops the server
+      command: "cd apps/web && PORT=3000 pnpm exec next start",
+      url: "http://localhost:3000",
+      reuseExistingServer: false,
       timeout: 300 * 1000,
-      stdout: "ignore",
-      stderr: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
       env: {
-        NEXTAUTH_URL: "http://127.0.0.1:3000",
-        NEXTAUTH_SECRET: "test_secret_for_e2e_only",
-        AUTH_SECRET: "test_secret_for_e2e_only",
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
+        NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "development_only_do_not_use_in_prod",
+        AUTH_SECRET: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "development_only_do_not_use_in_prod",
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+        NEXT_PUBLIC_DEMO_EMAIL: process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai",
+        NEXT_PUBLIC_DEMO_PASSWORD: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "changeme",
+        NODE_ENV: process.env.NODE_ENV || "test",
       },
     },
     {
-      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
-      url: "http://127.0.0.1:3001/api",
-      reuseExistingServer: !process.env.CI,
+      // Start NestJS directly to avoid npm wrapper processes lingering
+      command: "cd apps/api && NODE_ENV=test PORT=3001 node dist/main",
+      url: "http://localhost:3001/api",
+      reuseExistingServer: false,
       timeout: 300 * 1000,
-      stdout: "ignore",
-      stderr: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+          JWT_SECRET: process.env.JWT_SECRET || "test_jwt_secret_do_not_use_in_production",
+          DATABASE_URL: process.env.DATABASE_URL || "sqlite://test.db",
+          NODE_ENV: process.env.NODE_ENV || "test",
+          E2E_TEST_PASSWORD: process.env.E2E_TEST_PASSWORD || "TestPassword123!",
+        },
     },
   ],
 });

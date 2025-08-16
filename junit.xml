@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="293" failures="0" errors="0" time="4.339">
+  <testsuite name="User Entity" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="1.547" tests="8">
+    <testcase classname="User Entity Entity Structure should create a user with required fields" name="User Entity Entity Structure should create a user with required fields" time="0.022">
+    </testcase>
+    <testcase classname="User Entity Entity Structure should have default values for count fields" name="User Entity Entity Structure should have default values for count fields" time="0.002">
+    </testcase>
+    <testcase classname="User Entity Entity Structure should allow optional fields to be undefined" name="User Entity Entity Structure should allow optional fields to be undefined" time="0.001">
+    </testcase>
+    <testcase classname="User Entity Entity Structure should set optional fields when provided" name="User Entity Entity Structure should set optional fields when provided" time="0">
+    </testcase>
+    <testcase classname="User Entity Field Constraints should have string id field for UUID" name="User Entity Field Constraints should have string id field for UUID" time="0">
+    </testcase>
+    <testcase classname="User Entity Field Constraints should have timestamp fields" name="User Entity Field Constraints should have timestamp fields" time="0">
+    </testcase>
+    <testcase classname="User Entity Field Constraints should have numeric count fields" name="User Entity Field Constraints should have numeric count fields" time="0">
+    </testcase>
+    <testcase classname="User Entity Entity Metadata should have proper entity name" name="User Entity Entity Metadata should have proper entity name" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="AuthService" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="1.582" tests="4">
+    <testcase classname="AuthService should be defined" name="AuthService should be defined" time="0.021">
+    </testcase>
+    <testcase classname="AuthService register should throw ConflictException if email already exists" name="AuthService register should throw ConflictException if email already exists" time="0.003">
+    </testcase>
+    <testcase classname="AuthService register should throw ConflictException if username already exists" name="AuthService register should throw ConflictException if username already exists" time="0.003">
+    </testcase>
+    <testcase classname="AuthService register should create a new user when no conflicts" name="AuthService register should create a new user when no conflicts" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="Auth Slice" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:06" time="1.128" tests="33">
+    <testcase classname="Auth Slice Initial State should have correct initial state" name="Auth Slice Initial State should have correct initial state" time="0.005">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should clear error" name="Auth Slice Reducers should clear error" time="0.004">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should set user" name="Auth Slice Reducers should set user" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should set user with minimal required fields" name="Auth Slice Reducers should set user with minimal required fields" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should set user with all optional fields" name="Auth Slice Reducers should set user with all optional fields" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should accept setAccessToken action without changing state" name="Auth Slice Reducers should accept setAccessToken action without changing state" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should clear auth" name="Auth Slice Reducers should clear auth" time="0.003">
+    </testcase>
+    <testcase classname="Auth Slice Reducers should clear auth when no user is set" name="Auth Slice Reducers should clear auth when no user is set" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks registerUser should handle successful registration" name="Auth Slice Async Thunks registerUser should handle successful registration" time="0.004">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks registerUser should handle registration failure" name="Auth Slice Async Thunks registerUser should handle registration failure" time="0.003">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks registerUser should handle registration failure with non-Error object" name="Auth Slice Async Thunks registerUser should handle registration failure with non-Error object" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks registerUser should handle registration failure with null error" name="Auth Slice Async Thunks registerUser should handle registration failure with null error" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks loginUser should handle successful login" name="Auth Slice Async Thunks loginUser should handle successful login" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks loginUser should handle login failure" name="Auth Slice Async Thunks loginUser should handle login failure" time="0.004">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks loginUser should handle login failure with non-Error object" name="Auth Slice Async Thunks loginUser should handle login failure with non-Error object" time="0.003">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks loginUser should handle login failure with null error" name="Auth Slice Async Thunks loginUser should handle login failure with null error" time="0.004">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks logoutUser should handle successful logout" name="Auth Slice Async Thunks logoutUser should handle successful logout" time="0.005">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks logoutUser should clear auth even if logout fails" name="Auth Slice Async Thunks logoutUser should clear auth even if logout fails" time="0.003">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks logoutUser should handle logout failure with non-Error object" name="Auth Slice Async Thunks logoutUser should handle logout failure with non-Error object" time="0.002">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks logoutUser should handle logout failure with null error" name="Auth Slice Async Thunks logoutUser should handle logout failure with null error" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks logoutUser should handle logout when not authenticated" name="Auth Slice Async Thunks logoutUser should handle logout when not authenticated" time="0.005">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks getCurrentUser should handle successful get current user" name="Auth Slice Async Thunks getCurrentUser should handle successful get current user" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks getCurrentUser should handle get current user failure" name="Auth Slice Async Thunks getCurrentUser should handle get current user failure" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks getCurrentUser should handle get current user failure with non-Error object" name="Auth Slice Async Thunks getCurrentUser should handle get current user failure with non-Error object" time="0.006">
+    </testcase>
+    <testcase classname="Auth Slice Async Thunks getCurrentUser should handle get current user failure with null error" name="Auth Slice Async Thunks getCurrentUser should handle get current user failure with null error" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice Loading States should set loading state during async operations" name="Auth Slice Loading States should set loading state during async operations" time="0.101">
+    </testcase>
+    <testcase classname="Auth Slice Loading States should set loading state during login" name="Auth Slice Loading States should set loading state during login" time="0.105">
+    </testcase>
+    <testcase classname="Auth Slice Loading States should set loading state during logout" name="Auth Slice Loading States should set loading state during logout" time="0.103">
+    </testcase>
+    <testcase classname="Auth Slice Loading States should set loading state during getCurrentUser" name="Auth Slice Loading States should set loading state during getCurrentUser" time="0.103">
+    </testcase>
+    <testcase classname="Auth Slice Error Handling should clear error when starting new async operation" name="Auth Slice Error Handling should clear error when starting new async operation" time="0">
+    </testcase>
+    <testcase classname="Auth Slice Error Handling should maintain error state when operation fails" name="Auth Slice Error Handling should maintain error state when operation fails" time="0">
+    </testcase>
+    <testcase classname="Auth Slice State Transitions should handle complete auth flow" name="Auth Slice State Transitions should handle complete auth flow" time="0.001">
+    </testcase>
+    <testcase classname="Auth Slice State Transitions should handle login after logout" name="Auth Slice State Transitions should handle login after logout" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="UsersController" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="1.758" tests="6">
+    <testcase classname="UsersController getUserProfile should return user profile when user exists" name="UsersController getUserProfile should return user profile when user exists" time="0.016">
+    </testcase>
+    <testcase classname="UsersController getUserProfile should handle various username formats" name="UsersController getUserProfile should handle various username formats" time="0.004">
+    </testcase>
+    <testcase classname="UsersController getUserProfile should return correct HTTP status code" name="UsersController getUserProfile should return correct HTTP status code" time="0.003">
+    </testcase>
+    <testcase classname="UsersController checkUsername should return available false when username is taken" name="UsersController checkUsername should return available false when username is taken" time="0.002">
+    </testcase>
+    <testcase classname="UsersController checkUsername should return available true when username is not taken" name="UsersController checkUsername should return available true when username is not taken" time="0.011">
+    </testcase>
+    <testcase classname="UsersController updateProfile should update user profile and return dto" name="UsersController updateProfile should update user profile and return dto" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="UsersService" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="0.326" tests="13">
+    <testcase classname="UsersService findByUsername should return user when found" name="UsersService findByUsername should return user when found" time="0.013">
+    </testcase>
+    <testcase classname="UsersService findByUsername should throw NotFoundException when user not found" name="UsersService findByUsername should throw NotFoundException when user not found" time="0.054">
+    </testcase>
+    <testcase classname="UsersService getUserProfile should return user profile DTO when user found" name="UsersService getUserProfile should return user profile DTO when user found" time="0.001">
+    </testcase>
+    <testcase classname="UsersService getUserProfile should throw NotFoundException when user not found" name="UsersService getUserProfile should throw NotFoundException when user not found" time="0.002">
+    </testcase>
+    <testcase classname="UsersService findById should return user when found by ID" name="UsersService findById should return user when found by ID" time="0.022">
+    </testcase>
+    <testcase classname="UsersService findById should throw NotFoundException when user not found by ID" name="UsersService findById should throw NotFoundException when user not found by ID" time="0.005">
+    </testcase>
+    <testcase classname="UsersService findByEmail should return user when found by email" name="UsersService findByEmail should return user when found by email" time="0.004">
+    </testcase>
+    <testcase classname="UsersService findByEmail should throw NotFoundException when user not found by email" name="UsersService findByEmail should throw NotFoundException when user not found by email" time="0.004">
+    </testcase>
+    <testcase classname="UsersService isUsernameTaken returns true when username belongs to another user" name="UsersService isUsernameTaken returns true when username belongs to another user" time="0.007">
+    </testcase>
+    <testcase classname="UsersService isUsernameTaken returns false when username matches same user (excluded)" name="UsersService isUsernameTaken returns false when username matches same user (excluded)" time="0.006">
+    </testcase>
+    <testcase classname="UsersService isUsernameTaken returns false when username not found" name="UsersService isUsernameTaken returns false when username not found" time="0.001">
+    </testcase>
+    <testcase classname="UsersService updateProfile updates fullName and username when available" name="UsersService updateProfile updates fullName and username when available" time="0.002">
+    </testcase>
+    <testcase classname="UsersService updateProfile throws ConflictException when username is taken" name="UsersService updateProfile throws ConflictException when username is taken" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="EditProfileModal" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="0.414" tests="4">
+    <testcase classname="EditProfileModal does not render when open is false" name="EditProfileModal does not render when open is false" time="0.019">
+    </testcase>
+    <testcase classname="EditProfileModal renders when open and shows initial values" name="EditProfileModal renders when open and shows initial values" time="0.043">
+    </testcase>
+    <testcase classname="EditProfileModal calls onClose when clicking cancel and when pressing escape" name="EditProfileModal calls onClose when clicking cancel and when pressing escape" time="0.08">
+    </testcase>
+    <testcase classname="EditProfileModal calls onSubmit with updated values" name="EditProfileModal calls onSubmit with updated values" time="0.028">
+    </testcase>
+  </testsuite>
+  <testsuite name="ProtectedRoute" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="0.208" tests="6">
+    <testcase classname="ProtectedRoute renders children when user is authenticated" name="ProtectedRoute renders children when user is authenticated" time="0.02">
+    </testcase>
+    <testcase classname="ProtectedRoute shows loading state when session is loading" name="ProtectedRoute shows loading state when session is loading" time="0.01">
+    </testcase>
+    <testcase classname="ProtectedRoute shows redirect message when user is unauthenticated" name="ProtectedRoute shows redirect message when user is unauthenticated" time="0.002">
+    </testcase>
+    <testcase classname="ProtectedRoute redirects to login when user is unauthenticated" name="ProtectedRoute redirects to login when user is unauthenticated" time="0">
+    </testcase>
+    <testcase classname="ProtectedRoute renders custom fallback when provided" name="ProtectedRoute renders custom fallback when provided" time="0.002">
+    </testcase>
+    <testcase classname="ProtectedRoute does not redirect when session is loading" name="ProtectedRoute does not redirect when session is loading" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="AuthController" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="2.476" tests="4">
+    <testcase classname="AuthController register should register a new user successfully" name="AuthController register should register a new user successfully" time="0.018">
+    </testcase>
+    <testcase classname="AuthController register should handle service errors properly" name="AuthController register should handle service errors properly" time="0.008">
+    </testcase>
+    <testcase classname="AuthController register should validate input data" name="AuthController register should validate input data" time="0.005">
+    </testcase>
+    <testcase classname="Auth demo endpoint (integration) POST /api/auth/demo returns a demo user and 200" name="Auth demo endpoint (integration) POST /api/auth/demo returns a demo user and 200" time="0.243">
+    </testcase>
+  </testsuite>
+  <testsuite name="Home" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="0.447" tests="7">
+    <testcase classname="Home renders the main heading" name="Home renders the main heading" time="0.05">
+    </testcase>
+    <testcase classname="Home renders the hero description" name="Home renders the hero description" time="0.005">
+    </testcase>
+    <testcase classname="Home renders call-to-action buttons" name="Home renders call-to-action buttons" time="0.007">
+    </testcase>
+    <testcase classname="Home renders feature sections" name="Home renders feature sections" time="0.028">
+    </testcase>
+    <testcase classname="Home renders development status section" name="Home renders development status section" time="0.017">
+    </testcase>
+    <testcase classname="Home renders completed features list" name="Home renders completed features list" time="0.004">
+    </testcase>
+    <testcase classname="Home renders in-progress features list" name="Home renders in-progress features list" time="0.009">
+    </testcase>
+  </testsuite>
+  <testsuite name="Follows Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="3.009" tests="1">
+    <testcase classname="Follows Integration Tests should follow and unfollow a user" name="Follows Integration Tests should follow and unfollow a user" time="0.75">
+    </testcase>
+  </testsuite>
+  <testsuite name="RegisterPage" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="0.95" tests="10">
+    <testcase classname="RegisterPage renders registration form with all required fields" name="RegisterPage renders registration form with all required fields" time="0.157">
+    </testcase>
+    <testcase classname="RegisterPage displays validation errors for empty required fields" name="RegisterPage displays validation errors for empty required fields" time="0.047">
+    </testcase>
+    <testcase classname="RegisterPage validates email format" name="RegisterPage validates email format" time="0.125">
+    </testcase>
+    <testcase classname="RegisterPage validates password complexity" name="RegisterPage validates password complexity" time="0.015">
+    </testcase>
+    <testcase classname="RegisterPage submits form with valid data and calls API" name="RegisterPage submits form with valid data and calls API" time="0.053">
+    </testcase>
+    <testcase classname="RegisterPage shows loading state during form submission" name="RegisterPage shows loading state during form submission" time="0.039">
+    </testcase>
+    <testcase classname="RegisterPage handles API errors and displays error messages" name="RegisterPage handles API errors and displays error messages" time="0.064">
+    </testcase>
+    <testcase classname="RegisterPage handles username-specific backend error mapping" name="RegisterPage handles username-specific backend error mapping" time="0.03">
+    </testcase>
+    <testcase classname="RegisterPage handles network/unknown errors gracefully" name="RegisterPage handles network/unknown errors gracefully" time="0.019">
+    </testcase>
+    <testcase classname="RegisterPage handles Error instance branch gracefully" name="RegisterPage handles Error instance branch gracefully" time="0.024">
+    </testcase>
+  </testsuite>
+  <testsuite name="FollowButton" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:08" time="0.291" tests="3">
+    <testcase classname="FollowButton renders Follow when not following" name="FollowButton renders Follow when not following" time="0.096">
+    </testcase>
+    <testcase classname="FollowButton renders Following when isFollowing is true" name="FollowButton renders Following when isFollowing is true" time="0.008">
+    </testcase>
+    <testcase classname="FollowButton toggles state on click calling provided handlers" name="FollowButton toggles state on click calling provided handlers" time="0.029">
+    </testcase>
+  </testsuite>
+  <testsuite name="Auth Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:05" time="3.357" tests="10">
+    <testcase classname="Auth Integration Tests POST /api/auth/register should register a new user successfully" name="Auth Integration Tests POST /api/auth/register should register a new user successfully" time="0.172">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/register should return 400 for invalid email format" name="Auth Integration Tests POST /api/auth/register should return 400 for invalid email format" time="0.009">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/register should return 400 for weak password" name="Auth Integration Tests POST /api/auth/register should return 400 for weak password" time="0.005">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/register should return 400 for short username" name="Auth Integration Tests POST /api/auth/register should return 400 for short username" time="0.008">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/register should return 409 for duplicate email" name="Auth Integration Tests POST /api/auth/register should return 409 for duplicate email" time="0.126">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/register should return 409 for duplicate username" name="Auth Integration Tests POST /api/auth/register should return 409 for duplicate username" time="0.145">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/signin should sign in user successfully" name="Auth Integration Tests POST /api/auth/signin should sign in user successfully" time="0.291">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/signin should return 401 for invalid credentials" name="Auth Integration Tests POST /api/auth/signin should return 401 for invalid credentials" time="0.242">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/signin should return 401 for non-existent user" name="Auth Integration Tests POST /api/auth/signin should return 401 for non-existent user" time="0.129">
+    </testcase>
+    <testcase classname="Auth Integration Tests POST /api/auth/signout should sign out user successfully" name="Auth Integration Tests POST /api/auth/signout should sign out user successfully" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="AuthProvider" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="1.057" tests="3">
+    <testcase classname="AuthProvider dispatches setUser when authenticated" name="AuthProvider dispatches setUser when authenticated" time="0.014">
+    </testcase>
+    <testcase classname="AuthProvider dispatches clearAuth when unauthenticated" name="AuthProvider dispatches clearAuth when unauthenticated" time="0.011">
+    </testcase>
+    <testcase classname="AuthProvider does not dispatch when loading" name="AuthProvider does not dispatch when loading" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="FollowsController" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:08" time="0.308" tests="3">
+    <testcase classname="FollowsController should be defined" name="FollowsController should be defined" time="0.003">
+    </testcase>
+    <testcase classname="FollowsController should call service to follow user" name="FollowsController should call service to follow user" time="0.002">
+    </testcase>
+    <testcase classname="FollowsController should call service to unfollow user" name="FollowsController should call service to unfollow user" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="AppController (Integration)" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:08" time="0.423" tests="4">
+    <testcase classname="AppController (Integration) GET / should return &quot;Hello World!&quot;" name="AppController (Integration) GET / should return &quot;Hello World!&quot;" time="0.149">
+    </testcase>
+    <testcase classname="AppController (Integration) GET / should have correct content-type" name="AppController (Integration) GET / should have correct content-type" time="0.019">
+    </testcase>
+    <testcase classname="AppController (Integration) GET / should respond within reasonable time" name="AppController (Integration) GET / should respond within reasonable time" time="0.029">
+    </testcase>
+    <testcase classname="AppController (Integration) Error handling should return 404 for non-existent routes" name="AppController (Integration) Error handling should return 404 for non-existent routes" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="AuthNextAuthController" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:08" time="0.222" tests="4">
+    <testcase classname="AuthNextAuthController signIn should sign in user successfully" name="AuthNextAuthController signIn should sign in user successfully" time="0.006">
+    </testcase>
+    <testcase classname="AuthNextAuthController signIn should return 401 for invalid credentials" name="AuthNextAuthController signIn should return 401 for invalid credentials" time="0.002">
+    </testcase>
+    <testcase classname="AuthNextAuthController signOut should clear session cookie and return success message" name="AuthNextAuthController signOut should clear session cookie and return success message" time="0">
+    </testcase>
+    <testcase classname="AuthNextAuthController register should register user and create session" name="AuthNextAuthController register should register user and create session" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="GlobalExceptionFilter" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.093" tests="4">
+    <testcase classname="GlobalExceptionFilter should be defined" name="GlobalExceptionFilter should be defined" time="0.008">
+    </testcase>
+    <testcase classname="GlobalExceptionFilter should handle HttpException" name="GlobalExceptionFilter should handle HttpException" time="0.001">
+    </testcase>
+    <testcase classname="GlobalExceptionFilter should handle generic Error" name="GlobalExceptionFilter should handle generic Error" time="0.001">
+    </testcase>
+    <testcase classname="GlobalExceptionFilter should handle unknown exceptions" name="GlobalExceptionFilter should handle unknown exceptions" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="UserProfilePage" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.152" tests="7">
+    <testcase classname="UserProfilePage renders profile page with valid username" name="UserProfilePage renders profile page with valid username" time="0.014">
+    </testcase>
+    <testcase classname="UserProfilePage calls notFound for empty username" name="UserProfilePage calls notFound for empty username" time="0.001">
+    </testcase>
+    <testcase classname="UserProfilePage calls notFound for whitespace-only username" name="UserProfilePage calls notFound for whitespace-only username" time="0.001">
+    </testcase>
+    <testcase classname="UserProfilePage calls notFound for undefined username" name="UserProfilePage calls notFound for undefined username" time="0">
+    </testcase>
+    <testcase classname="UserProfilePage passes current user session to ProfilePage" name="UserProfilePage passes current user session to ProfilePage" time="0.006">
+    </testcase>
+    <testcase classname="UserProfilePage handles null session gracefully" name="UserProfilePage handles null session gracefully" time="0.006">
+    </testcase>
+    <testcase classname="UserProfilePage generates correct metadata" name="UserProfilePage generates correct metadata" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="AppController" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.147" tests="2">
+    <testcase classname="AppController root should return &quot;Hello World!&quot;" name="AppController root should return &quot;Hello World!&quot;" time="0.004">
+    </testcase>
+    <testcase classname="AppController health should return ok status" name="AppController health should return ok status" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="ProfilePage" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.282" tests="9">
+    <testcase classname="ProfilePage renders loading state initially" name="ProfilePage renders loading state initially" time="0.013">
+    </testcase>
+    <testcase classname="ProfilePage renders profile data when fetch succeeds" name="ProfilePage renders profile data when fetch succeeds" time="0.024">
+    </testcase>
+    <testcase classname="ProfilePage shows error state when fetch fails" name="ProfilePage shows error state when fetch fails" time="0.021">
+    </testcase>
+    <testcase classname="ProfilePage shows error state when profile is null" name="ProfilePage shows error state when profile is null" time="0.013">
+    </testcase>
+    <testcase classname="ProfilePage navigates to home when Go Home button is clicked" name="ProfilePage navigates to home when Go Home button is clicked" time="0.03">
+    </testcase>
+    <testcase classname="ProfilePage correctly identifies own profile" name="ProfilePage correctly identifies own profile" time="0.017">
+    </testcase>
+    <testcase classname="ProfilePage correctly identifies other user profile" name="ProfilePage correctly identifies other user profile" time="0.009">
+    </testcase>
+    <testcase classname="ProfilePage handles null current user" name="ProfilePage handles null current user" time="0.011">
+    </testcase>
+    <testcase classname="ProfilePage refetches profile when username changes" name="ProfilePage refetches profile when username changes" time="0.015">
+    </testcase>
+  </testsuite>
+  <testsuite name="FollowsService" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.241" tests="12">
+    <testcase classname="FollowsService followUser should throw when trying to follow self" name="FollowsService followUser should throw when trying to follow self" time="0.006">
+    </testcase>
+    <testcase classname="FollowsService followUser should throw NotFound when follower or following does not exist" name="FollowsService followUser should throw NotFound when follower or following does not exist" time="0.001">
+    </testcase>
+    <testcase classname="FollowsService followUser should throw Conflict when already following" name="FollowsService followUser should throw Conflict when already following" time="0.001">
+    </testcase>
+    <testcase classname="FollowsService followUser should create follow and update counts" name="FollowsService followUser should create follow and update counts" time="0.001">
+    </testcase>
+    <testcase classname="FollowsService unfollowUser should throw when trying to unfollow self" name="FollowsService unfollowUser should throw when trying to unfollow self" time="0.002">
+    </testcase>
+    <testcase classname="FollowsService unfollowUser should throw NotFound when follow relationship missing" name="FollowsService unfollowUser should throw NotFound when follow relationship missing" time="0.004">
+    </testcase>
+    <testcase classname="FollowsService unfollowUser should delete follow and update counts" name="FollowsService unfollowUser should delete follow and update counts" time="0.008">
+    </testcase>
+    <testcase classname="FollowsService get counts should return follower count" name="FollowsService get counts should return follower count" time="0.034">
+    </testcase>
+    <testcase classname="FollowsService get counts should return following count" name="FollowsService get counts should return following count" time="0.004">
+    </testcase>
+    <testcase classname="FollowsService isFollowing should return false for invalid or self ids" name="FollowsService isFollowing should return false for invalid or self ids" time="0.006">
+    </testcase>
+    <testcase classname="FollowsService isFollowing should return true when relationship exists" name="FollowsService isFollowing should return true when relationship exists" time="0.005">
+    </testcase>
+    <testcase classname="FollowsService isFollowing should return false when relationship missing" name="FollowsService isFollowing should return false when relationship missing" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="Input" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.155" tests="12">
+    <testcase classname="Input renders input with label" name="Input renders input with label" time="0.018">
+    </testcase>
+    <testcase classname="Input renders input with error message" name="Input renders input with error message" time="0.012">
+    </testcase>
+    <testcase classname="Input renders input with validation error" name="Input renders input with validation error" time="0.002">
+    </testcase>
+    <testcase classname="Input prioritizes error over validation message" name="Input prioritizes error over validation message" time="0.001">
+    </testcase>
+    <testcase classname="Input handles onBlur event" name="Input handles onBlur event" time="0.004">
+    </testcase>
+    <testcase classname="Input handles onBlur event without handler" name="Input handles onBlur event without handler" time="0.003">
+    </testcase>
+    <testcase classname="Input applies custom className" name="Input applies custom className" time="0.004">
+    </testcase>
+    <testcase classname="Input applies error styling when has error" name="Input applies error styling when has error" time="0.004">
+    </testcase>
+    <testcase classname="Input applies error styling when validation fails" name="Input applies error styling when validation fails" time="0.002">
+    </testcase>
+    <testcase classname="Input applies normal styling when no error" name="Input applies normal styling when no error" time="0.009">
+    </testcase>
+    <testcase classname="Input passes through all input props" name="Input passes through all input props" time="0.001">
+    </testcase>
+    <testcase classname="Input does not show error message when no error and validation is valid" name="Input does not show error message when no error and validation is valid" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Form" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.091" tests="2">
+    <testcase classname="Form renders children and submits" name="Form renders children and submits" time="0.006">
+    </testcase>
+    <testcase classname="Form displays error message when provided" name="Form displays error message when provided" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="CI Workflow Tests" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.112" tests="52">
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have package.json in all projects" name="CI Workflow Tests Project Dependencies Validation should have package.json in all projects" time="0.006">
+    </testcase>
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have valid package.json in all projects" name="CI Workflow Tests Project Dependencies Validation should have valid package.json in all projects" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have scripts in all project package.json files" name="CI Workflow Tests Project Dependencies Validation should have scripts in all project package.json files" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have required scripts in web app" name="CI Workflow Tests Project Dependencies Validation should have required scripts in web app" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have required scripts in api app" name="CI Workflow Tests Project Dependencies Validation should have required scripts in api app" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Project Dependencies Validation should have required scripts in shared-types" name="CI Workflow Tests Project Dependencies Validation should have required scripts in shared-types" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Root Package.json Validation should have all required CI scripts" name="CI Workflow Tests Root Package.json Validation should have all required CI scripts" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Root Package.json Validation should have valid workspaces configuration" name="CI Workflow Tests Root Package.json Validation should have valid workspaces configuration" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Root Package.json Validation should have pnpm-lock.yaml at root" name="CI Workflow Tests Root Package.json Validation should have pnpm-lock.yaml at root" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests CI Workflow Command Validation should have valid install commands in all jobs" name="CI Workflow Tests CI Workflow Command Validation should have valid install commands in all jobs" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests CI Workflow Command Validation should have valid build commands" name="CI Workflow Tests CI Workflow Command Validation should have valid build commands" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests CI Workflow Command Validation should have valid test commands" name="CI Workflow Tests CI Workflow Command Validation should have valid test commands" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Structure should have correct workflow name" name="CI Workflow Tests Workflow Structure should have correct workflow name" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Structure should have correct triggers" name="CI Workflow Tests Workflow Structure should have correct triggers" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Structure should have concurrency configuration" name="CI Workflow Tests Workflow Structure should have concurrency configuration" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Structure should have all required jobs" name="CI Workflow Tests Workflow Structure should have all required jobs" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should have correct job configuration" name="CI Workflow Tests Quality Job should have correct job configuration" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should have all required steps" name="CI Workflow Tests Quality Job should have all required steps" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should have correct Node.js setup" name="CI Workflow Tests Quality Job should have correct Node.js setup" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should have correct test command" name="CI Workflow Tests Quality Job should have correct test command" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should archive coverage files from correct locations" name="CI Workflow Tests Quality Job should archive coverage files from correct locations" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Quality Job should upload coverage artifact with correct name" name="CI Workflow Tests Quality Job should upload coverage artifact with correct name" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Gate Job should depend on quality job" name="CI Workflow Tests Coverage Gate Job should depend on quality job" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Gate Job should have correct step order" name="CI Workflow Tests Coverage Gate Job should have correct step order" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Gate Job should download coverage artifact with correct name" name="CI Workflow Tests Coverage Gate Job should download coverage artifact with correct name" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Gate Job should extract coverage files correctly" name="CI Workflow Tests Coverage Gate Job should extract coverage files correctly" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Gate Job should run coverage report command" name="CI Workflow Tests Coverage Gate Job should run coverage report command" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Integration Job should depend on quality job" name="CI Workflow Tests Integration Job should depend on quality job" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Integration Job should have PostgreSQL service" name="CI Workflow Tests Integration Job should have PostgreSQL service" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Integration Job should have correct environment variables" name="CI Workflow Tests Integration Job should have correct environment variables" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Integration Job should have integration test step" name="CI Workflow Tests Integration Job should have integration test step" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Integration Job should run integration tests with correct flags" name="CI Workflow Tests Integration Job should run integration tests with correct flags" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests E2E Job should depend on integration job" name="CI Workflow Tests E2E Job should depend on integration job" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests E2E Job should install Playwright" name="CI Workflow Tests E2E Job should install Playwright" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests E2E Job should have E2E test step" name="CI Workflow Tests E2E Job should have E2E test step" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests E2E Job should cache Next.js build cache" name="CI Workflow Tests E2E Job should cache Next.js build cache" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests E2E Job should run E2E tests" name="CI Workflow Tests E2E Job should run E2E tests" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Security Job should have correct permissions" name="CI Workflow Tests Security Job should have correct permissions" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Security Job should have CodeQL steps" name="CI Workflow Tests Security Job should have CodeQL steps" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Security Job should have Gitleaks step" name="CI Workflow Tests Security Job should have Gitleaks step" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Production Build Job should depend on integration job" name="CI Workflow Tests Production Build Job should depend on integration job" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Production Build Job should build Docker images" name="CI Workflow Tests Production Build Job should build Docker images" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Production Build Job should have Trivy scan" name="CI Workflow Tests Production Build Job should have Trivy scan" time="0.001">
+    </testcase>
+    <testcase classname="CI Workflow Tests Production Build Job should generate SBOM" name="CI Workflow Tests Production Build Job should generate SBOM" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Production Build Job should enable Docker Buildx cache" name="CI Workflow Tests Production Build Job should enable Docker Buildx cache" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Path Consistency should have matching artifact names between upload and download" name="CI Workflow Tests Coverage Path Consistency should have matching artifact names between upload and download" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Path Consistency should archive all expected coverage paths" name="CI Workflow Tests Coverage Path Consistency should archive all expected coverage paths" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Coverage Path Consistency should not archive unexpected paths" name="CI Workflow Tests Coverage Path Consistency should not archive unexpected paths" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Validation should have valid YAML syntax" name="CI Workflow Tests Workflow Validation should have valid YAML syntax" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Validation should have no circular dependencies" name="CI Workflow Tests Workflow Validation should have no circular dependencies" time="0">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Validation should have consistent step naming" name="CI Workflow Tests Workflow Validation should have consistent step naming" time="0.017">
+    </testcase>
+    <testcase classname="CI Workflow Tests Workflow Validation should have no duplicate step names within jobs" name="CI Workflow Tests Workflow Validation should have no duplicate step names within jobs" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="SignOutButton" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.356" tests="8">
+    <testcase classname="SignOutButton renders sign out button" name="SignOutButton renders sign out button" time="0.029">
+    </testcase>
+    <testcase classname="SignOutButton shows confirmation dialog when clicked" name="SignOutButton shows confirmation dialog when clicked" time="0.023">
+    </testcase>
+    <testcase classname="SignOutButton calls signOut and redirects when confirmed" name="SignOutButton calls signOut and redirects when confirmed" time="0.034">
+    </testcase>
+    <testcase classname="SignOutButton shows loading state during sign out" name="SignOutButton shows loading state during sign out" time="0.006">
+    </testcase>
+    <testcase classname="SignOutButton hides confirmation dialog when cancelled" name="SignOutButton hides confirmation dialog when cancelled" time="0.009">
+    </testcase>
+    <testcase classname="SignOutButton applies custom className" name="SignOutButton applies custom className" time="0.001">
+    </testcase>
+    <testcase classname="SignOutButton applies custom variant" name="SignOutButton applies custom variant" time="0.001">
+    </testcase>
+    <testcase classname="SignOutButton applies custom size" name="SignOutButton applies custom size" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="utils" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.075" tests="5">
+    <testcase classname="utils cn function combines class names correctly" name="utils cn function combines class names correctly" time="0.011">
+    </testcase>
+    <testcase classname="utils cn function handles conditional classes" name="utils cn function handles conditional classes" time="0.001">
+    </testcase>
+    <testcase classname="utils cn function filters out falsy values" name="utils cn function filters out falsy values" time="0">
+    </testcase>
+    <testcase classname="utils cn function handles empty input" name="utils cn function handles empty input" time="0.001">
+    </testcase>
+    <testcase classname="utils cn function deduplicates classes" name="utils cn function deduplicates classes" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="AppService" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.091" tests="2">
+    <testcase classname="AppService should be defined" name="AppService should be defined" time="0.002">
+    </testcase>
+    <testcase classname="AppService getHello should return &quot;Hello World!&quot;" name="AppService getHello should return &quot;Hello World!&quot;" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Shared Types" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.034" tests="6">
+    <testcase classname="Shared Types User interface should have required properties" name="Shared Types User interface should have required properties" time="0">
+    </testcase>
+    <testcase classname="Shared Types User interface should allow optional properties" name="Shared Types User interface should allow optional properties" time="0">
+    </testcase>
+    <testcase classname="Shared Types Post interface should have required properties" name="Shared Types Post interface should have required properties" time="0">
+    </testcase>
+    <testcase classname="Shared Types Post interface should allow optional mediaUrls" name="Shared Types Post interface should allow optional mediaUrls" time="0.001">
+    </testcase>
+    <testcase classname="Shared Types ApiResponse interface should handle success response" name="Shared Types ApiResponse interface should handle success response" time="0">
+    </testcase>
+    <testcase classname="Shared Types ApiResponse interface should handle error response" name="Shared Types ApiResponse interface should handle error response" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="API Client" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.093" tests="19">
+    <testcase classname="API Client registration should call registration endpoint with correct data" name="API Client registration should call registration endpoint with correct data" time="0.001">
+    </testcase>
+    <testcase classname="API Client registration should handle registration errors" name="API Client registration should handle registration errors" time="0">
+    </testcase>
+    <testcase classname="API Client registration should handle registration with try-catch block" name="API Client registration should handle registration with try-catch block" time="0.007">
+    </testcase>
+    <testcase classname="API Client login should call login endpoint and return data" name="API Client login should call login endpoint and return data" time="0">
+    </testcase>
+    <testcase classname="API Client login should handle login errors" name="API Client login should handle login errors" time="0.001">
+    </testcase>
+    <testcase classname="API Client getCurrentUser should call me endpoint and return data" name="API Client getCurrentUser should call me endpoint and return data" time="0">
+    </testcase>
+    <testcase classname="API Client getCurrentUser should handle getCurrentUser errors" name="API Client getCurrentUser should handle getCurrentUser errors" time="0">
+    </testcase>
+    <testcase classname="API Client logout should call logout endpoint and return data" name="API Client logout should call logout endpoint and return data" time="0">
+    </testcase>
+    <testcase classname="API Client logout should handle logout errors" name="API Client logout should handle logout errors" time="0">
+    </testcase>
+    <testcase classname="API Client token helpers returns null for getAuthToken, and token setters are callable no-ops" name="API Client token helpers returns null for getAuthToken, and token setters are callable no-ops" time="0.001">
+    </testcase>
+    <testcase classname="API Client authentication headers should include authorization header when token is available" name="API Client authentication headers should include authorization header when token is available" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle network errors" name="API Client error handling should handle network errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 500 server errors" name="API Client error handling should handle 500 server errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 400 server errors" name="API Client error handling should handle 400 server errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 401 server errors" name="API Client error handling should handle 401 server errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 403 server errors" name="API Client error handling should handle 403 server errors" time="0.001">
+    </testcase>
+    <testcase classname="API Client error handling should handle 404 server errors" name="API Client error handling should handle 404 server errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 422 server errors" name="API Client error handling should handle 422 server errors" time="0">
+    </testcase>
+    <testcase classname="API Client error handling should handle 409 server errors" name="API Client error handling should handle 409 server errors" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="RootLayout" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.095" tests="3">
+    <testcase classname="RootLayout renders children correctly" name="RootLayout renders children correctly" time="0.003">
+    </testcase>
+    <testcase classname="RootLayout applies correct structure and classes" name="RootLayout applies correct structure and classes" time="0.001">
+    </testcase>
+    <testcase classname="RootLayout contains metadata elements" name="RootLayout contains metadata elements" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Validation Utilities" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:09" time="0.048" tests="12">
+    <testcase classname="Validation Utilities validateEmail returns error for empty email" name="Validation Utilities validateEmail returns error for empty email" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateEmail returns error for invalid email format" name="Validation Utilities validateEmail returns error for invalid email format" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateEmail returns valid for correct email" name="Validation Utilities validateEmail returns valid for correct email" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validatePassword returns error for empty password" name="Validation Utilities validatePassword returns error for empty password" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validatePassword returns error for short password" name="Validation Utilities validatePassword returns error for short password" time="0.001">
+    </testcase>
+    <testcase classname="Validation Utilities validatePassword returns valid for strong password" name="Validation Utilities validatePassword returns valid for strong password" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateRequired returns error for empty value" name="Validation Utilities validateRequired returns error for empty value" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateRequired returns valid for non-empty value" name="Validation Utilities validateRequired returns valid for non-empty value" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateUsername returns error for empty username" name="Validation Utilities validateUsername returns error for empty username" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateUsername returns error for short username" name="Validation Utilities validateUsername returns error for short username" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateUsername returns error for invalid characters" name="Validation Utilities validateUsername returns error for invalid characters" time="0">
+    </testcase>
+    <testcase classname="Validation Utilities validateUsername returns valid for correct username" name="Validation Utilities validateUsername returns valid for correct username" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="Users Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:07" time="1.747" tests="1">
+    <testcase classname="Users Integration Tests should check username availability and update profile" name="Users Integration Tests should check username availability and update profile" time="0.099">
+    </testcase>
+  </testsuite>
+  <testsuite name="LoginPage" errors="0" failures="0" skipped="0" timestamp="2025-08-12T20:53:08" time="1.225" tests="14">
+    <testcase classname="LoginPage renders login form with required fields" name="LoginPage renders login form with required fields" time="0.094">
+    </testcase>
+    <testcase classname="LoginPage renders a Try our demo button" name="LoginPage renders a Try our demo button" time="0.006">
+    </testcase>
+    <testcase classname="LoginPage clicking demo button calls backend demo endpoint then signs in" name="LoginPage clicking demo button calls backend demo endpoint then signs in" time="0.018">
+    </testcase>
+    <testcase classname="LoginPage signs in with demo email from env and redirects" name="LoginPage signs in with demo email from env and redirects" time="0.015">
+    </testcase>
+    <testcase classname="LoginPage shows a generic error if demo backend call fails" name="LoginPage shows a generic error if demo backend call fails" time="0.019">
+    </testcase>
+    <testcase classname="LoginPage shows validation errors for empty fields on submit" name="LoginPage shows validation errors for empty fields on submit" time="0.01">
+    </testcase>
+    <testcase classname="LoginPage validates email format" name="LoginPage validates email format" time="0.009">
+    </testcase>
+    <testcase classname="LoginPage submits valid form and calls Auth.js signIn" name="LoginPage submits valid form and calls Auth.js signIn" time="0.009">
+    </testcase>
+    <testcase classname="LoginPage renders success message from search params" name="LoginPage renders success message from search params" time="0.004">
+    </testcase>
+    <testcase classname="LoginPage shows loading state during submission" name="LoginPage shows loading state during submission" time="0.004">
+    </testcase>
+    <testcase classname="LoginPage handles authentication errors" name="LoginPage handles authentication errors" time="0.008">
+    </testcase>
+    <testcase classname="LoginPage maps CredentialsSignin to a friendly error message" name="LoginPage maps CredentialsSignin to a friendly error message" time="0.007">
+    </testcase>
+    <testcase classname="LoginPage maps Configuration error to a friendly message" name="LoginPage maps Configuration error to a friendly message" time="0.008">
+    </testcase>
+    <testcase classname="LoginPage redirects when already authenticated" name="LoginPage redirects when already authenticated" time="0.002">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -4,15 +4,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { Follows } from '../src/follows/entities/follows.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
+  let dataSource: DataSource;
 
   beforeAll(async () => {
     // Use SQLite for testing by default, PostgreSQL only when DATABASE_URL is explicitly set
@@ -22,14 +24,14 @@ describe('Auth Integration Tests', () => {
       ? {
           type: 'postgres' as const,
           url: process.env.DATABASE_URL,
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
           logging: false,
         }
       : {
           type: 'sqlite' as const,
           database: ':memory:',
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
           logging: false,
         };
@@ -61,15 +63,30 @@ describe('Auth Integration Tests', () => {
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
 
-    // Get repository for cleanup
+    // Get repository and data source for cleanup
     userRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
     );
+    dataSource = moduleFixture.get<DataSource>(DataSource);
   }, 30000); // Increase timeout to 30 seconds
 
   beforeEach(async () => {
-    // Clean up database before each test
-    await userRepository.clear();
+    // Clean up database before each test - handle foreign key constraints
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
+    try {
+      // Delete in correct order to avoid foreign key constraint issues
+      await queryRunner.manager.query('DELETE FROM follows');
+      await queryRunner.manager.query('DELETE FROM users');
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   });
 
   afterAll(async () => {
@@ -83,7 +100,7 @@ describe('Auth Integration Tests', () => {
       email: 'test@example.com',
       username: 'testuser',
       fullName: 'Test User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     it('should register a new user successfully', async () => {
@@ -218,7 +235,7 @@ describe('Auth Integration Tests', () => {
       email: 'signin@example.com',
       username: 'signinuser',
       fullName: 'Sign In User',
-      password: 'Password123',
+      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
     };
 
     beforeEach(async () => {
@@ -249,7 +266,7 @@ describe('Auth Integration Tests', () => {
         .post('/api/auth/signin')
         .send({
           email: userData.email,
-          password: 'wrongpassword',
+          password: 'InvalidPassword!',
         })
         .expect(401);
 
@@ -261,7 +278,7 @@ describe('Auth Integration Tests', () => {
         .post('/api/auth/signin')
         .send({
           email: 'nonexistent@example.com',
-          password: 'password123',
+          password: 'SomePassword123',
         })
         .expect(401);
 

@@ -14,6 +14,7 @@ export interface User {
   followingCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  isDemoUser?: boolean;
 }
 
 export interface AuthState {
@@ -21,6 +22,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  followingUsernames: string[];
 }
 
 // Initial state
@@ -29,6 +31,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  followingUsernames: [],
 };
 
 // Async thunks
@@ -108,6 +111,17 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;
+      state.followingUsernames = [];
+    },
+    followUsername: (state, action: PayloadAction<string>) => {
+      const username = action.payload;
+      if (!state.followingUsernames.includes(username)) {
+        state.followingUsernames.push(username);
+      }
+    },
+    unfollowUsername: (state, action: PayloadAction<string>) => {
+      const username = action.payload;
+      state.followingUsernames = state.followingUsernames.filter((u) => u !== username);
     },
   },
   extraReducers: (builder) => {
@@ -155,6 +169,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error = null;
+        state.followingUsernames = [];
       })
       .addCase(logoutUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -162,6 +177,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.error = action.payload as string;
+        state.followingUsernames = [];
       });
 
     // Get current user
@@ -187,13 +203,14 @@ const authSlice = createSlice({
 });
 
 // Actions
-export const { clearError, setUser, setAccessToken, clearAuth } = authSlice.actions;
+export const { clearError, setUser, setAccessToken, clearAuth, followUsername, unfollowUsername } = authSlice.actions;
 
 // Selectors
 export const selectUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 export const selectIsLoading = (state: { auth: AuthState }) => state.auth.isLoading;
 export const selectError = (state: { auth: AuthState }) => state.auth.error;
+export const selectFollowingUsernames = (state: { auth: AuthState }) => state.auth.followingUsernames;
 // Deprecated: access token is no longer stored client-side
 export const selectAccessToken = () => null;
 

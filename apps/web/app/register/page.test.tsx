@@ -117,7 +117,7 @@ describe("RegisterPage", () => {
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
     fireEvent.change(usernameInput, { target: { value: "testuser" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(passwordInput, { target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" } });
 
     const form = emailInput.closest("form");
     if (form) {
@@ -130,7 +130,7 @@ describe("RegisterPage", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: process.env.TEST_USER_PASSWORD || "TestPassword123!",
       });
     });
 
@@ -155,7 +155,7 @@ describe("RegisterPage", () => {
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
     fireEvent.change(usernameInput, { target: { value: "testuser" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(passwordInput, { target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" } });
     fireEvent.click(submitButton);
 
     expect(submitButton).toBeDisabled();
@@ -204,7 +204,9 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" },
+    });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -223,7 +225,9 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: process.env.TEST_USER_PASSWORD || "TestPassword123!" },
+    });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);

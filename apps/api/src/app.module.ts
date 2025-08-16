@@ -9,6 +9,8 @@ import { User } from './users/entities/user.entity';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { Follows } from './follows/entities/follows.entity';
+import { FollowsModule } from './follows/follows.module';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -21,16 +23,22 @@ function getDatabaseModules() {
     ? {
         type: 'sqlite' as const,
         database: ':memory:',
-        entities: [User],
+        entities: [User, Follows],
         synchronize: true,
         logging: false,
       }
     : {
         type: 'postgres' as const,
-        url:
-          process.env.DATABASE_URL ||
-          'postgresql://postgres:password@localhost:5432/isntgram',
-        entities: [User],
+        url: (() => {
+          const dbUrl = process.env.DATABASE_URL;
+          if (!dbUrl) {
+            throw new Error(
+              'DATABASE_URL must be set for non-test environments. See ENVIRONMENT.md for details.',
+            );
+          }
+          return dbUrl;
+        })(),
+        entities: [User, Follows],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
         ssl:
@@ -50,7 +58,7 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule, UsersModule];
+  return [AuthModule, UsersModule, FollowsModule];
 }
 
 @Module({

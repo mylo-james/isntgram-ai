@@ -6,6 +6,7 @@ import request from 'supertest';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { Follows } from '../src/follows/entities/follows.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -19,7 +20,7 @@ describe('Users Integration Tests', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User],
+          entities: [User, Follows],
           synchronize: true,
         }),
         // Disable throttling for tests
@@ -52,7 +53,7 @@ describe('Users Integration Tests', () => {
         email: 'user@example.com',
         username: 'user1',
         fullName: 'User One',
-        password: 'Password123',
+        password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
       })
       .expect(201);
 

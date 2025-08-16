@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { type Session } from "next-auth";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import SignOutButton from "@/components/auth/SignOutButton";
 import { apiClient } from "@/lib/api-client";
 import { useDispatch } from "react-redux";
-import { setUser } from "@/lib/store/auth-slice";
+import { setUser, followUsername, unfollowUsername } from "@/lib/store/auth-slice";
+import FollowButton from "@/components/profile/FollowButton";
 
 // Extend the Session type to include username
 type AppSession = Session & {
@@ -36,9 +37,10 @@ interface ProfileActionsProps {
 }
 
 export default function ProfileActions({ profile, currentUser, isOwnProfile, onProfileUpdated }: ProfileActionsProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  // Note: loading state currently not used; follow/unfollow button manages its own loading
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
+  const [isFollowing, setIsFollowing] = useState(false);
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -64,16 +66,54 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
       router.push("/login");
       return;
     }
-
-    setIsLoading(true);
+    // optimistic update
+    setIsFollowing(true);
+    dispatch(followUsername(profile.username));
     try {
-      console.log("Follow functionality will be implemented in Epic 2");
-    } catch (error) {
-      console.error("Error following user:", error);
-    } finally {
-      setIsLoading(false);
+      await apiClient.followUser(profile.username);
+    } catch (e) {
+      // rollback
+      setIsFollowing(false);
+      dispatch(unfollowUsername(profile.username));
+      throw e;
     }
   };
+
+  const handleUnfollow = async () => {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+    // optimistic update
+    setIsFollowing(false);
+    dispatch(unfollowUsername(profile.username));
+    try {
+      await apiClient.unfollowUser(profile.username);
+    } catch (e) {
+      // rollback
+      setIsFollowing(true);
+      dispatch(followUsername(profile.username));
+      throw e;
+    }
+  };
+
+  // Fetch initial follow status when logged in
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (currentUser) {
+        try {
+          const res = await apiClient.isFollowing(profile.username);
+          setIsFollowing(res.isFollowing);
+        } catch {
+          setIsFollowing(false);
+        }
+      } else {
+        setIsFollowing(false);
+      }
+    };
+    fetchStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, profile.username]);
 
   const checkUsername = async (username: string) => {
     const res = await apiClient.checkUsernameAvailability(username);
@@ -139,14 +179,14 @@ export default function ProfileActions({ profile, currentUser, isOwnProfile, onP
           />
         </>
       ) : (
-        <button
-          onClick={handleFollow}
-          disabled={isLoading || isDemoUser}
-          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
-          title={isDemoUser ? "Demo mode: following disabled" : undefined}
-        >
-          {isLoading ? "Following..." : "Follow"}
-        </button>
+        <FollowButton
+          username={profile.username}
+          isFollowing={isFollowing}
+          isOwnProfile={isOwnProfile}
+          disabled={isDemoUser}
+          onFollow={handleFollow}
+          onUnfollow={handleUnfollow}
+        />
       )}
     </div>
   );

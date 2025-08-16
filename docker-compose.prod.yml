@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -8,7 +8,8 @@ services:
       - "3001:3001"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/isntgram
+      # DATABASE_URL must be provided via deployment secrets; no hardcoded credentials here
+      - DATABASE_URL=${DATABASE_URL}
       - CORS_ORIGIN=http://localhost:3000
     depends_on:
       postgres:
@@ -25,7 +26,8 @@ services:
     environment:
       POSTGRES_DB: isntgram
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      # Expect password to be supplied securely at deploy time; for local prod-like runs, set via env.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

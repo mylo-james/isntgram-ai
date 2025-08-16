@@ -1,6 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 
+// Ensure required env vars exist for tests that initialize AuthModule/JWT
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
 // Global test setup utilities
 export class TestApp {
   static app: INestApplication;
