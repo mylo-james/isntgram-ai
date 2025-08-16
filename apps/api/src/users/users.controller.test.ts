@@ -191,11 +191,15 @@ describe('UsersController', () => {
     it('should enforce limit boundaries', async () => {
       (mockUsersService.getFollowers as jest.Mock).mockResolvedValue(mockFollowersResult);
 
+      // Clear previous calls
+      jest.clearAllMocks();
+
       // Test minimum limit
       await controller.getFollowers('testuser', 1, 0);
       expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 1);
 
-      // Test maximum limit
+      // Clear and test maximum limit
+      jest.clearAllMocks();
       await controller.getFollowers('testuser', 1, 200);
       expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 100);
     });
@@ -230,11 +234,15 @@ describe('UsersController', () => {
     it('should enforce limit boundaries', async () => {
       (mockUsersService.getFollowing as jest.Mock).mockResolvedValue(mockFollowingResult);
 
+      // Clear previous calls
+      jest.clearAllMocks();
+
       // Test minimum limit
       await controller.getFollowing('testuser', 1, 0);
       expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 1);
 
-      // Test maximum limit
+      // Clear and test maximum limit
+      jest.clearAllMocks();
       await controller.getFollowing('testuser', 1, 200);
       expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 100);
     });
