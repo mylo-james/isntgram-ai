@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Auth E2E", () => {
-  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  // Generate more unique IDs by including process ID and a larger random component
+  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${process.pid || Math.floor(Math.random() * 10000)}`;
   const user = {
     email: `e2euser+${unique}@example.com`,
     username: `e2euser_${unique}`,

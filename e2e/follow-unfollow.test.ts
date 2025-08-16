@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 function uniqueId() {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  // Generate more unique IDs by including process ID and a larger random component
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${process.pid || Math.floor(Math.random() * 10000)}`;
 }
 
 test.describe("Follow/Unfollow E2E", () => {
