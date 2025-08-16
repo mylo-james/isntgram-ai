@@ -14,6 +14,7 @@ import ProfileActions from "./components/ProfileActions";
 import ProfileStats from "./components/ProfileStats";
 import ProfilePageSkeleton from "./ProfilePageSkeleton";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
+import { UserPostsGrid } from "@/components/posts/UserPostsGrid";
 
 interface UserProfile {
   id: string;
@@ -115,6 +116,14 @@ export default function ProfilePage({ username, currentUser }: ProfilePageProps)
             isOwnProfile={isOwnProfile}
             onProfileUpdated={handleProfileUpdated}
           />
+          
+          {/* Posts Grid */}
+          <div className="mt-8 border-t border-gray-200 pt-8">
+            <UserPostsGrid 
+              username={username} 
+              currentUserId={currentUser?.id} 
+            />
+          </div>
         </div>
       </div>
     </ErrorBoundary>

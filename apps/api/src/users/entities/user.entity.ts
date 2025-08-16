@@ -46,4 +46,8 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  // Follow relationships - will be populated by Follow entity
+  following?: any[];
+  followers?: any[];
 }

@@ -4,6 +4,7 @@ import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
 import ReduxProvider from "@/components/providers/ReduxProvider";
 import AuthProvider from "@/components/auth/AuthProvider";
+import { Header } from "@/components/common/Header";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -35,7 +36,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ReduxProvider>
           <SessionProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <Header />
+              <main>{children}</main>
+            </AuthProvider>
           </SessionProvider>
         </ReduxProvider>
       </body>

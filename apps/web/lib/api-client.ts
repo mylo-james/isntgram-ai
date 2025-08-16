@@ -47,6 +47,85 @@ export interface UserProfile {
   updatedAt: Date;
 }
 
+export interface FollowRequest {
+  userId: string;
+}
+
+export interface FollowResponse {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: Date;
+}
+
+export interface FollowStatsResponse {
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+}
+
+export interface CreatePostRequest {
+  caption: string;
+  imageUrl: string;
+}
+
+export interface PostResponse {
+  id: string;
+  userId: string;
+  caption: string;
+  imageUrl: string;
+  likesCount: number;
+  commentsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    profilePictureUrl?: string;
+  };
+}
+
+export interface LikeRequest {
+  postId: string;
+}
+
+export interface LikeResponse {
+  id: string;
+  userId: string;
+  postId: string;
+  createdAt: Date;
+}
+
+export interface LikeStatsResponse {
+  likesCount: number;
+  isLiked: boolean;
+}
+
+export interface CreateCommentRequest {
+  postId: string;
+  content: string;
+}
+
+export interface UpdateCommentRequest {
+  content: string;
+}
+
+export interface CommentResponse {
+  id: string;
+  userId: string;
+  postId: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    profilePictureUrl?: string;
+  };
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -174,6 +253,128 @@ class ApiClient {
   // Get auth token
   getAuthToken(): string | null {
     return null;
+  }
+
+  // Follow user
+  async followUser(userId: string): Promise<FollowResponse> {
+    const response = await this.client.post<FollowResponse>("/api/follows", { userId });
+    return response.data;
+  }
+
+  // Unfollow user
+  async unfollowUser(userId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>("/api/follows", {
+      data: { userId },
+    });
+    return response.data;
+  }
+
+  // Get follow stats for a user
+  async getFollowStats(userId: string): Promise<FollowStatsResponse> {
+    const response = await this.client.get<FollowStatsResponse>(`/api/follows/stats/${userId}`);
+    return response.data;
+  }
+
+  // Get followers list
+  async getFollowers(userId: string): Promise<UserProfile[]> {
+    const response = await this.client.get<UserProfile[]>(`/api/follows/followers/${userId}`);
+    return response.data;
+  }
+
+  // Get following list
+  async getFollowing(userId: string): Promise<UserProfile[]> {
+    const response = await this.client.get<UserProfile[]>(`/api/follows/following/${userId}`);
+    return response.data;
+  }
+
+  // Create a new post
+  async createPost(data: CreatePostRequest): Promise<PostResponse> {
+    const response = await this.client.post<PostResponse>("/api/posts", data);
+    return response.data;
+  }
+
+  // Delete a post
+  async deletePost(postId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  // Get a single post
+  async getPost(postId: string): Promise<PostResponse> {
+    const response = await this.client.get<PostResponse>(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  // Get user posts
+  async getUserPosts(username: string, page = 1, limit = 12): Promise<PostResponse[]> {
+    const response = await this.client.get<PostResponse[]>(`/api/posts/user/${username}?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
+  // Get personalized feed
+  async getFeed(page = 1, limit = 10): Promise<PostResponse[]> {
+    const response = await this.client.get<PostResponse[]>(`/api/posts?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
+  // Like a post
+  async likePost(postId: string): Promise<LikeResponse> {
+    const response = await this.client.post<LikeResponse>("/api/likes", { postId });
+    return response.data;
+  }
+
+  // Unlike a post
+  async unlikePost(postId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>("/api/likes", { 
+      data: { postId } 
+    });
+    return response.data;
+  }
+
+  // Get like stats for a post
+  async getLikeStats(postId: string): Promise<LikeStatsResponse> {
+    const response = await this.client.get<LikeStatsResponse>(`/api/likes/stats/${postId}`);
+    return response.data;
+  }
+
+  // Get users who liked a post
+  async getPostLikes(postId: string, page = 1, limit = 20): Promise<any[]> {
+    const response = await this.client.get<any[]>(
+      `/api/likes/post/${postId}?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  }
+
+  // Create a comment
+  async createComment(data: CreateCommentRequest): Promise<CommentResponse> {
+    const response = await this.client.post<CommentResponse>("/api/comments", data);
+    return response.data;
+  }
+
+  // Update a comment
+  async updateComment(commentId: string, data: UpdateCommentRequest): Promise<CommentResponse> {
+    const response = await this.client.put<CommentResponse>(`/api/comments/${commentId}`, data);
+    return response.data;
+  }
+
+  // Delete a comment
+  async deleteComment(commentId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/api/comments/${commentId}`);
+    return response.data;
+  }
+
+  // Get a single comment
+  async getComment(commentId: string): Promise<CommentResponse> {
+    const response = await this.client.get<CommentResponse>(`/api/comments/${commentId}`);
+    return response.data;
+  }
+
+  // Get comments for a post
+  async getPostComments(postId: string, page = 1, limit = 20): Promise<CommentResponse[]> {
+    const response = await this.client.get<CommentResponse[]>(
+      `/api/comments/post/${postId}?page=${page}&limit=${limit}`
+    );
+    return response.data;
   }
 }
 
