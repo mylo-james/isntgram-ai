@@ -6,18 +6,26 @@ export * from "./test-utils";
 export interface Post {
   id: string;
   userId: string;
-  content: string;
-  mediaUrls?: string[];
-  likes: number;
-  comments: number;
+  caption?: string;
+  imageUrl: string;
+  likesCount: number;
+  commentsCount: number;
   createdAt: Date;
   updatedAt: Date;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    profilePictureUrl?: string;
+  };
 }
 
 export interface CreatePostRequest {
-  content: string;
-  mediaUrls?: string[];
+  caption?: string;
+  imageUrl: string;
 }
+
+export type PostResponse = Post;
 
 // Comment-related types
 export interface Comment {

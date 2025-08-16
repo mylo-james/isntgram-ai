@@ -8,6 +8,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Follows } from '../../follows/entities/follows.entity';
+import { Post } from '../../posts/entities/post.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -48,6 +49,9 @@ export class User {
 
   @OneToMany(() => Follows, (follow) => follow.following)
   followerRelations?: Follows[];
+
+  @OneToMany(() => Post, (post) => post.user)
+  posts?: Post[];
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -11,6 +11,8 @@ import { UsersModule } from './users/users.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { Follows } from './follows/entities/follows.entity';
 import { FollowsModule } from './follows/follows.module';
+import { Post } from './posts/entities/post.entity';
+import { PostsModule } from './posts/posts.module';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -23,7 +25,7 @@ function getDatabaseModules() {
     ? {
         type: 'sqlite' as const,
         database: ':memory:',
-        entities: [User, Follows],
+        entities: [User, Follows, Post],
         synchronize: true,
         logging: false,
       }
@@ -38,7 +40,7 @@ function getDatabaseModules() {
           }
           return dbUrl;
         })(),
-        entities: [User, Follows],
+        entities: [User, Follows, Post],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
         ssl:
@@ -58,7 +60,7 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule, UsersModule, FollowsModule];
+  return [AuthModule, UsersModule, FollowsModule, PostsModule];
 }
 
 @Module({
