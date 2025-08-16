@@ -8,10 +8,14 @@ import { AppService } from './app.service';
 import { User } from './users/entities/user.entity';
 import { Follow } from './follows/entities/follows.entity';
 import { Post } from './posts/entities/post.entity';
+import { Like } from './likes/entities/like.entity';
+import { Comment } from './comments/entities/comment.entity';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { FollowsModule } from './follows/follows.module';
 import { PostsModule } from './posts/posts.module';
+import { LikesModule } from './likes/likes.module';
+import { CommentsModule } from './comments/comments.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 function getDatabaseModules() {
@@ -25,7 +29,7 @@ function getDatabaseModules() {
     ? {
         type: 'sqlite' as const,
         database: ':memory:',
-        entities: [User, Follow, Post],
+        entities: [User, Follow, Post, Like, Comment],
         synchronize: true,
         logging: false,
       }
@@ -34,7 +38,7 @@ function getDatabaseModules() {
         url:
           process.env.DATABASE_URL ||
           'postgresql://postgres:password@localhost:5432/isntgram',
-        entities: [User, Follow, Post],
+        entities: [User, Follow, Post, Like, Comment],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
         ssl:
@@ -54,7 +58,7 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule, UsersModule, FollowsModule, PostsModule];
+  return [AuthModule, UsersModule, FollowsModule, PostsModule, LikesModule, CommentsModule];
 }
 
 @Module({

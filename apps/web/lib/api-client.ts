@@ -86,6 +86,46 @@ export interface PostResponse {
   };
 }
 
+export interface LikeRequest {
+  postId: string;
+}
+
+export interface LikeResponse {
+  id: string;
+  userId: string;
+  postId: string;
+  createdAt: Date;
+}
+
+export interface LikeStatsResponse {
+  likesCount: number;
+  isLiked: boolean;
+}
+
+export interface CreateCommentRequest {
+  postId: string;
+  content: string;
+}
+
+export interface UpdateCommentRequest {
+  content: string;
+}
+
+export interface CommentResponse {
+  id: string;
+  userId: string;
+  postId: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    id: string;
+    username: string;
+    fullName: string;
+    profilePictureUrl?: string;
+  };
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -274,6 +314,66 @@ class ApiClient {
   // Get personalized feed
   async getFeed(page = 1, limit = 10): Promise<PostResponse[]> {
     const response = await this.client.get<PostResponse[]>(`/api/posts?page=${page}&limit=${limit}`);
+    return response.data;
+  }
+
+  // Like a post
+  async likePost(postId: string): Promise<LikeResponse> {
+    const response = await this.client.post<LikeResponse>("/api/likes", { postId });
+    return response.data;
+  }
+
+  // Unlike a post
+  async unlikePost(postId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>("/api/likes", { 
+      data: { postId } 
+    });
+    return response.data;
+  }
+
+  // Get like stats for a post
+  async getLikeStats(postId: string): Promise<LikeStatsResponse> {
+    const response = await this.client.get<LikeStatsResponse>(`/api/likes/stats/${postId}`);
+    return response.data;
+  }
+
+  // Get users who liked a post
+  async getPostLikes(postId: string, page = 1, limit = 20): Promise<any[]> {
+    const response = await this.client.get<any[]>(
+      `/api/likes/post/${postId}?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  }
+
+  // Create a comment
+  async createComment(data: CreateCommentRequest): Promise<CommentResponse> {
+    const response = await this.client.post<CommentResponse>("/api/comments", data);
+    return response.data;
+  }
+
+  // Update a comment
+  async updateComment(commentId: string, data: UpdateCommentRequest): Promise<CommentResponse> {
+    const response = await this.client.put<CommentResponse>(`/api/comments/${commentId}`, data);
+    return response.data;
+  }
+
+  // Delete a comment
+  async deleteComment(commentId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/api/comments/${commentId}`);
+    return response.data;
+  }
+
+  // Get a single comment
+  async getComment(commentId: string): Promise<CommentResponse> {
+    const response = await this.client.get<CommentResponse>(`/api/comments/${commentId}`);
+    return response.data;
+  }
+
+  // Get comments for a post
+  async getPostComments(postId: string, page = 1, limit = 20): Promise<CommentResponse[]> {
+    const response = await this.client.get<CommentResponse[]>(
+      `/api/comments/post/${postId}?page=${page}&limit=${limit}`
+    );
     return response.data;
   }
 }
