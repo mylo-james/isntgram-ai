@@ -36,7 +36,23 @@ jobs:
           cache: "pnpm"
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Add retry mechanism for pnpm install
+          for i in 1 2 3; do
+            echo "Attempt $i: Installing dependencies..."
+            if pnpm install --frozen-lockfile; then
+              echo "✅ Dependencies installed successfully"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
 
       - name: 🔍 Lint & Type Check
         run: |
@@ -87,7 +103,23 @@ jobs:
           cache: "pnpm"
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Add retry mechanism for pnpm install
+          for i in 1 2 3; do
+            echo "Attempt $i: Installing dependencies..."
+            if pnpm install --frozen-lockfile; then
+              echo "✅ Dependencies installed successfully"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
 
       - name: 📥 Download Coverage
         uses: actions/download-artifact@v5
@@ -148,7 +180,23 @@ jobs:
           cache: "pnpm"
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Add retry mechanism for pnpm install
+          for i in 1 2 3; do
+            echo "Attempt $i: Installing dependencies..."
+            if pnpm install --frozen-lockfile; then
+              echo "✅ Dependencies installed successfully"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
 
       - name: ♻️ Cache Next.js build cache
         uses: actions/cache@v4
@@ -215,7 +263,23 @@ jobs:
             next-cache-${{ runner.os }}-
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Add retry mechanism for pnpm install
+          for i in 1 2 3; do
+            echo "Attempt $i: Installing dependencies..."
+            if pnpm install --frozen-lockfile; then
+              echo "✅ Dependencies installed successfully"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
 
       - name: 🧱 Build Applications
         run: pnpm run build:all
@@ -327,7 +391,23 @@ jobs:
           cache: "pnpm"
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Add retry mechanism for pnpm install
+          for i in 1 2 3; do
+            echo "Attempt $i: Installing dependencies..."
+            if pnpm install --frozen-lockfile; then
+              echo "✅ Dependencies installed successfully"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -eq 3 ]; then
+                echo "💥 All attempts failed"
+                exit 1
+              fi
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
 
       - name: 🔍 CodeQL Analysis
         uses: github/codeql-action/init@v3
