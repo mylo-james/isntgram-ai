@@ -6,8 +6,12 @@ import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './users/entities/user.entity';
+import { Follow } from './follows/entities/follows.entity';
+import { Post } from './posts/entities/post.entity';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { FollowsModule } from './follows/follows.module';
+import { PostsModule } from './posts/posts.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 function getDatabaseModules() {
@@ -21,7 +25,7 @@ function getDatabaseModules() {
     ? {
         type: 'sqlite' as const,
         database: ':memory:',
-        entities: [User],
+        entities: [User, Follow, Post],
         synchronize: true,
         logging: false,
       }
@@ -30,7 +34,7 @@ function getDatabaseModules() {
         url:
           process.env.DATABASE_URL ||
           'postgresql://postgres:password@localhost:5432/isntgram',
-        entities: [User],
+        entities: [User, Follow, Post],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
         ssl:
@@ -50,7 +54,7 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule, UsersModule];
+  return [AuthModule, UsersModule, FollowsModule, PostsModule];
 }
 
 @Module({

@@ -47,6 +47,23 @@ export interface UserProfile {
   updatedAt: Date;
 }
 
+export interface FollowRequest {
+  userId: string;
+}
+
+export interface FollowResponse {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: Date;
+}
+
+export interface FollowStatsResponse {
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -174,6 +191,38 @@ class ApiClient {
   // Get auth token
   getAuthToken(): string | null {
     return null;
+  }
+
+  // Follow user
+  async followUser(userId: string): Promise<FollowResponse> {
+    const response = await this.client.post<FollowResponse>("/api/follows", { userId });
+    return response.data;
+  }
+
+  // Unfollow user
+  async unfollowUser(userId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>("/api/follows", { 
+      data: { userId } 
+    });
+    return response.data;
+  }
+
+  // Get follow stats for a user
+  async getFollowStats(userId: string): Promise<FollowStatsResponse> {
+    const response = await this.client.get<FollowStatsResponse>(`/api/follows/stats/${userId}`);
+    return response.data;
+  }
+
+  // Get followers list
+  async getFollowers(userId: string): Promise<UserProfile[]> {
+    const response = await this.client.get<UserProfile[]>(`/api/follows/followers/${userId}`);
+    return response.data;
+  }
+
+  // Get following list
+  async getFollowing(userId: string): Promise<UserProfile[]> {
+    const response = await this.client.get<UserProfile[]>(`/api/follows/following/${userId}`);
+    return response.data;
   }
 }
 
