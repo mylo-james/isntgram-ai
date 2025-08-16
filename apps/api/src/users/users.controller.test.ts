@@ -194,14 +194,19 @@ describe('UsersController', () => {
       // Clear previous calls
       jest.clearAllMocks();
 
-      // Test minimum limit
+      // Test that 0 defaults to 20 (since Number(0) || 20 = 20)
       await controller.getFollowers('testuser', 1, 0);
-      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 1);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 20);
 
-      // Clear and test maximum limit
+      // Clear and test maximum limit enforcement
       jest.clearAllMocks();
       await controller.getFollowers('testuser', 1, 200);
       expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 100);
+
+      // Test that very small positive numbers get clamped to 1
+      jest.clearAllMocks();
+      await controller.getFollowers('testuser', 1, -5);
+      expect(usersService.getFollowers).toHaveBeenCalledWith('testuser', 1, 1);
     });
   });
 
@@ -237,14 +242,19 @@ describe('UsersController', () => {
       // Clear previous calls
       jest.clearAllMocks();
 
-      // Test minimum limit
+      // Test that 0 defaults to 20 (since Number(0) || 20 = 20)
       await controller.getFollowing('testuser', 1, 0);
-      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 1);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 20);
 
-      // Clear and test maximum limit
+      // Clear and test maximum limit enforcement
       jest.clearAllMocks();
       await controller.getFollowing('testuser', 1, 200);
       expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 100);
+
+      // Test that very small positive numbers get clamped to 1
+      jest.clearAllMocks();
+      await controller.getFollowing('testuser', 1, -5);
+      expect(usersService.getFollowing).toHaveBeenCalledWith('testuser', 1, 1);
     });
   });
 });
