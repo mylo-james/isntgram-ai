@@ -37,7 +37,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "babel-jest": "^30.0.5",
-    "eslint": "^8",
+    "eslint": "^9",
     "eslint-config-next": "14.2.31",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
