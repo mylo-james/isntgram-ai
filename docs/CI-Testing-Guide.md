@@ -89,18 +89,18 @@ yamllint -c .yamllint .github/workflows/ci.yml
 
 ## Our CI Testing Scripts
 
-### Basic Validation (`npm run test:ci`)
+### Basic Validation (`pnpm run test:ci:workflow`)
 
 Our custom validation script that checks:
 
 - Workflow structure
 - Job dependencies
-- NPM script existence
+- pnpm script existence
 - Coverage path consistency
 - Docker command validation
 - Environment variable validation
 
-### Professional Testing (`npm run test:ci:pro`)
+### Professional Testing (`pnpm run test:ci:pro`)
 
 Industry-standard testing using professional tools:
 
@@ -170,10 +170,10 @@ yamllint .github/workflows/ci.yml
 
 ```bash
 # Basic validation
-npm run test:ci
+pnpm run test:ci:workflow
 
 # Professional testing (with industry tools)
-npm run test:ci:pro
+pnpm run test:ci:pro
 ```
 
 ## Common Issues and Solutions
@@ -215,10 +215,10 @@ brew install yamllint  # macOS
 
 ```bash
 # Quick validation
-npm run test:ci
+pnpm run test:ci:workflow
 
 # Full testing (if tools are installed)
-npm run test:ci:pro
+pnpm run test:ci:pro
 ```
 
 ### 2. Use Act for Complex Workflows
@@ -243,11 +243,11 @@ yamllint .github/workflows/
 
 ```bash
 # Our script automatically tests this
-npm run test:ci
+pnpm run test:ci:workflow
 
 # Or test manually
-mkdir -p coverage apps/web/coverage apps/api/coverage packages/shared-types/coverage
-tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage
+mkdir -p coverage apps/web/coverage apps/api/coverage
+tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage
 ```
 
 ## Integration with Development Workflow
@@ -258,7 +258,7 @@ Add to `.husky/pre-commit`:
 
 ```bash
 #!/bin/sh
-npm run test:ci
+pnpm run test:ci:workflow
 ```
 
 ### CI Validation in CI
@@ -268,7 +268,7 @@ Add to your workflow to validate itself:
 ```yaml
 - name: Validate CI Workflow
   run: |
-    npm run test:ci
+    pnpm run test:ci:workflow
     if command -v actionlint >/dev/null 2>&1; then
       actionlint .github/workflows/ci.yml
     fi

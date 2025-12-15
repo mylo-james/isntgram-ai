@@ -8,7 +8,6 @@ import { Follows } from '../follows/entities/follows.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepository: Repository<User>;
 
   const mockUser: User = {
     id: '1',
@@ -47,7 +46,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
   });
 
   afterEach(() => {
@@ -88,14 +86,13 @@ describe('UsersService', () => {
         id: mockUser.id,
         username: mockUser.username,
         fullName: mockUser.fullName,
-        email: mockUser.email,
         profilePictureUrl: mockUser.profilePictureUrl,
         bio: mockUser.bio,
         postCount: mockUser.postsCount,
         followerCount: mockUser.followerCount,
         followingCount: mockUser.followingCount,
-        createdAt: mockUser.createdAt,
-        updatedAt: mockUser.updatedAt,
+        createdAt: mockUser.createdAt.toISOString(),
+        updatedAt: mockUser.updatedAt.toISOString(),
       });
     });
 

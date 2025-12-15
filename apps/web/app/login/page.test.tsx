@@ -6,9 +6,10 @@ jest.mock("next-auth/react", () => ({
 
 // Mock Next.js navigation
 const mockPush = jest.fn();
+let mockSearchParams = new URLSearchParams();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -20,6 +21,7 @@ const originalFetch = global.fetch;
 describe("LoginPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
     (global as unknown as { fetch: typeof fetch }).fetch = jest.fn();
     // Mock unauthenticated session
     const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
@@ -153,16 +155,8 @@ describe("LoginPage", () => {
   });
 
   it("renders success message from search params", async () => {
-    // Override only for this test to provide a message param
-    jest.doMock("next/navigation", () => ({
-      useRouter: () => ({ push: mockPush }),
-      useSearchParams: () => new URLSearchParams("message=Welcome%20back%21"),
-    }));
-
-    // Re-require after mocking
-    const { default: LoginPageWithMessage } = await import("./page");
-
-    render(<LoginPageWithMessage />);
+    mockSearchParams = new URLSearchParams("message=Welcome%20back%21");
+    render(<LoginPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/welcome back/i)).toBeInTheDocument();

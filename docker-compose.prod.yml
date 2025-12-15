@@ -1,35 +1,11 @@
-version: "3.8"
-
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      # DATABASE_URL must be provided via deployment secrets; no hardcoded credentials here
-      - DATABASE_URL=${DATABASE_URL}
-      - CORS_ORIGIN=http://localhost:3000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: isntgram
       POSTGRES_USER: postgres
-      # Expect password to be supplied securely at deploy time; for local prod-like runs, set via env.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+      # For local prod-like runs, a default is fine; override in real deployments.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -38,5 +14,95 @@ services:
       timeout: 5s
       retries: 5
 
+  api-migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/isntgram
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
+      CORS_ORIGIN: http://localhost:3100
+      DEMO_EMAIL: ${DEMO_EMAIL:-demo@isntgram.ai}
+      # Optional AI + observability
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    command: ["node", "dist/migrate.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/isntgram
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
+      CORS_ORIGIN: http://localhost:3100
+      DEMO_EMAIL: ${DEMO_EMAIL:-demo@isntgram.ai}
+      # Optional AI + observability
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    ports:
+      - "3101:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3101
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE:-0}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXTAUTH_URL: http://localhost:3100
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev_only_change_me}
+      INTERNAL_API_URL: http://api:3001
+      # Optional server-side observability
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    ports:
+      - "3100:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["proxy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

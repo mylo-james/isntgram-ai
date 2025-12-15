@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { FollowsService } from './follows.service';
 import { Follows } from './entities/follows.entity';
 import { User } from '../users/entities/user.entity';
@@ -14,27 +14,60 @@ describe('FollowsService', () => {
   let service: FollowsService;
   let followsRepository: jest.Mocked<Repository<Follows>>;
   let userRepository: jest.Mocked<Repository<User>>;
+  let dataSource: jest.Mocked<Pick<DataSource, 'transaction'>>;
 
   beforeEach(async () => {
+    const followsInsertExecute = jest.fn();
+    const followsInsertOrIgnore = jest.fn(() => ({
+      execute: followsInsertExecute,
+    }));
+    const followsInsertValues = jest.fn(() => ({
+      orIgnore: followsInsertOrIgnore,
+    }));
+    const followsInsertInto = jest.fn(() => ({ values: followsInsertValues }));
+    const followsInsert = jest.fn(() => ({ into: followsInsertInto }));
+
+    const followsRepoMock = {
+      createQueryBuilder: jest.fn(() => ({ insert: followsInsert })),
+      delete: jest.fn(),
+      count: jest.fn(),
+      findOne: jest.fn(),
+    } as unknown as jest.Mocked<Repository<Follows>>;
+
+    const userRepoMock = {
+      findOne: jest.fn(),
+      increment: jest.fn(),
+      decrement: jest.fn(),
+    } as unknown as jest.Mocked<Repository<User>>;
+
+    const mockManager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === Follows) return followsRepoMock;
+        if (entity === User) return userRepoMock;
+        throw new Error('Unexpected repository request');
+      }),
+    };
+
+    const dataSourceMock = {
+      transaction: jest.fn(
+        async (fn: (manager: typeof mockManager) => unknown) => fn(mockManager),
+      ),
+    } as unknown as jest.Mocked<Pick<DataSource, 'transaction'>>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FollowsService,
         {
           provide: getRepositoryToken(Follows),
-          useValue: {
-            findOne: jest.fn(),
-            save: jest.fn(),
-            delete: jest.fn(),
-            count: jest.fn(),
-          },
+          useValue: followsRepoMock,
         },
         {
           provide: getRepositoryToken(User),
-          useValue: {
-            findOne: jest.fn(),
-            increment: jest.fn(),
-            decrement: jest.fn(),
-          },
+          useValue: userRepoMock,
+        },
+        {
+          provide: DataSource,
+          useValue: dataSourceMock,
         },
       ],
     }).compile();
@@ -42,6 +75,7 @@ describe('FollowsService', () => {
     service = module.get<FollowsService>(FollowsService);
     followsRepository = module.get(getRepositoryToken(Follows));
     userRepository = module.get(getRepositoryToken(User));
+    dataSource = module.get(DataSource);
   });
 
   afterEach(() => {
@@ -66,10 +100,14 @@ describe('FollowsService', () => {
       (userRepository.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'a' } as User)
         .mockResolvedValueOnce({ id: 'b' } as User);
-      (followsRepository.findOne as jest.Mock).mockResolvedValueOnce({
-        followerId: 'a',
-        followingId: 'b',
-      } as Follows);
+      (followsRepository.createQueryBuilder as jest.Mock)()
+        .insert()
+        .into()
+        .values()
+        .orIgnore()
+        .execute.mockResolvedValueOnce({
+          identifiers: [],
+        });
 
       await expect(service.followUser('a', 'b')).rejects.toBeInstanceOf(
         ConflictException,
@@ -80,14 +118,18 @@ describe('FollowsService', () => {
       (userRepository.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'a' } as User)
         .mockResolvedValueOnce({ id: 'b' } as User);
-      (followsRepository.findOne as jest.Mock).mockResolvedValueOnce(null);
+      (followsRepository.createQueryBuilder as jest.Mock)()
+        .insert()
+        .into()
+        .values()
+        .orIgnore()
+        .execute.mockResolvedValueOnce({
+          identifiers: [{ id: 'rel' }],
+        });
 
       await service.followUser('a', 'b');
 
-      expect(followsRepository.save).toHaveBeenCalledWith({
-        followerId: 'a',
-        followingId: 'b',
-      });
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(userRepository.increment).toHaveBeenCalledWith(
         { id: 'b' },
         'followerCount',
@@ -112,7 +154,9 @@ describe('FollowsService', () => {
       (userRepository.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'a' } as User)
         .mockResolvedValueOnce({ id: 'b' } as User);
-      (followsRepository.findOne as jest.Mock).mockResolvedValueOnce(null);
+      (followsRepository.delete as jest.Mock).mockResolvedValueOnce({
+        affected: 0,
+      });
 
       await expect(service.unfollowUser('a', 'b')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -123,10 +167,9 @@ describe('FollowsService', () => {
       (userRepository.findOne as jest.Mock)
         .mockResolvedValueOnce({ id: 'a' } as User)
         .mockResolvedValueOnce({ id: 'b' } as User);
-      (followsRepository.findOne as jest.Mock).mockResolvedValueOnce({
-        followerId: 'a',
-        followingId: 'b',
-      } as Follows);
+      (followsRepository.delete as jest.Mock).mockResolvedValueOnce({
+        affected: 1,
+      });
 
       await service.unfollowUser('a', 'b');
 

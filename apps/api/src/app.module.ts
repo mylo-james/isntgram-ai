@@ -11,6 +11,14 @@ import { UsersModule } from './users/users.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { Follows } from './follows/entities/follows.entity';
 import { FollowsModule } from './follows/follows.module';
+import { Post as PostEntity } from './posts/entities/post.entity';
+import { PostsModule } from './posts/posts.module';
+import { SearchModule } from './search/search.module';
+import { LikesModule } from './likes/likes.module';
+import { CommentsModule } from './comments/comments.module';
+import { PostLike } from './likes/entities/post-like.entity';
+import { Comment } from './comments/entities/comment.entity';
+import { AiModule } from './ai/ai.module';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -23,7 +31,7 @@ function getDatabaseModules() {
     ? {
         type: 'sqlite' as const,
         database: ':memory:',
-        entities: [User, Follows],
+        entities: [User, Follows, PostEntity, PostLike, Comment],
         synchronize: true,
         logging: false,
       }
@@ -38,13 +46,17 @@ function getDatabaseModules() {
           }
           return dbUrl;
         })(),
-        entities: [User, Follows],
+        entities: [User, Follows, PostEntity, PostLike, Comment],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
-        ssl:
-          process.env.NODE_ENV === 'production'
+        ssl: (() => {
+          const sslFlag = process.env.DB_SSL;
+          if (sslFlag === 'true') return { rejectUnauthorized: false };
+          if (sslFlag === 'false') return false;
+          return process.env.NODE_ENV === 'production'
             ? { rejectUnauthorized: false }
-            : false,
+            : false;
+        })(),
       };
 
   return [
@@ -58,7 +70,32 @@ function getFeatureModules() {
   if (process.env.SKIP_DB === 'true') {
     return [];
   }
-  return [AuthModule, UsersModule, FollowsModule];
+  return [
+    AuthModule,
+    UsersModule,
+    FollowsModule,
+    PostsModule,
+    LikesModule,
+    CommentsModule,
+    SearchModule,
+    AiModule,
+  ];
+}
+
+function getThrottleConfig() {
+  const defaultTtl = 60_000; // 1 minute
+  const defaultLimit = 10; // 10 requests per minute
+
+  const ttl = Number.parseInt(process.env.THROTTLE_TTL ?? `${defaultTtl}`, 10);
+  const limit = Number.parseInt(
+    process.env.THROTTLE_LIMIT ?? `${defaultLimit}`,
+    10,
+  );
+
+  return {
+    ttl: Number.isFinite(ttl) ? ttl : defaultTtl,
+    limit: Number.isFinite(limit) ? limit : defaultLimit,
+  };
 }
 
 @Module({
@@ -69,8 +106,7 @@ function getFeatureModules() {
     }),
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
+        ...getThrottleConfig(),
       },
     ]),
     ...getDatabaseModules(),

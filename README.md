@@ -1,209 +1,106 @@
 # Isntgram AI
 
-An AI-powered social media platform built with Next.js, NestJS, and PostgreSQL.
+A production-minded, full-stack social app (Next.js + NestJS) built as a portfolio project with real CI, Docker, and E2E
+coverage.
 
-## 🚀 Quick Start
+Live demo:
 
-### Prerequisites
+- Web: `https://isntgram.web.app`
+- Health: `https://isntgram.web.app/health`
+- API health (via same-origin rewrite): `https://isntgram.web.app/api/health`
 
-- Node.js 20+
-- Docker Desktop
-- Git
+## What this demonstrates
 
-### Setup
+- End-to-end auth boundary (NextAuth credentials → API JWT bearer) with server-side demo read-only enforcement
+- Meaningful automated testing (Jest + Playwright E2E + basic a11y smoke)
+- Production container story (Next.js standalone + NestJS) and runnable deploy paths (Cloud Run and VM)
+- CI with quality gates and security scans (lint/type-check/tests/coverage + CodeQL/Gitleaks/Trivy/SBOM)
 
-1. **Clone the repository**
+## Portfolio media
 
-   ```bash
-   git clone <repository-url>
-   cd isntgram-ai
-   ```
+- Demo video: `docs/assets/demo.webm` (generated via `pnpm run portfolio:artifacts`)
+- Screenshots: `docs/assets/`
+- Lighthouse baseline: `docs/perf/lighthouse-2025-12-14.md`
 
-2. **Install dependencies**
+## Evaluator (5 minutes)
 
-   ```bash
-   npm install
-   ```
+1. Login via `/login`:
+   - **Try our demo** (read-only) to browse quickly, or
+   - Register via `/register` for full access
+2. **Feed**: create a post, use **AI caption suggestions** (optional), like/unlike, open post detail
+3. **Post detail**: add a comment, delete your own post/comment
+4. **Explore/Search**: search users or hashtags; click a hashtag inside a post
+5. **Profile**: view posts grid, follow/unfollow another user
 
-3. **Start the database**
+See: `docs/evaluator-guide.md`
 
-   ```bash
-   npm run db:start
-   ```
+## Stack
 
-4. **Set up environment variables**
+- **Web**: Next.js 16 (App Router), NextAuth (credentials), Tailwind v4
+- **API**: NestJS, TypeORM, Postgres (prod) + SQLite (tests), JWT auth
+- **Quality gates**: ESLint, TypeScript, Jest, Playwright
+- **Containers**: production Dockerfiles + Compose; GHCR publishing + optional VM deploy
 
-   ```bash
-   # Copy API environment file
-   cp apps/api/env.example apps/api/.env
+## Local development
 
-   # Copy web environment file (if needed)
-   cp apps/web/.env.example apps/web/.env.local
-   ```
-
-5. **Run database migrations**
-
-   ```bash
-   cd apps/api
-   npm run migration:run
-   ```
-
-6. **Start development servers**
-
-   ```bash
-   # Start both frontend and backend
-   npm run dev
-
-   # Or start them separately
-   npm run dev:web  # Frontend on http://localhost:3000
-   npm run dev:api  # Backend on http://localhost:3001
-   ```
-
-## 🗄️ Database Setup
-
-### Local Development
-
-The project uses Docker Compose to run PostgreSQL locally:
+Prereqs: Node 25+, `pnpm@10.25.0` (via Corepack), Docker.
 
 ```bash
-# Start database
-npm run db:start
+corepack enable
+corepack prepare pnpm@10.25.0 --activate
+pnpm install
 
-# Stop database
-npm run db:stop
-
-# View database logs
-npm run db:logs
-
-# Reset database (removes all data)
-npm run db:reset
-```
-
-### Database Commands
-
-```bash
-# Run migrations
-cd apps/api && npm run migration:run
-
-# Generate new migration
-cd apps/api && npm run migration:generate -- -n MigrationName
-
-# Revert last migration
-cd apps/api && npm run migration:revert
-```
-
-## 🧪 Testing
-
-### Unit Tests
-
-```bash
-npm test                    # Run all tests
-npm run test:web           # Frontend tests only
-npm run test:api           # Backend tests only
-```
-
-### E2E Tests
-
-```bash
-npm run test:e2e           # Run E2E tests
-npm run test:e2e:headed    # Run with browser visible
-npm run test:e2e:ui        # Run with Playwright UI
-```
-
-### Integration Tests
-
-```bash
-npm run test:api           # Includes integration tests
-```
-
-## 🔧 Development
-
-### Code Quality
-
-```bash
-npm run lint               # Run all linters
-npm run format             # Format all code
-npm run type-check         # TypeScript type checking
-```
-
-### Database Management
-
-```bash
-npm run db:start           # Start PostgreSQL
-npm run db:stop            # Stop PostgreSQL
-npm run db:logs            # View database logs
-npm run db:reset           # Reset database
-```
-
-## 📁 Project Structure
-
-```bash
-isntgram-ai/
-├── apps/
-│   ├── api/              # NestJS backend
-│   └── web/              # Next.js frontend
-├── packages/
-│   └── shared-types/     # Shared TypeScript types
-├── docs/                 # Documentation
-├── e2e/                  # End-to-end tests
-└── scripts/              # Development scripts
-```
-
-## 🚀 Deployment
-
-### Environment Variables
-
-Copy the example environment files and configure them:
-
-```bash
-# Backend
+pnpm run dev:db
 cp apps/api/env.example apps/api/.env
-
-# Frontend
-cp apps/web/.env.example apps/web/.env.local
+cp apps/web/env.example apps/web/.env.local
 ```
 
-### Production Build
+Set required secrets (local):
 
 ```bash
-npm run build
+echo "JWT_SECRET=$(openssl rand -base64 32)" >> apps/api/.env
 ```
 
-## 🐛 Troubleshooting
+Run:
 
-### Database Connection Issues
+```bash
+pnpm run dev:all
+# web: http://localhost:3000
+# api: http://localhost:3001/api/health
+```
 
-1. **Docker not running**: Start Docker Desktop
-2. **Port already in use**: Stop other PostgreSQL instances
-3. **Permission denied**: Run `chmod +x scripts/dev-db.sh`
+## Prod-like local run (Docker)
 
-### Test Failures
+```bash
+docker compose -f docker-compose.prod.yml up --build
+# web: http://localhost:3100
+# api: http://localhost:3101/api/health
+```
 
-1. **Integration tests failing**: Ensure database is running
-2. **E2E tests failing**: Check if both frontend and backend are running
-3. **Unit tests failing**: Check for TypeScript errors
+## Tests / quality gates
 
-### Common Issues
+```bash
+pnpm run lint:all
+pnpm run type-check
+pnpm test --watchAll=false
+pnpm run openapi:check
+pnpm run test:e2e
+pnpm run build:all
+```
 
-- **"Database connection failed"**: Run `npm run db:start`
-- **"Port 3000/3001 in use"**: Kill existing processes or change ports
-- **"TypeScript errors"**: Run `npm run type-check` to see issues
+## Deployment
 
-## 📚 Documentation
+- Cheap + easy deploy (Firebase Hosting + Cloud Run): `docs/deployment/firebase-cloud-run.md`
+- VM deploy (Docker Compose + Caddy + GHCR): `docs/deployment/runbook.md`
+- Deploy compose file: `docker-compose.deploy.yml`
 
-- [Architecture Documentation](./docs/architecture/)
-- [Product Requirements](./docs/prd/)
-- [User Stories](./docs/stories/)
+## Interview prep (docs)
 
-## 🤝 Contributing
+- Interview kit (architecture + tradeoffs + scaling + security): `docs/interview/README.md`
+- Evaluator path: `docs/evaluator-guide.md`
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests: `npm test`
-4. Run linting: `npm run lint`
-5. Commit with proper message
-6. Create a pull request
+## Repo notes
 
-## 📄 License
-
-This project is licensed under the MIT License.
+- Environment variables: `ENVIRONMENT.md`
+- Portfolio one-pager: `docs/portfolio.md`
+- Notes from a simulated review pass: `docs/reviews/2025-12-15-cto-hiring-review.md`

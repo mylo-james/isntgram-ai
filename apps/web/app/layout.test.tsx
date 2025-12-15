@@ -9,15 +9,6 @@ jest.mock("next/font/local", () => ({
   }),
 }));
 
-// Mock Redux store to avoid store warnings in tests
-jest.mock("../lib/store", () => ({
-  store: {
-    getState: () => ({}),
-    dispatch: jest.fn(),
-    subscribe: jest.fn(),
-  },
-}));
-
 // Mock the layout component to avoid DOM nesting issues
 jest.mock("./layout", () => {
   const MockedLayout = ({ children }: { children: React.ReactNode }) => (

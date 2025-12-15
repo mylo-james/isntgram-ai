@@ -26,8 +26,7 @@ export default function SignOutButton({ className = "", variant = "destructive",
 
       // Redirect to login page
       router.push("/login");
-    } catch (error) {
-      console.error("Sign out error:", error);
+    } catch {
       // Even if sign out fails, redirect to login
       router.push("/login");
     } finally {

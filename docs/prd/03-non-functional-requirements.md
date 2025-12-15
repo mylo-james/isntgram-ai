@@ -37,8 +37,11 @@ authentication managed by Auth.js.
 
 ### NFR8 (Technology Stack)
 
-The application must use the latest stable versions of React (with Next.js), Redux for state management, and Tailwind
-CSS for styling. The choice of image storage solution is fully delegated to the Architect.
+The application must use the latest stable versions of React (with Next.js) and Tailwind CSS for styling. The initial
+spec mentioned Redux for state management, but the current implementation intentionally avoids Redux (auth/session is
+managed by NextAuth, and UI state is colocated).
+
+The choice of image storage solution is fully delegated to the Architect.
 
 ### NFR9 (Compatibility)
 

@@ -1,18 +1,25 @@
 import {
-  Controller,
-  Post,
   Body,
-  Res,
+  Controller,
   HttpCode,
   HttpStatus,
+  Post,
+  UnauthorizedException,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
-import { Response } from 'express';
-import { UseGuards } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
+import { SignInDto } from './dto/signin.dto';
+import { SignInResponseDto } from './dto/signin-response.dto';
+import { DemoSignInResponseDto } from './dto/demo-response.dto';
+import { MessageResponseDto } from '../common/dto/message-response.dto';
 
 @UseGuards(ThrottlerGuard)
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthNextAuthController {
   constructor(
@@ -22,23 +29,24 @@ export class AuthNextAuthController {
 
   @Post('signin')
   @HttpCode(HttpStatus.OK)
-  async signIn(
-    @Body() credentials: { email: string; password: string },
-    @Res() res: Response,
-  ) {
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @ApiOkResponse({ type: SignInResponseDto })
+  async signIn(@Body() credentials: SignInDto): Promise<SignInResponseDto> {
     const user = await this.authService.validateUser(
       credentials.email,
       credentials.password,
     );
 
     if (!user) {
-      return res.status(401).json({
-        message: 'Invalid credentials',
-      });
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword, ...userWithoutPassword } = user;
+    const userDto = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+    };
 
     const accessToken = this.jwtService.sign({
       sub: user.id,
@@ -46,40 +54,29 @@ export class AuthNextAuthController {
       username: user.username,
     });
 
-    return res.json({
+    return {
       message: 'Sign in successful',
-      user: userWithoutPassword,
+      user: userDto,
       accessToken,
-    });
+    };
   }
 
   @Post('signout')
   @HttpCode(HttpStatus.OK)
-  async signOut(@Res() res: Response) {
-    return res.json({
-      message: 'Sign out successful',
-    });
-  }
-
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: any, @Res() res: Response) {
-    const user = await this.authService.register(registerDto);
-
-    return res.json({
-      message: 'User registered successfully',
-      user,
-    });
+  @ApiOkResponse({ type: MessageResponseDto })
+  async signOut(): Promise<MessageResponseDto> {
+    return { message: 'Sign out successful' };
   }
 
   @Post('demo')
   @HttpCode(HttpStatus.OK)
-  async demo(@Res() res: Response) {
+  @ApiOkResponse({ type: DemoSignInResponseDto })
+  async demo(): Promise<DemoSignInResponseDto> {
     const user = await this.authService.getOrCreateDemoUser();
-    return res.json({
+    return {
       message: 'Demo sign in successful',
       user,
       isDemoUser: true,
-    });
+    };
   }
 }

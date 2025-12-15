@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { makeUniqueId } from "./test-helpers";
 
 test.describe("Auth E2E", () => {
-  // Generate more unique IDs by including process ID and a larger random component
-  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${process.pid || Math.floor(Math.random() * 10000)}`;
+  const unique = makeUniqueId();
   const user = {
     email: `e2euser+${unique}@example.com`,
     username: `e2euser_${unique}`,
@@ -32,7 +32,7 @@ test.describe("Auth E2E", () => {
 
     // Wait for NextAuth credentials callback to complete
     await page.waitForResponse(
-      (r) => r.url().includes("/api/auth/callback/credentials") && [200, 302].includes(r.status()),
+      (r) => r.url().includes("/auth/callback/credentials") && [200, 302].includes(r.status()),
       { timeout: 20000 },
     );
 
@@ -59,7 +59,7 @@ test.describe("Auth E2E", () => {
 
     // After demo, NextAuth signs in with credentials. Wait for credentials callback
     await page.waitForResponse(
-      (r) => r.url().includes("/api/auth/callback/credentials") && [200, 302].includes(r.status()),
+      (r) => r.url().includes("/auth/callback/credentials") && [200, 302].includes(r.status()),
       { timeout: 20000 },
     );
 

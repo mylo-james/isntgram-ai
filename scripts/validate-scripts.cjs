@@ -3,22 +3,20 @@
 /**
  * Script Validation Utility
  *
- * This script validates npm scripts across the monorepo to prevent:
- * - Circular dependencies
- * - Missing scripts
- * - Incorrect script patterns
- * - Workspace conflicts
+ * This repo intentionally uses:
+ * - root `build`/`lint` as noops (to avoid workspace-name collisions)
+ * - explicit `pnpm`-based entrypoints (`build:all`, `lint:all`, etc.)
+ *
+ * This script validates that structure stays intact as the repo evolves.
  */
 
 const fs = require("fs");
 const path = require("path");
 
-// ANSI color codes for output
 const colors = {
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
-  blue: "\x1b[34m",
   reset: "\x1b[0m",
   bold: "\x1b[1m",
 };
@@ -32,13 +30,12 @@ class ScriptValidator {
       root: this.loadPackageJson("package.json"),
       web: this.loadPackageJson("apps/web/package.json"),
       api: this.loadPackageJson("apps/api/package.json"),
-      sharedTypes: this.loadPackageJson("packages/shared-types/package.json"),
     };
   }
 
   loadPackageJson(relativePath) {
+    const fullPath = path.join(this.rootDir, relativePath);
     try {
-      const fullPath = path.join(this.rootDir, relativePath);
       const content = fs.readFileSync(fullPath, "utf8");
       return JSON.parse(content);
     } catch (error) {
@@ -54,287 +51,145 @@ class ScriptValidator {
     console.log(`${prefix} ${timestamp} ${message}${colors.reset}`);
   }
 
-  validateCircularDependencies() {
-    this.log("Validating circular dependencies...", "info");
-
-    const dangerousPatterns = ["npm run build", "npm run dev", "npm run start", "npm run test", "npm run lint"];
-
-    // Check root scripts for dangerous patterns
-    Object.entries(this.packages.root.scripts || {}).forEach(([scriptName, scriptContent]) => {
-      dangerousPatterns.forEach((pattern) => {
-        // Allow safe patterns: workspace syntax, build in test:e2e, and lint in root lint
-        const isSafe =
-          scriptContent.includes("--workspace=") ||
-          (scriptName === "test:e2e" && pattern === "npm run build") ||
-          (scriptName === "lint" && pattern === "npm run lint") ||
-          (scriptName === "dev" && pattern === "npm run dev") ||
-          (scriptName === "build" && pattern === "npm run build") ||
-          (scriptName === "build:dev" && pattern === "npm run build") ||
-          (scriptName === "test:all" && pattern === "npm run test") ||
-          (scriptName.startsWith("dev:") && pattern === "npm run dev") ||
-          (scriptName.startsWith("lint:") && pattern === "npm run lint") ||
-          (scriptName === "dev:api" && pattern === "npm run start");
-
-        if (scriptContent.includes(pattern) && !isSafe) {
-          this.errors.push(`Potential circular dependency in root script '${scriptName}': ${pattern}`);
-        }
-      });
-    });
-
-    // Check workspace scripts for dangerous patterns
-    ["web", "api", "sharedTypes"].forEach((pkgName) => {
-      const pkg = this.packages[pkgName];
-      Object.entries(pkg.scripts || {}).forEach(([scriptName, scriptContent]) => {
-        dangerousPatterns.forEach((pattern) => {
-          // Allow workspace scripts to call their own scripts
-          const isOwnScript =
-            (pkgName === "web" && scriptContent.includes("npm run dev")) ||
-            (pkgName === "api" && scriptContent.includes("npm run start:dev"));
-
-          if (scriptContent.includes(pattern) && !isOwnScript) {
-            this.errors.push(`Workspace script '${pkgName}:${scriptName}' calls root script: ${pattern}`);
-          }
-        });
-      });
-    });
-  }
-
   validateRequiredScripts() {
     this.log("Validating required scripts...", "info");
 
     const requiredRootScripts = [
+      "lint",
+      "lint:all",
+      "type-check",
+      "test",
       "build",
-      "build:api",
-      "build:web",
-      "build:shared-types",
-      "dev",
+      "build:all",
       "dev:web",
       "dev:api",
-      "start",
-      "ci:start:web",
-      "ci:start:api",
+      "dev:db",
+      "dev:all",
+      "test:integration",
       "test:e2e",
-      "lint",
-      "lint:web",
-      "lint:api",
-      "lint:shared-types",
+      "coverage:report",
     ];
 
-    const requiredWebScripts = ["start:e2e", "build:local", "lint:check"];
-    const requiredApiScripts = ["start:prod:e2e", "build:local", "lint:check"];
-    const requiredSharedTypesScripts = ["build:local", "lint:check"];
+    const requiredWebScripts = ["dev", "build", "start", "lint"];
+    const requiredApiScripts = ["build", "start:dev", "start:prod", "lint"];
 
-    // Check root scripts
     requiredRootScripts.forEach((scriptName) => {
-      if (!this.packages.root.scripts[scriptName]) {
+      if (!this.packages.root.scripts?.[scriptName]) {
         this.errors.push(`Missing required root script: ${scriptName}`);
       }
     });
 
-    // Check workspace scripts
     requiredWebScripts.forEach((scriptName) => {
-      if (!this.packages.web.scripts[scriptName]) {
+      if (!this.packages.web.scripts?.[scriptName]) {
         this.errors.push(`Missing required web script: ${scriptName}`);
       }
     });
 
     requiredApiScripts.forEach((scriptName) => {
-      if (!this.packages.api.scripts[scriptName]) {
+      if (!this.packages.api.scripts?.[scriptName]) {
         this.errors.push(`Missing required api script: ${scriptName}`);
       }
     });
+  }
 
-    requiredSharedTypesScripts.forEach((scriptName) => {
-      if (!this.packages.sharedTypes.scripts[scriptName]) {
-        this.errors.push(`Missing required shared-types script: ${scriptName}`);
-      }
+  validateNoStaleSharedTypesReferences() {
+    this.log("Validating no stale shared-types references...", "info");
+
+    const forbidden = ["packages/shared-types", "build:shared-types", "lint:shared-types"];
+    const scriptsToCheck = [
+      ...Object.entries(this.packages.root.scripts || {}),
+      ...Object.entries(this.packages.web.scripts || {}).map(([k, v]) => [`web:${k}`, v]),
+      ...Object.entries(this.packages.api.scripts || {}).map(([k, v]) => [`api:${k}`, v]),
+    ];
+
+    scriptsToCheck.forEach(([scriptName, scriptContent]) => {
+      forbidden.forEach((needle) => {
+        if (typeof scriptContent === "string" && scriptContent.includes(needle)) {
+          this.errors.push(`Stale reference in script '${scriptName}': ${needle}`);
+        }
+      });
     });
   }
 
-  validateScriptPatterns() {
-    this.log("Validating script patterns...", "info");
+  validateNoopRootScripts() {
+    this.log("Validating root script noops...", "info");
 
-    const rootScripts = this.packages.root.scripts;
+    const rootScripts = this.packages.root.scripts || {};
 
-    // Validate build scripts use direct commands
-    if (rootScripts["build:api"] && !rootScripts["build:api"].includes("nest build")) {
-      this.errors.push('build:api should use "nest build" command');
-    }
-    if (rootScripts["build:web"] && !rootScripts["build:web"].includes("next build")) {
-      this.errors.push('build:web should use "next build" command');
-    }
-    if (rootScripts["build:shared-types"] && !rootScripts["build:shared-types"].includes("tsc")) {
-      this.errors.push('build:shared-types should use "tsc" command');
+    if (typeof rootScripts.build !== "string" || !rootScripts.build.includes("root build noop")) {
+      this.errors.push('root "build" script should be a noop (contain "root build noop")');
     }
 
-    // Validate dev scripts use cd commands
-    if (rootScripts["dev:web"] && !rootScripts["dev:web"].includes("cd apps/web")) {
-      this.errors.push('dev:web should use "cd apps/web" command');
-    }
-    if (rootScripts["dev:api"] && !rootScripts["dev:api"].includes("cd apps/api")) {
-      this.errors.push('dev:api should use "cd apps/api" command');
-    }
-
-    // Validate start scripts
-    if (rootScripts.start && !rootScripts.start.includes("npx next start")) {
-      this.errors.push('root start script should use "npx next start"');
-    }
-    if (rootScripts.start && !rootScripts.start.includes("node dist/main")) {
-      this.errors.push('root start script should use "node dist/main"');
-    }
-
-    // Validate CI start scripts use workspace syntax
-    if (rootScripts["ci:start:web"] && !rootScripts["ci:start:web"].includes("--workspace=apps/web")) {
-      this.errors.push("ci:start:web should use --workspace=apps/web syntax");
-    }
-    if (rootScripts["ci:start:api"] && !rootScripts["ci:start:api"].includes("--workspace=apps/api")) {
-      this.errors.push("ci:start:api should use --workspace=apps/api syntax");
-    }
-
-    // Validate lint scripts use workspace syntax
-    if (rootScripts["lint:web"] && !rootScripts["lint:web"].includes("--workspace=apps/web")) {
-      this.errors.push("lint:web should use --workspace=apps/web syntax");
-    }
-    if (rootScripts["lint:api"] && !rootScripts["lint:api"].includes("--workspace=apps/api")) {
-      this.errors.push("lint:api should use --workspace=apps/api syntax");
-    }
-    if (
-      rootScripts["lint:shared-types"] &&
-      !rootScripts["lint:shared-types"].includes("--workspace=packages/shared-types")
-    ) {
-      this.errors.push("lint:shared-types should use --workspace=packages/shared-types syntax");
+    if (typeof rootScripts.lint !== "string" || !rootScripts.lint.includes("root lint noop")) {
+      this.errors.push('root "lint" script should be a noop (contain "root lint noop")');
     }
   }
 
-  validateEnvironmentVariables() {
-    this.log("Validating environment variables...", "info");
+  validateRootScriptPatterns() {
+    this.log("Validating root script patterns...", "info");
 
-    const rootScripts = this.packages.root.scripts;
-    const webScripts = this.packages.web.scripts;
-    const apiScripts = this.packages.api.scripts;
+    const rootScripts = this.packages.root.scripts || {};
 
-    // Check root start script has proper environment variables
-    if (rootScripts.start) {
-      if (!rootScripts.start.includes("PORT=3000")) {
-        this.warnings.push("root start script should set PORT=3000 for web");
+    if (rootScripts["build:all"] && !rootScripts["build:all"].includes("pnpm -r")) {
+      this.errors.push('build:all should use "pnpm -r"');
+    }
+
+    if (rootScripts["lint:all"] && !rootScripts["lint:all"].includes("pnpm -r")) {
+      this.errors.push('lint:all should use "pnpm -r"');
+    }
+
+    if (rootScripts["test:e2e"]) {
+      if (!rootScripts["test:e2e"].includes("pnpm run build:all")) {
+        this.errors.push('test:e2e should call "pnpm run build:all"');
       }
-      if (!rootScripts.start.includes("PORT=3001")) {
-        this.warnings.push("root start script should set PORT=3001 for api");
-      }
-      if (!rootScripts.start.includes("SKIP_DB=true")) {
-        this.warnings.push("root start script should set SKIP_DB=true for api");
+      if (!rootScripts["test:e2e"].includes("playwright test")) {
+        this.errors.push('test:e2e should run "playwright test"');
       }
     }
 
-    // Check web E2E script has port
-    if (webScripts["start:e2e"] && !webScripts["start:e2e"].includes("PORT=3000")) {
-      this.warnings.push("web start:e2e script should set PORT=3000");
-    }
+    const riskyPatterns = [
+      { label: "pnpm run build", regex: /(?:^|\s)pnpm run build(?!:)(?:\s|$)/ },
+      { label: "pnpm run lint", regex: /(?:^|\s)pnpm run lint(?!:)(?:\s|$)/ },
+      { label: "pnpm run start", regex: /(?:^|\s)pnpm run start(?!:)(?:\s|$)/ },
+      { label: "npm run build", regex: /(?:^|\s)npm run build(?!:)(?:\s|$)/ },
+      { label: "npm run lint", regex: /(?:^|\s)npm run lint(?!:)(?:\s|$)/ },
+      { label: "npm run start", regex: /(?:^|\s)npm run start(?!:)(?:\s|$)/ },
+    ];
 
-    // Check api E2E script has environment variables
-    if (apiScripts["start:prod:e2e"]) {
-      if (!apiScripts["start:prod:e2e"].includes("SKIP_DB=true")) {
-        this.warnings.push("api start:prod:e2e script should set SKIP_DB=true");
-      }
-      if (!apiScripts["start:prod:e2e"].includes("PORT=3001")) {
-        this.warnings.push("api start:prod:e2e script should set PORT=3001");
-      }
-    }
-  }
-
-  validateScriptExecutionOrder() {
-    this.log("Validating script execution order...", "info");
-
-    const rootScripts = this.packages.root.scripts;
-
-    // Check build script calls all individual builds
-    if (rootScripts.build) {
-      ["build:api", "build:web", "build:shared-types"].forEach((script) => {
-        if (!rootScripts.build.includes(script)) {
-          this.errors.push(`build script should call ${script}`);
+    Object.entries(rootScripts).forEach(([scriptName, scriptContent]) => {
+      if (typeof scriptContent !== "string") return;
+      riskyPatterns.forEach(({ label, regex }) => {
+        if (regex.test(scriptContent)) {
+          this.warnings.push(`root script '${scriptName}' contains a potentially risky pattern: ${label}`);
         }
       });
-    }
-
-    // Check test:e2e calls build first
-    if (rootScripts["test:e2e"] && !rootScripts["test:e2e"].includes("npm run build")) {
-      this.errors.push('test:e2e should call "npm run build" first');
-    }
-
-    // Check dev calls both dev scripts
-    if (rootScripts.dev) {
-      ["dev:web", "dev:api"].forEach((script) => {
-        if (!rootScripts.dev.includes(script)) {
-          this.errors.push(`dev script should call ${script}`);
-        }
-      });
-    }
-  }
-
-  validateWorkspaceScripts() {
-    this.log("Validating workspace scripts...", "info");
-
-    // Check that workspace scripts are distinct
-    if (this.packages.web.scripts["start:e2e"] === this.packages.web.scripts.start) {
-      this.errors.push("web start:e2e should be different from web start");
-    }
-    if (this.packages.api.scripts["start:prod:e2e"] === this.packages.api.scripts["start:prod"]) {
-      this.errors.push("api start:prod:e2e should be different from api start:prod");
-    }
-
-    // Check that lint scripts are distinct
-    if (this.packages.web.scripts["lint:check"] === this.packages.web.scripts.lint) {
-      this.warnings.push("web lint:check should match web lint");
-    }
-    if (this.packages.api.scripts["lint:check"] === this.packages.api.scripts.lint) {
-      this.warnings.push("api lint:check should match api lint");
-    }
-    if (this.packages.sharedTypes.scripts["lint:check"] === this.packages.sharedTypes.scripts.lint) {
-      this.warnings.push("shared-types lint:check should match shared-types lint");
-    }
-
-    // Check build:local scripts match regular build scripts
-    ["web", "api", "sharedTypes"].forEach((pkgName) => {
-      const pkg = this.packages[pkgName];
-      if (pkg.scripts["build:local"] && pkg.scripts.build) {
-        if (pkg.scripts["build:local"] !== pkg.scripts.build) {
-          this.warnings.push(`${pkgName} build:local should match build script`);
-        }
-      }
     });
   }
 
   run() {
     this.log(`${colors.bold}Starting Script Validation${colors.reset}`, "info");
 
-    this.validateCircularDependencies();
     this.validateRequiredScripts();
-    this.validateScriptPatterns();
-    this.validateEnvironmentVariables();
-    this.validateScriptExecutionOrder();
-    this.validateWorkspaceScripts();
+    this.validateNoStaleSharedTypesReferences();
+    this.validateNoopRootScripts();
+    this.validateRootScriptPatterns();
 
-    // Report results
     console.log("\n" + "=".repeat(60));
     this.log(`${colors.bold}Validation Results${colors.reset}`, "info");
 
     if (this.errors.length === 0 && this.warnings.length === 0) {
-      this.log("All script validations passed! 🎉", "info");
+      this.log("All script validations passed!", "info");
       return true;
     }
 
     if (this.errors.length > 0) {
       console.log(`\n${colors.red}${colors.bold}Errors (${this.errors.length}):${colors.reset}`);
-      this.errors.forEach((error) => {
-        console.log(`  ${colors.red}• ${error}${colors.reset}`);
-      });
+      this.errors.forEach((error) => console.log(`  ${colors.red}• ${error}${colors.reset}`));
     }
 
     if (this.warnings.length > 0) {
       console.log(`\n${colors.yellow}${colors.bold}Warnings (${this.warnings.length}):${colors.reset}`);
-      this.warnings.forEach((warning) => {
-        console.log(`  ${colors.yellow}• ${warning}${colors.reset}`);
-      });
+      this.warnings.forEach((warning) => console.log(`  ${colors.yellow}• ${warning}${colors.reset}`));
     }
 
     console.log("\n" + "=".repeat(60));
@@ -349,7 +204,6 @@ class ScriptValidator {
   }
 }
 
-// Run validation if this script is executed directly
 if (require.main === module) {
   const validator = new ScriptValidator();
   const success = validator.run();

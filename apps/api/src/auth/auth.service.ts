@@ -5,18 +5,31 @@ import argon2 from 'argon2';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { ConfigService } from '@nestjs/config';
+import { Post as PostEntity } from '../posts/entities/post.entity';
+import { AuthUserDto } from './dto/auth-user.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PostEntity)
+    private readonly postRepository: Repository<PostEntity>,
     private readonly configService: ConfigService,
   ) {}
 
-  async register(
-    registerDto: RegisterDto,
-  ): Promise<Omit<User, 'hashedPassword'>> {
+  private toAuthUserDto(
+    user: Pick<User, 'id' | 'email' | 'username' | 'fullName'>,
+  ): AuthUserDto {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+    };
+  }
+
+  async register(registerDto: RegisterDto): Promise<AuthUserDto> {
     const { email, username, fullName, password } = registerDto;
 
     // Check for existing user with same email
@@ -53,10 +66,7 @@ export class AuthService {
 
     const savedUser = await this.userRepository.save(user);
 
-    // Return user without hashed password
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _, ...userWithoutPassword } = savedUser;
-    return userWithoutPassword;
+    return this.toAuthUserDto(savedUser);
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -83,7 +93,7 @@ export class AuthService {
     });
   }
 
-  async getOrCreateDemoUser(): Promise<Omit<User, 'hashedPassword'>> {
+  async getOrCreateDemoUser(): Promise<AuthUserDto> {
     const email =
       this.configService.get<string>('DEMO_EMAIL') || 'demo@isntgram.ai';
     const username = this.configService.get<string>('DEMO_USERNAME') || 'demo';
@@ -94,9 +104,8 @@ export class AuthService {
 
     const existing = await this.userRepository.findOne({ where: { email } });
     if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { hashedPassword: _hp, ...userWithoutPassword } = existing;
-      return userWithoutPassword;
+      await this.ensureDemoPosts(existing.id);
+      return this.toAuthUserDto(existing);
     }
 
     const hashedPassword = await argon2.hash(demoPassword, {
@@ -114,8 +123,31 @@ export class AuthService {
     });
 
     const saved = await this.userRepository.save(demoUser);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _hp2, ...userWithoutPassword2 } = saved;
-    return userWithoutPassword2;
+    await this.ensureDemoPosts(saved.id);
+    return this.toAuthUserDto(saved);
+  }
+
+  private async ensureDemoPosts(userId: string): Promise<void> {
+    const existingCount = await this.postRepository.count({
+      where: { userId },
+    });
+    if (existingCount > 0) {
+      await this.userRepository.update(userId, { postsCount: existingCount });
+      return;
+    }
+
+    const demoPosts = [
+      'First post on Isntgram — hello world 👋',
+      'Building a portfolio project with a real production baseline.',
+      'Demo accounts are read-only, but you can still explore the app.',
+    ].map((content) =>
+      this.postRepository.create({
+        userId,
+        content,
+      }),
+    );
+
+    await this.postRepository.save(demoPosts);
+    await this.userRepository.update(userId, { postsCount: demoPosts.length });
   }
 }

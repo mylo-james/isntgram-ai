@@ -1,0 +1,13 @@
+{
+	# Example Caddy config for a single-domain setup:
+	# - web + api: isntgram.mjames.dev
+	#
+	# Override via env vars when deploying:
+	# - WEB_DOMAIN
+}
+
+{$WEB_DOMAIN:isntgram.mjames.dev} {
+	@api path /api/*
+	reverse_proxy @api api:3001
+	reverse_proxy web:3000
+}

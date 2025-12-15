@@ -4,10 +4,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
-import Form from "@/components/ui/Form";
 import { validateEmail, validatePassword, ValidationResult } from "@/lib/validation";
+import AuthShell from "@/components/auth/AuthShell";
 
 interface LoginFormData {
   email: string;
@@ -125,7 +123,7 @@ function LoginInner() {
     try {
       // Hit backend to ensure demo user exists and return user; NextAuth will not use this response directly,
       // but this guarantees the account is present and DB is warmed.
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
       const res = await fetch(`${apiBase}/api/auth/demo`, { method: "POST" });
       if (!res.ok) {
         throw new Error("Demo sign-in failed");
@@ -147,75 +145,82 @@ function LoginInner() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Isntgram</h1>
-          <p className="mt-2 text-sm text-gray-600">Welcome back</p>
-        </div>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <Form onSubmit={handleSubmit} errorMessage={formError}>
-            <Input
+    <AuthShell>
+      <div className="mt-[15%] flex h-[50vh] w-full flex-col items-center justify-evenly">
+        <form onSubmit={handleSubmit} className="flex h-[70%] w-full flex-col items-center justify-between">
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="email">
+              Email
+            </label>
+            <input
               id="email"
               name="email"
               type="email"
-              label="Email"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
               onBlur={() => handleBlur("email")}
-              error={errors.email}
-              placeholder="Enter your email"
+              placeholder="Email"
               required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
             />
+            {errors.email ? <div className="mt-1 text-left text-xs text-red-700">{errors.email}</div> : null}
+          </div>
 
-            <Input
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="password">
+              Password
+            </label>
+            <input
               id="password"
               name="password"
               type="password"
-              label="Password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
               onBlur={() => handleBlur("password")}
-              error={errors.password}
-              placeholder="Enter your password"
+              placeholder="Password"
               required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
             />
-
-            {successMessage && (
-              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
-            )}
-
-            <Button type="submit" loading={isLoading} loadingText="Logging in..." className="w-full">
-              Log In
-            </Button>
-          </Form>
-
-          <div className="mt-4">
-            <Button
-              type="button"
-              loading={demoLoading}
-              loadingText="Starting demo..."
-              className="w-full bg-gray-100 text-gray-800 hover:bg-gray-200"
-              onClick={handleDemoSignIn}
-            >
-              Try our demo
-            </Button>
+            {errors.password ? <div className="mt-1 text-left text-xs text-red-700">{errors.password}</div> : null}
           </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign up
-              </Link>
-            </p>
+          {successMessage ? (
+            <div className="w-[80%] rounded-[5px] border border-green-200 bg-green-50 p-3 text-left text-sm text-green-700">
+              {successMessage}
+            </div>
+          ) : null}
+          {formError ? (
+            <div className="w-[80%] rounded-[5px] border border-red-200 bg-red-50 p-3 text-left text-sm text-red-700">
+              {formError}
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="h-[30px] w-[80%] rounded-[5px] bg-[#0095f6] text-[0.9rem] font-bold text-white disabled:opacity-60"
+          >
+            {isLoading ? "Logging in..." : "Log In"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDemoSignIn}
+            disabled={demoLoading}
+            className="h-[30px] w-[80%] rounded-[5px] bg-gray-100 text-[0.9rem] font-bold text-gray-800 disabled:opacity-60"
+          >
+            {demoLoading ? "Starting demo..." : "Try our demo"}
+          </button>
+
+          <div className="w-[80%] text-center text-[0.9rem] text-[#262626]">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-bold text-[#0095f6] hover:underline">
+              Sign up
+            </Link>
           </div>
-        </div>
+        </form>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 

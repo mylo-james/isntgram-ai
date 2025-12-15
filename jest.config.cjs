@@ -5,6 +5,7 @@ module.exports = {
       displayName: "root",
       testEnvironment: "node",
       testMatch: ["<rootDir>/test/**/*.test.ts"],
+      modulePathIgnorePatterns: ["<rootDir>/apps/web/.next/"],
       transform: {
         "^.+\\.ts$": [
           "babel-jest",
@@ -30,6 +31,8 @@ module.exports = {
       setupFilesAfterEnv: ["<rootDir>/apps/web/jest.setup.ts"],
       testMatch: ["<rootDir>/apps/web/**/*.test.(js|jsx|ts|tsx)"],
       testPathIgnorePatterns: ["<rootDir>/apps/web/.next/", "<rootDir>/node_modules/"],
+      modulePathIgnorePatterns: ["<rootDir>/apps/web/.next/"],
+      testTimeout: 15000,
       moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/apps/web/$1",
         "^@/components/(.*)$": "<rootDir>/apps/web/components/$1",
@@ -40,7 +43,17 @@ module.exports = {
         "^.+\\.(js|jsx|ts|tsx)$": [
           "babel-jest",
           {
-            presets: ["next/babel"],
+            // Use the modern automatic JSX runtime to avoid noisy React warnings in tests.
+            presets: [
+              [
+                "@babel/preset-env",
+                {
+                  targets: { node: "current" },
+                },
+              ],
+              ["@babel/preset-react", { runtime: "automatic" }],
+              "@babel/preset-typescript",
+            ],
           },
         ],
       },
@@ -71,6 +84,7 @@ module.exports = {
       testEnvironment: "node",
       testMatch: ["<rootDir>/apps/api/src/**/*.test.ts", "<rootDir>/apps/api/test/**/*.test.ts"],
       setupFilesAfterEnv: ["<rootDir>/apps/api/test/setup.ts"],
+      modulePathIgnorePatterns: ["<rootDir>/apps/web/.next/"],
       transform: {
         "^.+\\.(t|j)s$": [
           "babel-jest",
@@ -86,7 +100,7 @@ module.exports = {
             ],
             plugins: [
               ["@babel/plugin-proposal-decorators", { legacy: true }],
-              ["@babel/plugin-proposal-class-properties", { loose: true }],
+              ["@babel/plugin-transform-class-properties", { loose: true }],
               "babel-plugin-transform-typescript-metadata",
             ],
           },
@@ -118,34 +132,6 @@ module.exports = {
       coverageDirectory: "<rootDir>/apps/api/coverage",
     },
     // Shared Types
-    {
-      displayName: "shared-types",
-      testEnvironment: "node",
-      testMatch: ["<rootDir>/packages/shared-types/src/**/*.test.ts"],
-      transform: {
-        "^.+\\.ts$": [
-          "babel-jest",
-          {
-            presets: [
-              [
-                "@babel/preset-env",
-                {
-                  targets: { node: "20" },
-                },
-              ],
-              "@babel/preset-typescript",
-            ],
-          },
-        ],
-      },
-      collectCoverageFrom: [
-        "packages/shared-types/src/**/*.ts",
-        "!packages/shared-types/src/**/*.test.ts",
-        "!packages/shared-types/src/**/*.d.ts",
-      ],
-      coverageReporters: ["text", "lcov", "html", "json-summary"],
-      coverageDirectory: "<rootDir>/packages/shared-types/coverage",
-    },
   ],
   // Root-level coverage configuration for combined reports
   coverageProvider: "babel",

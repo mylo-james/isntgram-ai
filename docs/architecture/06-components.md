@@ -22,9 +22,13 @@ Persistent storage using PostgreSQL on Railway.
 
 Stores and delivers images using AWS S3.
 
-### Shared Library (`packages/shared-types`)
+### Shared Contract (Intentional)
 
-Contains shared TypeScript types for consistency.
+There is no `packages/shared-types` package in the current codebase. The API contract is defined by the NestJS DTOs and
+response shapes, and the web app consumes it via the API client.
+
+If we want stronger compile-time guarantees in the future, prefer generating a typed client from OpenAPI/Swagger rather
+than maintaining hand-written shared types that can drift.
 
 ## External APIs
 

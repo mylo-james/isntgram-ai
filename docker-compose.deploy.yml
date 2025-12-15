@@ -1,0 +1,85 @@
+services:
+  api-migrate:
+    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}-api:${IMAGE_TAG:-latest}
+    command: ["node", "dist/migrate.js"]
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: ${DB_SSL:-true}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
+      DEMO_EMAIL: ${DEMO_EMAIL:-demo@isntgram.ai}
+      DEMO_USERNAME: ${DEMO_USERNAME:-demo}
+      DEMO_FULL_NAME: ${DEMO_FULL_NAME:-Demo User}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-changeme}
+      # Optional AI + observability
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    restart: "no"
+
+  api:
+    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}-api:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: ${DB_SSL:-true}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
+      DEMO_EMAIL: ${DEMO_EMAIL:-demo@isntgram.ai}
+      DEMO_USERNAME: ${DEMO_USERNAME:-demo}
+      DEMO_FULL_NAME: ${DEMO_FULL_NAME:-Demo User}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-changeme}
+      # Optional AI + observability
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}-web:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:3001}
+      NEXT_PUBLIC_DEMO_EMAIL: ${NEXT_PUBLIC_DEMO_EMAIL:-demo@isntgram.ai}
+      NEXT_PUBLIC_DEMO_PASSWORD: ${NEXT_PUBLIC_DEMO_PASSWORD:-changeme}
+      DEMO_SESSION_MAX_AGE_SECONDS: ${DEMO_SESSION_MAX_AGE_SECONDS:-3600}
+      # Optional server-side observability (client DSN requires rebuilding the web image)
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      WEB_DOMAIN: ${WEB_DOMAIN}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

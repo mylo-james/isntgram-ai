@@ -15,12 +15,15 @@ import { FollowsService } from './follows.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 import { Request } from 'express';
+import { DemoReadOnlyGuard } from '../common/guards/demo-readonly.guard';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiOkResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { IsFollowingResponseDto } from './dto/is-following-response.dto';
 
 interface AuthenticatedRequest extends Request {
   user?: { userId: string };
@@ -35,7 +38,7 @@ export class FollowsController {
     private readonly usersService: UsersService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, DemoReadOnlyGuard)
   @Post(':username/follow')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Follow a user by username' })
@@ -52,7 +55,7 @@ export class FollowsController {
     await this.followsService.followUser(req.user!.userId, target.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, DemoReadOnlyGuard)
   @Delete(':username/follow')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unfollow a user by username' })
@@ -71,15 +74,11 @@ export class FollowsController {
   @UseGuards(JwtAuthGuard)
   @Get(':username/is-following')
   @ApiOperation({ summary: 'Check if current user follows target by username' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return follow status',
-    schema: { example: { isFollowing: true } },
-  })
+  @ApiOkResponse({ type: IsFollowingResponseDto })
   async isFollowing(
     @Param('username') username: string,
     @Req() req: AuthenticatedRequest,
-  ): Promise<{ isFollowing: boolean }> {
+  ): Promise<IsFollowingResponseDto> {
     const target = await this.usersService.findByUsername(username);
     const isFollowing = await this.followsService.isFollowing(
       req.user!.userId,

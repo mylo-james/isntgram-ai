@@ -54,6 +54,7 @@ describe('GlobalExceptionFilter', () => {
       error: 'HttpException',
       timestamp: expect.any(String),
       path: undefined,
+      requestId: undefined,
     });
   });
 
@@ -80,6 +81,7 @@ describe('GlobalExceptionFilter', () => {
       error: 'Error',
       timestamp: expect.any(String),
       path: undefined,
+      requestId: undefined,
     });
   });
 
@@ -106,6 +108,7 @@ describe('GlobalExceptionFilter', () => {
       error: 'InternalServerError',
       timestamp: expect.any(String),
       path: undefined,
+      requestId: undefined,
     });
   });
 });

@@ -1,4 +1,9 @@
 packages:
   - 'apps/*'
-  - 'packages/*'
 
+# pnpm v10+ blocks dependency lifecycle scripts by default.
+# Allow only the few dependencies that require build steps.
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@swc/core'
+  - sharp

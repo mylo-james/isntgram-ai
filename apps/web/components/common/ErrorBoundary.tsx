@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Component, ReactNode } from "react";
+import { captureException } from "@sentry/nextjs";
 
 interface Props {
   children: ReactNode;
@@ -22,11 +23,23 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    // Next.js uses thrown errors to drive control flow for redirects and notFound().
+    // Do not treat these as application errors.
+    if (error.message === "NEXT_REDIRECT" || error.message === "NEXT_NOT_FOUND") return;
+
+    captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+      },
+    });
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.state.error?.message === "NEXT_REDIRECT" || this.state.error?.message === "NEXT_NOT_FOUND") {
+        throw this.state.error;
+      }
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">

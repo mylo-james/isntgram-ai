@@ -10,16 +10,17 @@ frontend to provide standardized, user-friendly error responses.
 - **Global Exception Filter**: Centralized error handling for all API endpoints
 - **Standardized Responses**: Consistent error response format across all endpoints
 - **HTTP Status Codes**: Proper use of HTTP status codes for different error types
-- **Logging**: Comprehensive error logging for debugging and monitoring
+- **Logging**:
+  - HTTP request logs are emitted as structured JSON in production (PII-safe)
+  - 5xx errors are logged in all non-test environments via Nest `Logger`
 - **User-Friendly Messages**: Error messages that are helpful to end users
+- **Optional Error Tracking**: Sentry can be enabled via `SENTRY_DSN` for production-style monitoring
 
 ### Frontend Error Handling
 
 - **API Client Interceptor**: Centralized error handling for all API calls
-- **User Feedback**: Clear error messages displayed to users
-- **Retry Logic**: Automatic retry for transient failures
-- **Fallback UI**: Graceful degradation when services are unavailable
-- **Error Boundaries**: React error boundaries for component-level error handling
+- **User Feedback**: Inline errors and toasts for common failure modes
+- **Fallback UI**: Next.js App Router `app/error.tsx` + `app/not-found.tsx`
 
 ### Error Categories
 
@@ -52,14 +53,12 @@ frontend to provide standardized, user-friendly error responses.
 
 ```typescript
 interface ErrorResponse {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: any;
-  };
+  statusCode: number;
   timestamp: string;
   path: string;
+  message: string;
+  error: string;
+  requestId?: string;
 }
 ```
 

@@ -1,21 +1,8 @@
 import Image from "next/image";
-
-interface UserProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { PublicUserProfile } from "@/lib/api-client";
 
 interface ProfileHeaderProps {
-  profile: UserProfile;
+  profile: PublicUserProfile;
 }
 
 export default function ProfileHeader({ profile }: ProfileHeaderProps) {

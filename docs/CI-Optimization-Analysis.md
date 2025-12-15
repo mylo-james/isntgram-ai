@@ -1,17 +1,20 @@
 # CI Workflow Optimization Analysis
 
+Note: This document includes historical examples. The current pipeline builds and publishes **per-app** production
+images using `apps/web/Dockerfile.prod` and `apps/api/Dockerfile.prod`.
+
 ## 📊 **Current State Analysis**
 
 ### **File Generation Locations (Deterministic)**
 
-Based on `jest.config.cjs` and `scripts/coverage-report.js`:
+Based on `jest.config.cjs` and `scripts/coverage-report.cjs`:
 
 #### **Coverage Files (Always Generated)**
 
 ```bash
+coverage/coverage-summary.json              # Root combined coverage summary
 apps/web/coverage/coverage-summary.json     # Web app coverage
 apps/api/coverage/coverage-summary.json     # API coverage
-packages/shared-types/coverage/coverage-summary.json  # Shared types coverage
 ```
 
 #### **Test Results (Always Generated)**
@@ -25,7 +28,6 @@ test-results/junit/jest-junit.xml          # JUnit test results
 ```bash
 apps/web/.next/                            # Next.js build output
 apps/api/dist/                             # NestJS build output
-packages/shared-types/dist/                # Shared types build output
 ```
 
 #### **E2E Test Results (Always Generated)**
@@ -63,7 +65,7 @@ coverage.zip fi
 ```yaml
 # Deterministic approach - we know exactly what files exist
 tar -xzf coverage-artifacts.tgz ls -la apps/web/coverage/coverage-summary.json ls -la
-apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/coverage-summary.json
+apps/api/coverage/coverage-summary.json
 ```
 
 ### **2. Remove Redundant Development Docker Build**
@@ -83,7 +85,7 @@ apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/co
   uses: docker/build-push-action@v6
   with:
     context: .
-    file: Dockerfile.prod
+    file: apps/web/Dockerfile.prod
     load: true
     tags: isntgram-ai:prod
 ```
@@ -96,7 +98,7 @@ apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/co
   uses: docker/build-push-action@v6
   with:
     context: .
-    file: Dockerfile.prod
+    file: apps/web/Dockerfile.prod
     load: true
     tags: isntgram-ai:prod
 ```
@@ -125,7 +127,6 @@ apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/co
     echo "Verifying coverage files..."
     ls -la apps/web/coverage/coverage-summary.json
     ls -la apps/api/coverage/coverage-summary.json
-    ls -la packages/shared-types/coverage/coverage-summary.json
 ```
 
 ### **4. Optimize Coverage Archive Creation**
@@ -134,8 +135,7 @@ apps/api/coverage/coverage-summary.json ls -la packages/shared-types/coverage/co
 
 ```yaml
 # Archives entire directories with potential missing files
-tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage 2>/dev/null
-|| true
+tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage 2>/dev/null || true
 ```
 
 **Solution:**
@@ -143,7 +143,7 @@ tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage pa
 ```yaml
 # Archive only the specific files we know exist
 tar -czf coverage-artifacts.tgz \ apps/web/coverage/coverage-summary.json \ apps/api/coverage/coverage-summary.json \
-packages/shared-types/coverage/coverage-summary.json
+coverage/coverage-summary.json
 ```
 
 ### **5. Remove Conditional Coverage Gate**

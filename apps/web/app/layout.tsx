@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
-import ReduxProvider from "@/components/providers/ReduxProvider";
 import AuthProvider from "@/components/auth/AuthProvider";
 import DemoBanner from "@/components/common/DemoBanner";
 import SiteHeader from "@/components/common/SiteHeader";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -39,15 +39,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ReduxProvider>
-          <SessionProvider>
-            <AuthProvider>
+        <SessionProvider>
+          <AuthProvider>
+            <ToastProvider>
               <DemoBanner />
               <SiteHeader />
               {children}
-            </AuthProvider>
-          </SessionProvider>
-        </ReduxProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   );

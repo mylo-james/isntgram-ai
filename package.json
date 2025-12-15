@@ -1,13 +1,12 @@
 {
   "name": "isntgram-ai",
   "version": "1.0.0",
-  "packageManager": "pnpm@9.12.3",
+  "packageManager": "pnpm@10.25.0",
   "description": "AI-powered social media platform",
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
@@ -15,76 +14,78 @@
     "lint:all": "pnpm run lint:md && pnpm -r --if-present lint",
     "lint:web": "pnpm --filter web lint",
     "lint:api": "pnpm --filter api lint",
-    "lint:shared-types": "pnpm --filter @isntgram-ai/shared-types lint",
-    "type-check": "pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p packages/shared-types/tsconfig.json --noEmit",
-    "test": "jest",
-    "test:integration": "jest --selectProjects api --testPathPatterns integration",
+    "type-check": "rm -rf apps/web/.next/types && pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit",
+    "test": "node scripts/run-jest.mjs",
+    "test:integration": "node scripts/run-jest.mjs --selectProjects api --testPathPatterns integration",
     "test:e2e": "pnpm run build:all && bash scripts/kill-ports.sh 3000 3001 && playwright test",
+    "visual:react-app": "bash scripts/kill-ports.sh 4173 && pnpm exec playwright test -c playwright.react-app.visual.config.ts",
+    "visual:react-app:baseline": "bash scripts/kill-ports.sh 4173 && pnpm exec playwright test -c playwright.react-app.visual.config.ts --update-snapshots",
+    "visual:web": "bash scripts/kill-ports.sh 3000 && pnpm exec playwright test -c playwright.web.visual.config.ts",
     "build": "echo 'root build noop'",
     "build:all": "pnpm -r --if-present build",
     "build:web": "pnpm --filter web build",
     "build:api": "pnpm --filter api build",
-    "build:shared-types": "pnpm --filter @isntgram-ai/shared-types build",
     "coverage:report": "node scripts/coverage-report.cjs",
-    "test:ci:workflow": "jest test/ci-workflow.test.ts --watchAll=false",
+    "test:ci:workflow": "node scripts/run-jest.mjs test/ci-workflow.test.ts --watchAll=false",
     "test:ci:pro": "bash scripts/ci-test-pro.sh",
     "setup:ci-tools": "bash scripts/ci-setup-tools.sh",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:db": "bash scripts/dev-db.sh",
     "dev:all": "pnpm run dev:db && concurrently -n web,api -c green,cyan \"NEXT_PUBLIC_API_URL=http://localhost:3001 pnpm --filter web dev\" \"pnpm --filter api start:dev\"",
+    "portfolio:artifacts": "node scripts/portfolio-artifacts.mjs",
+    "openapi:generate": "pnpm --filter api openapi:generate",
+    "openapi:types": "pnpm run openapi:generate && pnpm exec openapi-typescript apps/api/openapi.json -o apps/web/lib/generated/api.ts",
+    "openapi:check": "bash scripts/openapi-check.sh",
     "prepare": "husky install"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.0",
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@axe-core/playwright": "^4.11.0",
+    "@babel/core": "^7.28.5",
     "@babel/plugin-proposal-decorators": "^7.28.0",
-    "@babel/preset-env": "^7.28.0",
-    "@babel/preset-typescript": "^7.27.1",
-    "@eslint/js": "^9.32.0",
-    "@nestjs/cli": "^10.0.0",
-    "@playwright/test": "^1.54.2",
-    "@swc/core": "^1.7.42",
+    "@babel/plugin-transform-class-properties": "^7.27.1",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@eslint/js": "^9.39.2",
+    "@nestjs/cli": "^11.0.14",
+    "@playwright/test": "^1.57.0",
+    "@swc/core": "^1.15.4",
     "@swc/jest": "^0.2.39",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.0.0",
+    "@types/node": "^25.0.2",
     "@types/supertest": "^6.0.3",
-    "babel-jest": "^30.0.5",
-    "babel-plugin-transform-typescript-metadata": "^0.3.2",
-    "concurrently": "^9.2.0",
+    "babel-jest": "^30.2.0",
+    "babel-plugin-transform-typescript-metadata": "^0.4.0",
+    "concurrently": "^9.2.1",
     "eslint-plugin-prettier": "^5.5.4",
-    "husky": "^9.0.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^30.0.5",
-    "jest-environment-jsdom": "^30.0.5",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "jest-junit": "^16.0.0",
     "js-yaml": "^4.1.0",
-    "lint-staged": "^16.1.5",
-    "markdownlint-cli": "^0.37.0",
-    "next": "^14.0.0",
-    "prettier": "^3.6.2",
+    "lint-staged": "^16.2.7",
+    "markdownlint-cli": "^0.47.0",
+    "next": "^16.0.10",
+    "openapi-typescript": "^7.10.1",
+    "prettier": "^3.7.4",
     "sqlite3": "^5.1.7",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^8.39.0"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0"
   },
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
       "bash -c 'cd apps/api && pnpm exec eslint --fix'",
       "bash -c 'cd apps/api && pnpm exec tsc -p . --noEmit'",
-      "jest --selectProjects api --testPathIgnorePatterns=integration"
+      "node scripts/run-jest.mjs --selectProjects api --testPathIgnorePatterns=integration"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
       "bash -c 'cd apps/web && pnpm exec eslint --fix'",
       "bash -c 'cd apps/web && pnpm exec tsc -p . --noEmit'",
-      "jest --selectProjects web"
-    ],
-    "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
-      "prettier --write",
-      "bash -c 'cd packages/shared-types && pnpm exec eslint src/**/*.ts --fix'",
-      "bash -c 'cd packages/shared-types && pnpm exec tsc -p . --noEmit'",
-      "jest --selectProjects shared-types"
+      "node scripts/run-jest.mjs --selectProjects web"
     ],
     "scripts/**/*.{js,cjs}": [
       "prettier --write"
@@ -95,22 +96,24 @@
     ]
   },
   "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=25.0.0",
+    "pnpm": ">=10.0.0"
   },
-  "overrides": {
-    "cross-spawn": "^7.0.6",
-    "jest-changed-files": {
-      "execa": {
-        "cross-spawn": "^7.0.6"
-      }
-    },
-    "execa": "^9.6.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "^7.0.6",
+      "execa": "^9.6.0",
+      "glob": "10.5.0",
+      "js-yaml@3.14.1": "3.14.2",
+      "js-yaml@4.1.0": "4.1.1",
+      "tar-fs": "2.1.4",
+      "tmp": "0.2.5",
+      "react": "19.2.3",
+      "react-dom": "19.2.3"
+    }
   },
   "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files.",
   "dependencies": {
-    "next-auth": "^5.0.0-beta.29"
+    "next-auth": "^5.0.0-beta.30"
   }
 }

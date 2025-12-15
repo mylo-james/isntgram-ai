@@ -10,7 +10,7 @@ This guide helps diagnose and fix common CI pipeline issues in the Isntgram-ai p
 
 #### Symptoms
 
-- `npm run build:dev` or `npm run build` fails
+- `pnpm run build:all` fails
 - TypeScript compilation errors
 - Missing dependencies
 
@@ -18,13 +18,14 @@ This guide helps diagnose and fix common CI pipeline issues in the Isntgram-ai p
 
 ```bash
 # Check for missing dependencies
-npm ci
+corepack enable
+pnpm install --frozen-lockfile
 
 # Verify TypeScript configuration
-npx tsc --noEmit
+pnpm run type-check
 
-# Check for workspace issues
-npm run build:shared-types
+# Build everything (matches CI)
+pnpm run build:all
 ```
 
 ### 2. Container Health Check Failures
@@ -55,31 +56,31 @@ curl http://localhost:3001/health
 
 ```bash
 # Run unit tests locally
-npm run test:unit
+pnpm test --watchAll=false
 
 # Check specific workspace
-npm run test:web
-npm run test:api
+pnpm test --selectProjects web --watchAll=false
+pnpm test --selectProjects api --watchAll=false
 ```
 
 #### Integration Tests
 
 ```bash
 # Run with database
-npm run test:with-db
+pnpm run test:integration
 
 # Check database connection
-docker-compose ps postgres
+docker compose ps postgres
 ```
 
 #### E2E Tests
 
 ```bash
 # Run Playwright tests
-npm run test:e2e
+pnpm run test:e2e
 
 # Run with UI
-npm run test:e2e:ui
+pnpm exec playwright test --ui
 ```
 
 ### 4. Linting & Type Checking Issues
@@ -88,22 +89,22 @@ npm run test:e2e:ui
 
 ```bash
 # Fix auto-fixable issues
-npm run lint -- --fix
+pnpm run lint:all
 
 # Check specific workspace
-npm run lint:web
-npm run lint:api
+pnpm run lint:web
+pnpm run lint:api
 ```
 
 #### Type Checking
 
 ```bash
 # Run type checking
-npm run type-check
+pnpm run type-check
 
 # Check specific workspace
-cd apps/web && npx tsc --noEmit
-cd apps/api && npx tsc --noEmit
+pnpm exec tsc -p apps/web/tsconfig.json --noEmit
+pnpm exec tsc -p apps/api/tsconfig.json --noEmit
 ```
 
 ## Debugging Steps
@@ -120,8 +121,9 @@ docker run -d --name ci-container \
   isntgram-test
 
 # Execute commands manually
-docker exec ci-container npm ci
-docker exec ci-container npm run build:dev
+docker exec ci-container corepack enable
+docker exec ci-container pnpm install --frozen-lockfile
+docker exec ci-container pnpm run build:all
 ```
 
 ### 2. Check Artifacts
@@ -156,8 +158,8 @@ Consider adding these to CI:
 - name: Cache node_modules
   uses: actions/cache@v3
   with:
-    path: ~/.npm
-    key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+    path: ~/.pnpm-store
+    key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 ```
 
 ### 2. Parallel Jobs

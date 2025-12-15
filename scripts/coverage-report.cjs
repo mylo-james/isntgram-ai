@@ -146,4 +146,3 @@ if (require.main === module) {
 }
 
 module.exports = { analyzeCoverage, generateReport };
-// Test comment

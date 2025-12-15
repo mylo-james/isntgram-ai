@@ -13,8 +13,8 @@ constraints.
 #### 1. Container Registry
 
 - **GitHub Container Registry (GHCR)**: Free, private container registry
-- **Image Naming**: `ghcr.io/{owner}/{repo}/{service}:{tag}`
-- **Tags**: `latest`, `{commit-sha}`, `{environment}-{version}`
+- **Image Naming**: `ghcr.io/{owner}/{repo}-api:{tag}` and `ghcr.io/{owner}/{repo}-web:{tag}`
+- **Tags**: `latest`, `{commit-sha}`
 - **Security**: Integrated with GitHub security features and vulnerability scanning
 
 #### 2. Cloud Infrastructure
@@ -65,8 +65,8 @@ graph TD
 
     subgraph "External Services"
         K[Managed PostgreSQL]
-        L[AWS S3]
-        M[Cloudflare CDN]
+        L[Sentry (optional)]
+        M[DNS/CDN (optional)]
     end
 
     E --> I
@@ -100,71 +100,20 @@ graph TD
 
 ### Docker Configuration
 
-#### Multi-Stage Build (Dockerfile.prod)
+This repo uses **per-app** production Dockerfiles:
 
-```dockerfile
-# Build stage
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build:all
+- `apps/api/Dockerfile.prod` (NestJS → `node dist/main`)
+- `apps/web/Dockerfile.prod` (Next.js App Router with `output: "standalone"` → `node apps/web/server.js`)
 
-# Production stage
-FROM node:18-alpine AS production
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-USER node
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
-CMD ["npm", "start"]
-```
+There are two compose entrypoints:
 
-#### Docker Compose (docker-compose.prod.yml)
+- **Local prod-like run**: `docker-compose.prod.yml` (builds images locally; web `3100`, api `3101`)
+- **VM deployment**: `docker-compose.deploy.yml` (pulls GHCR images; includes one-shot `api-migrate` + `caddy`)
 
-```yaml
-version: "3.8"
-services:
-  web:
-    image: ghcr.io/owner/repo/web:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-    depends_on:
-      - api
-    restart: unless-stopped
+Reverse proxy config lives in `docker/caddy/Caddyfile` and uses **host-based routing**:
 
-  api:
-    image: ghcr.io/owner/repo/api:latest
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-    restart: unless-stopped
-
-  reverse-proxy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
-```
+- `WEB_DOMAIN` → `web:3000`
+- `API_DOMAIN` → `api:3001`
 
 ### Security Considerations
 

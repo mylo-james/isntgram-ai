@@ -1,51 +1,34 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
+import type { components } from "@/lib/generated/api";
 
 // Types for API requests and responses
-export interface RegisterRequest {
-  email: string;
-  username: string;
-  fullName: string;
-  password: string;
-}
+export type RegisterRequest = components["schemas"]["RegisterDto"];
+export type RegisterResponse = components["schemas"]["RegisterResponseDto"];
 
-export interface RegisterResponse {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    fullName: string;
-  };
-  message: string;
-}
+export type LoginRequest = components["schemas"]["SignInDto"];
+export type LoginResponse = components["schemas"]["SignInResponseDto"];
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
+export type PublicUserProfile = components["schemas"]["PublicUserProfileDto"];
+export type MyProfile = components["schemas"]["MyProfileDto"];
 
-export interface LoginResponse {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    fullName: string;
-  };
-  accessToken: string;
-}
+export type FeedPost = components["schemas"]["FeedPostDto"];
+export type FeedResponse = components["schemas"]["FeedResponseDto"];
 
-export interface UserProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type UserSummary = components["schemas"]["UserSummaryDto"];
+export type SearchResponse = components["schemas"]["SearchResponseDto"];
+
+export type LikeStateResponse = components["schemas"]["LikeStateResponseDto"];
+
+export type CommentView = components["schemas"]["CommentViewDto"];
+export type CommentsResponse = components["schemas"]["CommentsResponseDto"];
+
+export type CaptionTone = NonNullable<components["schemas"]["CaptionSuggestionsDto"]["tone"]>;
+export type CaptionSuggestionsResponse = components["schemas"]["CaptionSuggestionsResponseDto"];
+
+export type MessageResponse = components["schemas"]["MessageResponseDto"];
+export type UsernameAvailability = components["schemas"]["UsernameAvailabilityDto"];
+export type IsFollowingResponse = components["schemas"]["IsFollowingResponseDto"];
+export type FollowListResponse = components["schemas"]["FollowListResponseDto"];
 
 export interface ApiError {
   message: string;
@@ -59,8 +42,28 @@ class ApiClient {
   private bearerToken: string | null = null;
 
   constructor() {
+    const publicApiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+    const internalApiBaseUrl = process.env.INTERNAL_API_URL || publicApiBaseUrl;
+
+    const nextAuthOrigin = (() => {
+      const nextAuthUrl = process.env.NEXTAUTH_URL;
+      if (!nextAuthUrl) return undefined;
+      try {
+        return new URL(nextAuthUrl).origin;
+      } catch {
+        return nextAuthUrl;
+      }
+    })();
+
+    // In production we prefer same-origin API calls (relative URLs) to avoid
+    // having to bake a hostname into the browser bundle.
+    const baseURL =
+      typeof window === "undefined"
+        ? internalApiBaseUrl || nextAuthOrigin || "http://localhost:3001"
+        : publicApiBaseUrl || "";
+
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+      baseURL,
       timeout: 10000,
       headers: {
         "Content-Type": "application/json",
@@ -81,7 +84,6 @@ class ApiClient {
         return config;
       },
       (error) => {
-        console.error("Request Error:", error);
         return Promise.reject(error);
       },
     );
@@ -90,12 +92,6 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
       (error: AxiosError<ApiError>) => {
-        console.error("Response Error:", {
-          status: error.response?.status,
-          url: error.config?.url,
-          data: error.response?.data,
-        });
-
         // Handle different error scenarios
         if (error.response) {
           // Server responded with error status
@@ -118,13 +114,8 @@ class ApiClient {
 
   // Registration endpoint
   async register(data: RegisterRequest): Promise<RegisterResponse> {
-    try {
-      const response = await this.client.post<RegisterResponse>("/api/auth/register", data);
-      return response.data;
-    } catch (error) {
-      // Re-throw the error to let the interceptor handle it
-      throw error;
-    }
+    const response = await this.client.post<RegisterResponse>("/api/auth/register", data);
+    return response.data;
   }
 
   // Login endpoint (for Auth.js integration)
@@ -133,45 +124,119 @@ class ApiClient {
     return response.data;
   }
 
-  // Get current user
-  async getCurrentUser(): Promise<{ user: RegisterResponse["user"] }> {
-    const response = await this.client.get<{ user: RegisterResponse["user"] }>("/api/auth/me");
-    return response.data;
-  }
-
   // Logout endpoint
-  async logout(): Promise<{ message: string }> {
-    const response = await this.client.post<{ message: string }>("/api/auth/signout");
+  async logout(): Promise<MessageResponse> {
+    const response = await this.client.post<MessageResponse>("/api/auth/signout");
     return response.data;
   }
 
   // Get user profile by username
-  async getUserProfile(username: string): Promise<UserProfile> {
-    const response = await this.client.get<UserProfile>(`/api/users/${username}`);
+  async getUserProfile(username: string): Promise<PublicUserProfile> {
+    const response = await this.client.get<PublicUserProfile>(`/api/users/${username}`);
     return response.data;
   }
 
-  // Get current user's profile by id or email
-  async getMyProfile(params: { id?: string; email?: string }): Promise<UserProfile> {
-    const search = params.id
-      ? `id=${encodeURIComponent(params.id)}`
-      : `email=${encodeURIComponent(params.email || "")}`;
-    const response = await this.client.get<UserProfile>(`/api/users/me?${search}`);
+  // Get current user's profile (identity derived from bearer token)
+  async getMyProfile(): Promise<MyProfile> {
+    const response = await this.client.get<MyProfile>("/api/users/me");
     return response.data;
   }
 
   // Check if a username is available
-  async checkUsernameAvailability(username: string): Promise<{ available: boolean }> {
-    const response = await this.client.get<{ available: boolean }>(
+  async checkUsernameAvailability(username: string): Promise<UsernameAvailability> {
+    const response = await this.client.get<UsernameAvailability>(
       `/api/users/check-username/${encodeURIComponent(username)}`,
     );
     return response.data;
   }
 
   // Update current user's profile
-  async updateProfile(data: { id: string; fullName: string; username: string }): Promise<UserProfile> {
-    const response = await this.client.put<UserProfile>("/api/users/profile", data);
+  async updateProfile(data: components["schemas"]["UpdateMyProfileDto"]): Promise<MyProfile> {
+    const response = await this.client.put<MyProfile>("/api/users/profile", data);
     return response.data;
+  }
+
+  async getFeed(page = 1, limit = 10): Promise<FeedResponse> {
+    const res = await this.client.get<FeedResponse>("/api/posts/feed", {
+      params: { page, limit },
+    });
+    return res.data;
+  }
+
+  async getExplore(page = 1, limit = 12): Promise<FeedResponse> {
+    const res = await this.client.get<FeedResponse>("/api/posts/explore", {
+      params: { page, limit },
+    });
+    return res.data;
+  }
+
+  async createPost(content: string): Promise<FeedPost> {
+    const res = await this.client.post<FeedPost>("/api/posts", { content });
+    return res.data;
+  }
+
+  async getPostById(id: string): Promise<FeedPost> {
+    const res = await this.client.get<FeedPost>(`/api/posts/${encodeURIComponent(id)}`);
+    return res.data;
+  }
+
+  async getUserPosts(username: string, page = 1, limit = 12): Promise<FeedResponse> {
+    const res = await this.client.get<FeedResponse>(`/api/posts/user/${encodeURIComponent(username)}`, {
+      params: { page, limit },
+    });
+    return res.data;
+  }
+
+  async deletePost(id: string): Promise<MessageResponse> {
+    const res = await this.client.delete<MessageResponse>(`/api/posts/${encodeURIComponent(id)}`);
+    return res.data;
+  }
+
+  async likePost(postId: string): Promise<LikeStateResponse> {
+    const res = await this.client.post<LikeStateResponse>(`/api/posts/${encodeURIComponent(postId)}/like`);
+    return res.data;
+  }
+
+  async unlikePost(postId: string): Promise<LikeStateResponse> {
+    const res = await this.client.delete<LikeStateResponse>(`/api/posts/${encodeURIComponent(postId)}/like`);
+    return res.data;
+  }
+
+  async getComments(postId: string, page = 1, limit = 20): Promise<CommentsResponse> {
+    const res = await this.client.get<CommentsResponse>(`/api/posts/${encodeURIComponent(postId)}/comments`, {
+      params: { page, limit },
+    });
+    return res.data;
+  }
+
+  async createComment(postId: string, text: string): Promise<CommentView> {
+    const res = await this.client.post<CommentView>(`/api/posts/${encodeURIComponent(postId)}/comments`, {
+      text,
+    });
+    return res.data;
+  }
+
+  async deleteComment(postId: string, commentId: string): Promise<MessageResponse> {
+    const res = await this.client.delete<MessageResponse>(
+      `/api/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+    );
+    return res.data;
+  }
+
+  async search(q: string, type: "all" | "users" | "posts" = "all", page = 1, limit = 10): Promise<SearchResponse> {
+    const res = await this.client.get<SearchResponse>("/api/search", {
+      params: { q, type, page, limit },
+    });
+    return res.data;
+  }
+
+  async suggestCaptions(
+    prompt: string,
+    tone: CaptionTone = "friendly",
+    count = 3,
+  ): Promise<CaptionSuggestionsResponse> {
+    const res = await this.client.post<CaptionSuggestionsResponse>("/api/ai/captions", { prompt, tone, count });
+    return res.data;
   }
 
   // Follow a user by username
@@ -184,52 +249,36 @@ class ApiClient {
     await this.client.delete(`/api/users/${encodeURIComponent(username)}/follow`);
   }
 
-  async isFollowing(username: string): Promise<{ isFollowing: boolean }> {
-    const res = await this.client.get<{ isFollowing: boolean }>(
-      `/api/users/${encodeURIComponent(username)}/is-following`,
-    );
+  async isFollowing(username: string): Promise<IsFollowingResponse> {
+    const res = await this.client.get<IsFollowingResponse>(`/api/users/${encodeURIComponent(username)}/is-following`);
     return res.data;
   }
 
-  async getFollowers(
-    username: string,
-    page = 1,
-    limit = 20,
-  ): Promise<{
-    users: Array<{ id: string; username: string; fullName: string; profilePictureUrl?: string; isFollowing: boolean }>;
-    pagination: { page: number; limit: number; total: number; hasMore: boolean };
-  }> {
-    const res = await this.client.get(`/api/users/${encodeURIComponent(username)}/followers`, {
+  async getFollowers(username: string, page = 1, limit = 20): Promise<FollowListResponse> {
+    const res = await this.client.get<FollowListResponse>(`/api/users/${encodeURIComponent(username)}/followers`, {
       params: { page, limit },
     });
-    return res.data as never;
+    return res.data;
   }
 
-  async getFollowing(
-    username: string,
-    page = 1,
-    limit = 20,
-  ): Promise<{
-    users: Array<{ id: string; username: string; fullName: string; profilePictureUrl?: string; isFollowing: boolean }>;
-    pagination: { page: number; limit: number; total: number; hasMore: boolean };
-  }> {
-    const res = await this.client.get(`/api/users/${encodeURIComponent(username)}/following`, {
+  async getFollowing(username: string, page = 1, limit = 20): Promise<FollowListResponse> {
+    const res = await this.client.get<FollowListResponse>(`/api/users/${encodeURIComponent(username)}/following`, {
       params: { page, limit },
     });
-    return res.data as never;
+    return res.data;
   }
 
-  // Set auth token (for manual token management)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  setAuthToken(): void {}
+  // Back-compat token helpers (prefer `setBearerToken`)
+  setAuthToken(token: string | null): void {
+    this.setBearerToken(token);
+  }
 
-  // Clear auth token
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  clearAuthToken(): void {}
+  clearAuthToken(): void {
+    this.setBearerToken(null);
+  }
 
-  // Get auth token
   getAuthToken(): string | null {
-    return null;
+    return this.bearerToken;
   }
 }
 

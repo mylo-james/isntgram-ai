@@ -8,6 +8,7 @@ import { mockAxiosInstance } from "./__mocks__/axios";
 describe("API Client", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    apiClient.clearAuthToken();
   });
 
   describe("registration", () => {
@@ -99,22 +100,34 @@ describe("API Client", () => {
     });
   });
 
-  describe("getCurrentUser", () => {
-    it("should call me endpoint and return data", async () => {
-      const mockResponse = { data: { user: { id: "1", email: "a@b.com", username: "ab", fullName: "A B" } } };
+  describe("getMyProfile", () => {
+    it("should call /api/users/me and return data", async () => {
+      const mockResponse = {
+        data: {
+          id: "1",
+          email: "a@b.com",
+          username: "ab",
+          fullName: "A B",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      };
       mockAxiosInstance.get.mockResolvedValue(mockResponse);
 
-      const result = await apiClient.getCurrentUser();
+      const result = await apiClient.getMyProfile();
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith("/api/auth/me");
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith("/api/users/me");
       expect(result).toEqual(mockResponse.data);
     });
 
-    it("should handle getCurrentUser errors", async () => {
+    it("should handle getMyProfile errors", async () => {
       const mockError = new Error("Unauthorized");
       mockAxiosInstance.get.mockRejectedValue(mockError);
 
-      await expect(apiClient.getCurrentUser()).rejects.toThrow("Unauthorized");
+      await expect(apiClient.getMyProfile()).rejects.toThrow("Unauthorized");
     });
   });
 
@@ -138,17 +151,14 @@ describe("API Client", () => {
   });
 
   describe("token helpers", () => {
-    it("returns null for getAuthToken, and token setters are callable no-ops", () => {
+    it("gets/sets/clears bearer token", () => {
       expect(apiClient.getAuthToken()).toBeNull();
       expect(typeof apiClient.setAuthToken).toBe("function");
       expect(typeof apiClient.clearAuthToken).toBe("function");
-      // Call them to exercise their code paths (they are intentional no-ops)
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - methods accept no args
-      apiClient.setAuthToken();
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - methods accept no args
+      apiClient.setAuthToken("test-token");
+      expect(apiClient.getAuthToken()).toBe("test-token");
       apiClient.clearAuthToken();
+      expect(apiClient.getAuthToken()).toBeNull();
     });
   });
 

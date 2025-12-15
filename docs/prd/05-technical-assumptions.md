@@ -26,7 +26,12 @@ The latest stable version of React, specifically using the Next.js framework, is
 
 ### Frontend State Management
 
-Redux is required for managing global application state.
+The initial spec asked for Redux for global state. The current implementation intentionally avoids Redux in favor of:
+
+- NextAuth as the single source of truth for identity/session
+- colocated React state (and lightweight context) for UI concerns
+
+If Redux is reintroduced, it should be justified by a concrete cross-cutting need (not mirroring auth/session state).
 
 ### Styling
 

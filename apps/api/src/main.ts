@@ -4,11 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as Sentry from '@sentry/node';
+import { createRequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get('NODE_ENV', 'development');
+  const logger = new Logger('Bootstrap');
 
   // Security headers
   app.use(
@@ -26,7 +29,18 @@ async function bootstrap() {
       referrerPolicy: { policy: 'no-referrer' },
     }),
   );
-  const logger = new Logger('Bootstrap');
+
+  const sentryDsn = configService.get<string>('SENTRY_DSN');
+  if (sentryDsn && nodeEnv !== 'test') {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: nodeEnv,
+      tracesSampleRate: Number(
+        configService.get('SENTRY_TRACES_SAMPLE_RATE') ?? 0,
+      ),
+    });
+    logger.log('Sentry error tracking enabled');
+  }
 
   // Swagger (disabled in production)
   if (nodeEnv !== 'production') {
@@ -58,6 +72,20 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
+
+  // Structured HTTP request logging (production by default)
+  const enableRequestLogging =
+    nodeEnv === 'production' ||
+    configService.get<string>('LOG_REQUESTS') === 'true';
+  if (enableRequestLogging && nodeEnv !== 'test') {
+    app.use(
+      createRequestLoggerMiddleware({
+        nodeEnv,
+        projectId: process.env.GOOGLE_CLOUD_PROJECT,
+      }),
+    );
+    logger.log('HTTP request logging enabled');
+  }
 
   // Global validation pipe
   app.useGlobalPipes(

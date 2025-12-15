@@ -4,23 +4,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Follows } from '../follows/entities/follows.entity';
-
-export interface UserProfileDto {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { MyProfileDto } from './dto/my-profile.dto';
+import { FollowListResponseDto } from './dto/follow-list-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -61,25 +50,31 @@ export class UsersService {
     return true;
   }
 
-  async toUserProfileDto(user: User): Promise<UserProfileDto> {
+  async toPublicUserProfileDto(user: User): Promise<PublicUserProfileDto> {
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      email: user.email,
-      profilePictureUrl: user.profilePictureUrl,
-      bio: user.bio,
+      profilePictureUrl: user.profilePictureUrl ?? undefined,
+      bio: user.bio ?? undefined,
       postCount: user.postsCount,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
   }
 
-  async getUserProfile(username: string): Promise<UserProfileDto> {
+  async toMyProfileDto(user: User): Promise<MyProfileDto> {
+    return {
+      ...(await this.toPublicUserProfileDto(user)),
+      email: user.email,
+    };
+  }
+
+  async getUserProfile(username: string): Promise<PublicUserProfileDto> {
     const user = await this.findByUsername(username);
-    return this.toUserProfileDto(user);
+    return this.toPublicUserProfileDto(user);
   }
 
   async findById(id: string): Promise<User> {
@@ -97,7 +92,7 @@ export class UsersService {
   async updateProfile(
     id: string,
     updates: { fullName: string; username: string },
-  ): Promise<UserProfileDto> {
+  ): Promise<MyProfileDto> {
     const user = await this.findById(id);
 
     // Username uniqueness check (exclude current user)
@@ -110,10 +105,15 @@ export class UsersService {
     user.username = updates.username;
 
     const saved = await this.userRepository.save(user);
-    return this.toUserProfileDto(saved);
+    return this.toMyProfileDto(saved);
   }
 
-  async getFollowers(username: string, page = 1, limit = 20) {
+  async getFollowers(
+    username: string,
+    page = 1,
+    limit = 20,
+    viewerUserId?: string,
+  ): Promise<FollowListResponseDto> {
     const user = await this.findByUsername(username);
     const [rows, total] = await this.followsRepository.findAndCount({
       where: { followingId: user.id },
@@ -122,13 +122,32 @@ export class UsersService {
       take: limit,
       order: { createdAt: 'DESC' },
     });
+
+    const followerIds = rows.map((f) => f.follower.id);
+    const viewerFollowingIds =
+      viewerUserId && followerIds.length > 0
+        ? new Set(
+            (
+              await this.followsRepository.find({
+                where: {
+                  followerId: viewerUserId,
+                  followingId: In(followerIds),
+                },
+                select: ['followingId'],
+              })
+            ).map((rel) => rel.followingId),
+          )
+        : new Set<string>();
+
     return {
       users: rows.map((f) => ({
         id: f.follower.id,
         username: f.follower.username,
         fullName: f.follower.fullName,
-        profilePictureUrl: f.follower.profilePictureUrl,
-        isFollowing: false,
+        profilePictureUrl: f.follower.profilePictureUrl ?? undefined,
+        isFollowing: viewerUserId
+          ? viewerFollowingIds.has(f.follower.id)
+          : false,
       })),
       pagination: {
         page,
@@ -139,7 +158,12 @@ export class UsersService {
     };
   }
 
-  async getFollowing(username: string, page = 1, limit = 20) {
+  async getFollowing(
+    username: string,
+    page = 1,
+    limit = 20,
+    viewerUserId?: string,
+  ): Promise<FollowListResponseDto> {
     const user = await this.findByUsername(username);
     const [rows, total] = await this.followsRepository.findAndCount({
       where: { followerId: user.id },
@@ -148,13 +172,32 @@ export class UsersService {
       take: limit,
       order: { createdAt: 'DESC' },
     });
+
+    const followingIds = rows.map((f) => f.following.id);
+    const viewerFollowingIds =
+      viewerUserId && followingIds.length > 0
+        ? new Set(
+            (
+              await this.followsRepository.find({
+                where: {
+                  followerId: viewerUserId,
+                  followingId: In(followingIds),
+                },
+                select: ['followingId'],
+              })
+            ).map((rel) => rel.followingId),
+          )
+        : new Set<string>();
+
     return {
       users: rows.map((f) => ({
         id: f.following.id,
         username: f.following.username,
         fullName: f.following.fullName,
-        profilePictureUrl: f.following.profilePictureUrl,
-        isFollowing: true,
+        profilePictureUrl: f.following.profilePictureUrl ?? undefined,
+        isFollowing: viewerUserId
+          ? viewerFollowingIds.has(f.following.id)
+          : false,
       })),
       pagination: {
         page,

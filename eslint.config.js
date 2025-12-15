@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   // Global ignores for all configs
@@ -21,22 +22,18 @@ export default [
   // TypeScript files
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: ["apps/**/**/*.{ts,tsx}", "packages/**/**/*.{ts,tsx}"],
+    files: ["apps/**/**/*.{ts,tsx}"],
     ignores: ["node_modules/**", "dist/**"],
   })),
   {
-    files: ["apps/**/**/*.{ts,tsx}", "packages/**/**/*.{ts,tsx}"],
+    files: ["apps/**/**/*.{ts,tsx}"],
     ignores: ["node_modules/**", "playwright.config.ts", "dist/**"],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: "module",
       parser: tseslint.parser,
       parserOptions: {
-        project: [
-          "./apps/api/tsconfig.eslint.json",
-          "./apps/web/tsconfig.eslint.json",
-          "./packages/shared-types/tsconfig.eslint.json",
-        ],
+        project: ["./apps/api/tsconfig.eslint.json", "./apps/web/tsconfig.eslint.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -45,7 +42,15 @@ export default [
     },
     rules: {
       "no-unused-vars": "off", // Turn off base rule
-      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
       "no-console": "error",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
@@ -53,9 +58,24 @@ export default [
       "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true, allowDefinitionFiles: true }],
     },
   },
+  // React hooks rules for the web app
+  {
+    files: ["apps/web/**/*.{ts,tsx}"],
+    plugins: {
+      "react-hooks": reactHooks,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+    },
+  },
   // Test files - more lenient rules
   {
-    files: ["**/*.{test,spec}.{ts,tsx}", "**/test/**/*.{ts,tsx}", "**/e2e/**/*.{ts,tsx}"],
+    files: [
+      "**/*.{test,spec}.{ts,tsx}",
+      "**/test/**/*.{ts,tsx}",
+      "**/e2e/**/*.{ts,tsx}",
+      "**/jest.setup.{ts,tsx,js,jsx,cjs,mjs}",
+    ],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: "module",

@@ -38,7 +38,7 @@ describe("RegisterPage", () => {
     expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sign up/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /register/i })).toBeInTheDocument();
   });
 
   it("displays validation errors for empty required fields", async () => {
@@ -150,7 +150,7 @@ describe("RegisterPage", () => {
     const fullNameInput = screen.getByLabelText(/full name/i);
     const usernameInput = screen.getByLabelText(/username/i);
     const passwordInput = screen.getByLabelText(/password/i);
-    const submitButton = screen.getByRole("button", { name: /sign up/i });
+    const submitButton = screen.getByRole("button", { name: /register/i });
 
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });

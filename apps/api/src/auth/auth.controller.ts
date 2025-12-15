@@ -9,9 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterResponseDto } from './dto/register-response.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {
@@ -20,16 +23,9 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @ApiCreatedResponse({ type: RegisterResponseDto })
   async register(@Body() registerDto: RegisterDto) {
-    try {
-      const user = await this.authService.register(registerDto);
-      return {
-        message: 'User registered successfully',
-        user,
-      };
-    } catch (error) {
-      // Return a generic message to reduce user enumeration risk while preserving status code
-      throw error;
-    }
+    const user = await this.authService.register(registerDto);
+    return { message: 'User registered successfully', user };
   }
 }

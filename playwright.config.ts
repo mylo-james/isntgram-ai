@@ -6,13 +6,13 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.PLAYWRIGHT_WORKERS ? Number(process.env.PLAYWRIGHT_WORKERS) : 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ["html", { open: "never" }],
@@ -62,7 +62,9 @@ export default defineConfig({
   webServer: [
     {
       // Use direct command so Playwright owns and reliably stops the server
-      command: "cd apps/web && PORT=3000 pnpm exec next start",
+      // `next start` is incompatible with `output: 'standalone'`.
+      command:
+        "cd apps/web && rm -rf .next/standalone/apps/web/.next/static && mkdir -p .next/standalone/apps/web/.next && cp -R .next/static .next/standalone/apps/web/.next/ && PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/apps/web/server.js",
       url: "http://localhost:3000",
       reuseExistingServer: false,
       timeout: 300 * 1000,
@@ -87,11 +89,14 @@ export default defineConfig({
       stdout: "pipe",
       stderr: "pipe",
       env: {
-          JWT_SECRET: process.env.JWT_SECRET || "test_jwt_secret_do_not_use_in_production",
-          DATABASE_URL: process.env.DATABASE_URL || "sqlite://test.db",
-          NODE_ENV: process.env.NODE_ENV || "test",
-          E2E_TEST_PASSWORD: process.env.E2E_TEST_PASSWORD || "TestPassword123!",
-        },
+        JWT_SECRET:
+          process.env.JWT_SECRET || "test_jwt_secret_do_not_use_in_production",
+        DATABASE_URL: process.env.DATABASE_URL || "sqlite://test.db",
+        NODE_ENV: process.env.NODE_ENV || "test",
+        E2E_TEST_PASSWORD: process.env.E2E_TEST_PASSWORD || "TestPassword123!",
+        THROTTLE_TTL: process.env.THROTTLE_TTL || "60000",
+        THROTTLE_LIMIT: process.env.THROTTLE_LIMIT || "1000",
+      },
     },
   ],
 });

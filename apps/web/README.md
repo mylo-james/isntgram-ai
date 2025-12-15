@@ -1,42 +1,25 @@
-# Web App (Next.js)
+# Isntgram Web (Next.js)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with
-[`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Next.js 14 App Router frontend for the Isntgram portfolio project.
 
-## Getting Started
+## Local development
 
-First, run the development server:
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm run dev:db
+cp apps/web/env.example apps/web/.env.local
+pnpm run dev:web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Web: `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Auth (NextAuth/Auth.js)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically
-optimize and load [Geist](https://vercel.com/font), a new font family.
+- NextAuth is mounted at **`/auth/*`** (not `/api/auth/*`) so `/api/*` can be reserved for the NestJS API.
+- Production server requires `NEXTAUTH_SECRET` (or `AUTH_SECRET`). See `apps/web/env.example`.
 
-## Learn More
+## Docs
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions
-are welcome!
-
-## Deployment
-
-This Next.js app is containerized with Docker for consistent deployment across different environments.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for
-more details.
+- Evaluator guide: `docs/evaluator-guide.md`
+- Cheapest deploy: `docs/deployment/firebase-cloud-run.md`

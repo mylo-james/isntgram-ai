@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Follows } from './entities/follows.entity';
 import { User } from '../users/entities/user.entity';
 
@@ -16,15 +16,17 @@ export class FollowsService {
     private readonly followsRepository: Repository<Follows>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  private async ensureUsersExist(
+  private async ensureUsersExistWith(
+    userRepository: Repository<User>,
     followerId: string,
     followingId: string,
   ): Promise<[User, User]> {
     const [follower, following] = await Promise.all([
-      this.userRepository.findOne({ where: { id: followerId } }),
-      this.userRepository.findOne({ where: { id: followingId } }),
+      userRepository.findOne({ where: { id: followerId } }),
+      userRepository.findOne({ where: { id: followingId } }),
     ]);
     if (!follower) throw new NotFoundException('Follower not found');
     if (!following) throw new NotFoundException('Target user not found');
@@ -36,28 +38,27 @@ export class FollowsService {
       throw new BadRequestException('Cannot follow yourself');
     }
 
-    await this.ensureUsersExist(followerId, followingId);
+    await this.dataSource.transaction(async (manager) => {
+      const followsRepo = manager.getRepository(Follows);
+      const usersRepo = manager.getRepository(User);
 
-    const existing = await this.followsRepository.findOne({
-      where: { followerId, followingId },
+      await this.ensureUsersExistWith(usersRepo, followerId, followingId);
+
+      const insertResult = await followsRepo
+        .createQueryBuilder()
+        .insert()
+        .into(Follows)
+        .values({ followerId, followingId })
+        .orIgnore()
+        .execute();
+
+      if (insertResult.identifiers.length === 0) {
+        throw new ConflictException('Already following');
+      }
+
+      await usersRepo.increment({ id: followingId }, 'followerCount', 1);
+      await usersRepo.increment({ id: followerId }, 'followingCount', 1);
     });
-    if (existing) {
-      throw new ConflictException('Already following');
-    }
-
-    await this.followsRepository.save({ followerId, followingId });
-
-    // Update denormalized counts
-    await this.userRepository.increment(
-      { id: followingId },
-      'followerCount',
-      1,
-    );
-    await this.userRepository.increment(
-      { id: followerId },
-      'followingCount',
-      1,
-    );
   }
 
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
@@ -65,28 +66,20 @@ export class FollowsService {
       throw new BadRequestException('Cannot unfollow yourself');
     }
 
-    await this.ensureUsersExist(followerId, followingId);
+    await this.dataSource.transaction(async (manager) => {
+      const followsRepo = manager.getRepository(Follows);
+      const usersRepo = manager.getRepository(User);
 
-    const existing = await this.followsRepository.findOne({
-      where: { followerId, followingId },
+      await this.ensureUsersExistWith(usersRepo, followerId, followingId);
+
+      const deleted = await followsRepo.delete({ followerId, followingId });
+      if (!deleted.affected) {
+        throw new NotFoundException('Follow relationship not found');
+      }
+
+      await usersRepo.decrement({ id: followingId }, 'followerCount', 1);
+      await usersRepo.decrement({ id: followerId }, 'followingCount', 1);
     });
-    if (!existing) {
-      throw new NotFoundException('Follow relationship not found');
-    }
-
-    await this.followsRepository.delete({ followerId, followingId });
-
-    // Update denormalized counts
-    await this.userRepository.decrement(
-      { id: followingId },
-      'followerCount',
-      1,
-    );
-    await this.userRepository.decrement(
-      { id: followerId },
-      'followingCount',
-      1,
-    );
   }
 
   async getFollowerCount(userId: string): Promise<number> {

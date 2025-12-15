@@ -114,26 +114,34 @@ validate_job_dependencies() {
     print_status "Job dependencies are valid"
 }
 
-# Function to validate npm scripts
+# Function to validate package scripts referenced in CI
 validate_npm_scripts() {
-    print_step "Validating npm scripts used in CI..."
-    
-    # Extract npm commands from workflow
-    local npm_commands=$(grep -E "npm run [a-zA-Z-]+" .github/workflows/ci.yml | sed 's/.*npm run \([a-zA-Z-]*\).*/\1/' || true)
-    
-    if [ -n "$npm_commands" ]; then
+    print_step "Validating package scripts used in CI..."
+
+    # Extract scripts referenced via `pnpm run <script>` (and legacy `npm run <script>`)
+    local workflow_scripts=$(
+        {
+            grep -E "pnpm run [^ ]+" .github/workflows/ci.yml | sed -E 's/.*pnpm run ([^ ]+).*/\\1/' || true
+            grep -E "npm run [^ ]+" .github/workflows/ci.yml | sed -E 's/.*npm run ([^ ]+).*/\\1/' || true
+        } | sort -u
+    )
+
+    if [ -n "$workflow_scripts" ]; then
         while IFS= read -r script; do
-            if [ -n "$script" ]; then
-                if ! npm run --silent "$script" --help >/dev/null 2>&1; then
-                    print_error "npm script not found: $script"
-                    print_error "This script is required by the CI workflow"
-                    exit 1
-                fi
+            if [ -z "$script" ]; then
+                continue
             fi
-        done <<< "$npm_commands"
+
+            # Check script exists in root package.json without executing it
+            if ! node -e "const pkg=require('./package.json'); process.exit(pkg.scripts && pkg.scripts['$script'] ? 0 : 1)"; then
+                print_error "Script not found in root package.json: $script"
+                print_error "This script is required by the CI workflow"
+                exit 1
+            fi
+        done <<< "$workflow_scripts"
     fi
-    
-    print_status "All npm scripts exist"
+
+    print_status "All CI scripts exist"
 }
 
 # Function to validate coverage paths
@@ -152,7 +160,7 @@ validate_coverage_paths() {
         
         # Check if Jest configs output to expected locations
         # For Jest configs with multiple projects, we need to check each project's coverage directory
-        local jest_configs=("jest.config.cjs" "apps/web/jest.config.js" "apps/api/jest.config.js" "packages/shared-types/jest.config.js")
+        local jest_configs=("jest.config.cjs" "apps/web/jest.config.js" "apps/api/jest.config.js")
         
         for config in "${jest_configs[@]}"; do
             if [ -f "$config" ]; then

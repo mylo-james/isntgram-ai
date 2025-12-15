@@ -1,21 +1,18 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import AuthProvider from "./AuthProvider";
 import { useSession } from "next-auth/react";
-import { useDispatch } from "react-redux";
+import { apiClient } from "@/lib/api-client";
 
 jest.mock("next-auth/react", () => ({ useSession: jest.fn() }));
-jest.mock("react-redux", () => ({ useDispatch: jest.fn() }));
+jest.mock("@/lib/api-client", () => ({ apiClient: { setBearerToken: jest.fn() } }));
 
 describe("AuthProvider", () => {
-  const mockDispatch = jest.fn();
-
   beforeEach(() => {
     jest.resetAllMocks();
-    (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
   });
 
-  it("dispatches setUser when authenticated", () => {
+  it("sets API bearer token when authenticated", async () => {
     (useSession as unknown as jest.Mock).mockReturnValue({
       status: "authenticated",
       data: {
@@ -30,13 +27,12 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    expect(mockDispatch).toHaveBeenCalled();
-    const types = (mockDispatch.mock.calls as unknown[][]).map(([action]) => (action as { type: string }).type);
-    expect(types.some((t: string) => t.includes("auth/setUser"))).toBe(true);
-    expect(types.some((t: string) => t.includes("auth/setAccessToken"))).toBe(false);
+    await waitFor(() => {
+      expect(apiClient.setBearerToken).toHaveBeenCalledWith("token123");
+    });
   });
 
-  it("dispatches clearAuth when unauthenticated", () => {
+  it("clears API bearer token when unauthenticated", async () => {
     (useSession as unknown as jest.Mock).mockReturnValue({ status: "unauthenticated", data: null });
 
     render(
@@ -45,12 +41,12 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    expect(mockDispatch).toHaveBeenCalled();
-    const types = (mockDispatch.mock.calls as unknown[][]).map(([action]) => (action as { type: string }).type);
-    expect(types.some((t: string) => t.includes("auth/clearAuth"))).toBe(true);
+    await waitFor(() => {
+      expect(apiClient.setBearerToken).toHaveBeenCalledWith(null);
+    });
   });
 
-  it("does not dispatch when loading", () => {
+  it("does not change token when loading", () => {
     (useSession as unknown as jest.Mock).mockReturnValue({ status: "loading", data: null });
 
     render(
@@ -59,6 +55,6 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(apiClient.setBearerToken).not.toHaveBeenCalled();
   });
 });

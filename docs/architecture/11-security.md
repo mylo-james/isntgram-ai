@@ -10,13 +10,13 @@ and XSS prevention.
 - **Auth.js Integration**: Use Auth.js for session management and authentication
 - **JWT Tokens**: Secure JWT tokens for API authentication
 - **Session Management**: Proper session handling with secure cookies
-- **Password Security**: Bcrypt hashing for password storage
+- **Password Security**: Argon2id hashing for password storage
 - **Rate Limiting**: Implement rate limiting on authentication endpoints
 
 ### Authorization
 
-- **Role-Based Access**: Implement proper authorization checks
-- **Resource Ownership**: Users can only access their own resources
+- **Ownership checks**: Users can only mutate their own resources (posts/comments/profile)
+- **Demo-mode enforcement**: Demo user is read-only server-side (no “UI-only” protection)
 - **API Protection**: All API endpoints must be properly protected
 - **Middleware**: Use authorization middleware for route protection
 

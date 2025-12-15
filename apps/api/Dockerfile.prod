@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1
+
+FROM node:25-alpine AS base
+
+WORKDIR /app
+ENV HUSKY=0
+
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN pnpm install --frozen-lockfile
+
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY . .
+
+RUN pnpm --filter api build
+
+FROM base AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN apk add --no-cache curl libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN pnpm --filter api... install --prod --frozen-lockfile --ignore-scripts && pnpm store prune
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 -G nodejs
+USER nodejs
+
+WORKDIR /app/apps/api
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
+
+CMD ["node", "dist/main.js"]

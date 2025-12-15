@@ -4,12 +4,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { INestApplication } from '@nestjs/common';
-import { AppModule } from '../app.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
 import { Follows } from '../follows/entities/follows.entity';
+import { Post as PostEntity } from '../posts/entities/post.entity';
+import { PostLike } from '../likes/entities/post-like.entity';
+import { Comment } from '../comments/entities/comment.entity';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -106,7 +108,7 @@ describe('Auth demo endpoint (integration)', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User, Follows],
+          entities: [User, Follows, PostEntity, PostLike, Comment],
           synchronize: true,
         }),
         ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),

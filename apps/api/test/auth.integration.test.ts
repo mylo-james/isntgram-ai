@@ -2,18 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
-import { Repository, DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
 import { Follows } from '../src/follows/entities/follows.entity';
+import { Post as PostEntity } from '../src/posts/entities/post.entity';
+import { PostLike } from '../src/likes/entities/post-like.entity';
+import { Comment } from '../src/comments/entities/comment.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
-  let userRepository: Repository<User>;
   let dataSource: DataSource;
 
   beforeAll(async () => {
@@ -24,14 +25,14 @@ describe('Auth Integration Tests', () => {
       ? {
           type: 'postgres' as const,
           url: process.env.DATABASE_URL,
-          entities: [User, Follows],
+          entities: [User, Follows, PostEntity, PostLike, Comment],
           synchronize: true,
           logging: false,
         }
       : {
           type: 'sqlite' as const,
           database: ':memory:',
-          entities: [User, Follows],
+          entities: [User, Follows, PostEntity, PostLike, Comment],
           synchronize: true,
           logging: false,
         };
@@ -63,10 +64,6 @@ describe('Auth Integration Tests', () => {
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
 
-    // Get repository and data source for cleanup
-    userRepository = moduleFixture.get<Repository<User>>(
-      getRepositoryToken(User),
-    );
     dataSource = moduleFixture.get<DataSource>(DataSource);
   }, 30000); // Increase timeout to 30 seconds
 
@@ -75,10 +72,11 @@ describe('Auth Integration Tests', () => {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-    
+
     try {
       // Delete in correct order to avoid foreign key constraint issues
       await queryRunner.manager.query('DELETE FROM follows');
+      await queryRunner.manager.query('DELETE FROM posts');
       await queryRunner.manager.query('DELETE FROM users');
       await queryRunner.commitTransaction();
     } catch (error) {

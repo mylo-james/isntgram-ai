@@ -1,12 +1,8 @@
 import { test, expect } from "@playwright/test";
-
-function uniqueId() {
-  // Generate more unique IDs by including process ID and a larger random component
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${process.pid || Math.floor(Math.random() * 10000)}`;
-}
+import { makeUniqueId } from "./test-helpers";
 
 test.describe("Follow/Unfollow E2E", () => {
-  const unique = uniqueId();
+  const unique = makeUniqueId();
   const userA = {
     email: `fua_${unique}@example.com`,
     username: `fua_${unique}`,
@@ -43,12 +39,12 @@ test.describe("Follow/Unfollow E2E", () => {
 
     // Wait for NextAuth credentials callback to complete
     await page.waitForResponse(
-      (r) => r.url().includes("/api/auth/callback/credentials") && [200, 302].includes(r.status()),
+      (r) => r.url().includes("/auth/callback/credentials") && [200, 302].includes(r.status()),
       {
         timeout: 20000,
       },
     );
-    await page.waitForURL(/\/$/, { timeout: 20000 });
+    await page.waitForURL(/\/feed$/, { timeout: 20000 });
 
     // Go to B's profile page
     await page.goto(`/${userB.username}`);

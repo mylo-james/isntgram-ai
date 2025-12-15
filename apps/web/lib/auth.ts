@@ -1,6 +1,7 @@
 import NextAuth, { type NextAuthConfig, type Session, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 type JwtToken = JWT & {
   accessToken?: string;
@@ -8,7 +9,7 @@ type JwtToken = JWT & {
   isDemoUser?: boolean;
   demoExpiresAt?: number;
 };
-type AppSession = Session & {
+export type AppSession = Session & {
   accessToken?: string;
   user: NonNullable<Session["user"]> & {
     id: string;
@@ -20,8 +21,9 @@ type AppSession = Session & {
 
 const authConfig: NextAuthConfig = {
   trustHost: true,
+  basePath: "/auth",
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV !== "production",
+  debug: process.env.NODE_ENV === "development",
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -35,7 +37,8 @@ const authConfig: NextAuthConfig = {
         }
 
         // Authenticate against backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/auth/signin`, {
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/api/auth/signin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: credentials.email, password: credentials.password }),
@@ -80,6 +83,13 @@ const authConfig: NextAuthConfig = {
       if (user) {
         token.accessToken = user.accessToken;
         token.username = (user as unknown as { username?: string }).username;
+      }
+
+      // Support client-side session updates (e.g., after profile edits) for JWT strategy.
+      if (params.trigger === "update") {
+        const next = params.session as unknown as { user?: { name?: string; username?: string } } | undefined;
+        if (next?.user?.name) token.name = next.user.name;
+        if (next?.user?.username) token.username = next.user.username;
       }
 
       // If we can detect demo sign-in intent via custom env, set a stable flag when demo credentials are used

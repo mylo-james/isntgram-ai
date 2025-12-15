@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
+import { useToast } from "@/components/ui/ToastProvider";
 
 interface FollowButtonProps {
   username: string;
@@ -14,14 +15,14 @@ interface FollowButtonProps {
 
 export default function FollowButton({
   username,
-  isFollowing: initialFollowing,
+  isFollowing,
   isOwnProfile,
   disabled,
   onFollow,
   onUnfollow,
 }: FollowButtonProps) {
-  const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   if (isOwnProfile) return null;
 
@@ -31,11 +32,17 @@ export default function FollowButton({
     try {
       if (isFollowing) {
         await onUnfollow();
-        setIsFollowing(false);
       } else {
         await onFollow();
-        setIsFollowing(true);
       }
+    } catch {
+      toast({
+        variant: "error",
+        title: "Action failed",
+        message: isFollowing
+          ? "Could not unfollow right now. Please try again."
+          : "Could not follow right now. Please try again.",
+      });
     } finally {
       setLoading(false);
     }

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { validateRequired, validateUsername } from "@/lib/validation";
+import Modal from "@/components/ui/Modal";
 
 export interface EditProfileInitialValues {
   fullName: string;
@@ -35,41 +36,11 @@ export default function EditProfileModal({
     watch,
   } = useForm<EditProfileInitialValues>({ defaultValues: initialValues, mode: "onBlur" });
 
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-
   useEffect(() => {
     reset(initialValues);
   }, [initialValues, reset]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    const timer = setTimeout(() => {
-      closeButtonRef.current?.focus();
-    }, 0);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      clearTimeout(timer);
-    };
-  }, [open, onClose]);
-
   if (!open) return null;
-
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === dialogRef.current) {
-      onClose();
-    }
-  };
 
   const submitHandler = async (values: EditProfileInitialValues) => {
     if (isDemoUser) return; // read-only
@@ -101,99 +72,75 @@ export default function EditProfileModal({
   const currentUsername = watch("username");
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-profile-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onMouseDown={handleOverlayClick}
-      data-testid="edit-profile-modal"
-    >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 id="edit-profile-title" className="text-lg font-semibold text-gray-900">
-            Edit Profile
-          </h2>
-          <button
-            ref={closeButtonRef}
-            onClick={onClose}
-            aria-label="Close edit profile"
-            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-          >
-            ✕
-          </button>
+    <Modal open={open} onClose={onClose} title="Edit Profile" testId="edit-profile-modal">
+      <form onSubmit={handleSubmit(submitHandler)} className="space-y-4">
+        {isDemoUser && (
+          <div className="rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700">
+            Demo mode: profile editing is disabled.
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+            Full Name
+          </label>
+          <input
+            id="fullName"
+            type="text"
+            {...register("fullName", { required: "Full name is required" })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="Enter your full name"
+            disabled={isDemoUser}
+          />
+          {errors.fullName?.message && (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.fullName.message}
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
-          {isDemoUser && (
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-              Demo mode: profile editing is disabled.
-            </div>
+        <div>
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            {...register("username", {
+              required: "Username is required",
+              minLength: { value: 3, message: "Username must be at least 3 characters" },
+            })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="Enter your username"
+            disabled={isDemoUser}
+          />
+          {errors.username?.message && (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.username.message}
+            </p>
           )}
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-              Full Name
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              {...register("fullName", { required: "Full name is required" })}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Enter your full name"
-              disabled={isDemoUser}
-            />
-            {errors.fullName?.message && (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {errors.fullName.message}
-              </p>
-            )}
-          </div>
+          {currentUsername !== initialValues.username && (
+            <p className="mt-1 text-xs text-gray-500">Changing your username will update your profile URL.</p>
+          )}
+        </div>
 
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              {...register("username", {
-                required: "Username is required",
-                minLength: { value: 3, message: "Username must be at least 3 characters" },
-              })}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Enter your username"
-              disabled={isDemoUser}
-            />
-            {errors.username?.message && (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {errors.username.message}
-              </p>
-            )}
-            {/* Subtle hint when username changes */}
-            {currentUsername !== initialValues.username && (
-              <p className="mt-1 text-xs text-gray-500">Changing your username will update your profile URL.</p>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || isDemoUser}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end space-x-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || isDemoUser}
+            className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -6,12 +6,14 @@ import { User } from '../users/entities/user.entity';
 import { ConflictException } from '@nestjs/common';
 import argon2 from 'argon2';
 import { ConfigModule } from '@nestjs/config';
+import { Post as PostEntity } from '../posts/entities/post.entity';
 
 jest.mock('argon2');
 
 describe('AuthService', () => {
   let service: AuthService;
   let userRepository: Repository<User>;
+  let postRepository: Repository<PostEntity>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,6 +26,15 @@ describe('AuthService', () => {
             create: jest.fn((data) => ({ ...data })),
             save: jest.fn(),
             findOne: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PostEntity),
+          useValue: {
+            create: jest.fn((data) => ({ ...data })),
+            save: jest.fn(),
+            count: jest.fn(),
           },
         },
       ],
@@ -31,6 +42,9 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    postRepository = module.get<Repository<PostEntity>>(
+      getRepositoryToken(PostEntity),
+    );
   });
 
   afterEach(() => {
@@ -99,8 +113,15 @@ describe('AuthService', () => {
       });
 
       expect(userRepository.save).toHaveBeenCalled();
-      expect(created).toHaveProperty('email', 'ok@example.com');
-      expect((created as unknown as User).hashedPassword).toBeUndefined();
+      expect(created).toEqual({
+        id: '1',
+        email: 'ok@example.com',
+        username: 'ok',
+        fullName: 'Ok',
+      });
+      expect(
+        (created as unknown as { hashedPassword?: unknown }).hashedPassword,
+      ).toBeUndefined();
     });
   });
 
@@ -145,10 +166,16 @@ describe('AuthService', () => {
       (userRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
       (argon2.verify as jest.Mock).mockResolvedValue(false);
 
-      const result = await service.validateUser('test@example.com', 'wrongpassword');
+      const result = await service.validateUser(
+        'test@example.com',
+        'wrongpassword',
+      );
 
       expect(result).toBeNull();
-      expect(argon2.verify).toHaveBeenCalledWith('hashedPassword', 'wrongpassword');
+      expect(argon2.verify).toHaveBeenCalledWith(
+        'hashedPassword',
+        'wrongpassword',
+      );
     });
   });
 
@@ -207,6 +234,7 @@ describe('AuthService', () => {
       } as User;
 
       (userRepository.findOne as jest.Mock).mockResolvedValue(mockDemoUser);
+      (postRepository.count as jest.Mock).mockResolvedValue(1);
 
       const result = await service.getOrCreateDemoUser();
 
@@ -219,11 +247,18 @@ describe('AuthService', () => {
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { email: 'demo@isntgram.ai' },
       });
+      expect(postRepository.count).toHaveBeenCalledWith({
+        where: { userId: '1' },
+      });
+      expect(userRepository.update).toHaveBeenCalledWith('1', {
+        postsCount: 1,
+      });
     });
 
     it('should create new demo user when not found', async () => {
       (userRepository.findOne as jest.Mock).mockResolvedValue(null);
       (argon2.hash as jest.Mock).mockResolvedValue('hashedDemoPassword');
+      (postRepository.count as jest.Mock).mockResolvedValue(0);
 
       const mockCreatedUser = {
         id: '1',
@@ -245,9 +280,6 @@ describe('AuthService', () => {
         email: 'demo@isntgram.ai',
         username: 'demo',
         fullName: 'Demo User',
-        postsCount: 3,
-        followerCount: 12,
-        followingCount: 7,
       });
       expect(userRepository.create).toHaveBeenCalledWith({
         email: 'demo@isntgram.ai',
@@ -259,6 +291,10 @@ describe('AuthService', () => {
         followingCount: 7,
       });
       expect(userRepository.save).toHaveBeenCalled();
+      expect(postRepository.save).toHaveBeenCalled();
+      expect(userRepository.update).toHaveBeenCalledWith('1', {
+        postsCount: 3,
+      });
     });
   });
 });

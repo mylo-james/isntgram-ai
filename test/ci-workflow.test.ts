@@ -19,7 +19,7 @@ describe("CI Workflow Tests", () => {
 
   describe("Project Dependencies Validation", () => {
     test("should have package.json in all projects", () => {
-      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      const projects = ["apps/web", "apps/api"];
       projects.forEach((project) => {
         const packagePath = join(process.cwd(), project, "package.json");
         expect(existsSync(packagePath)).toBe(true);
@@ -27,7 +27,7 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should have valid package.json in all projects", () => {
-      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      const projects = ["apps/web", "apps/api"];
       projects.forEach((project) => {
         const packagePath = join(process.cwd(), project, "package.json");
         const packageContent = readFileSync(packagePath, "utf8");
@@ -36,7 +36,7 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should have scripts in all project package.json files", () => {
-      const projects = ["apps/web", "apps/api", "packages/shared-types"];
+      const projects = ["apps/web", "apps/api"];
       projects.forEach((project) => {
         const packagePath = join(process.cwd(), project, "package.json");
         const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
@@ -59,13 +59,6 @@ describe("CI Workflow Tests", () => {
       expect(packageJson.scripts.lint).toBeDefined();
       expect(packageJson.scripts.build).toBeDefined();
       expect(packageJson.scripts["start:dev"]).toBeDefined();
-    });
-
-    test("should have required scripts in shared-types", () => {
-      const packagePath = join(process.cwd(), "packages/shared-types", "package.json");
-      const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-      expect(packageJson.scripts.lint).toBeDefined();
-      expect(packageJson.scripts.build).toBeDefined();
     });
   });
 
@@ -143,7 +136,7 @@ describe("CI Workflow Tests", () => {
       const qualityJob = workflow.jobs.quality;
       const testStep = qualityJob.steps.find((step: any) => step.name === "🧪 Unit Tests with Coverage");
 
-      expect(testStep.run).toBe("pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary");
+      expect(testStep.run).toBe("pnpm test --coverage --watchAll=false --coverageReporters=json-summary");
     });
   });
 
@@ -171,7 +164,7 @@ describe("CI Workflow Tests", () => {
     });
 
     test("should have all required jobs", () => {
-      const expectedJobs = ["quality", "coverage-gate", "integration", "e2e", "production-build", "security"];
+      const expectedJobs = ["quality", "coverage-gate", "integration", "e2e", "production-build", "security", "deploy"];
       const actualJobs = Object.keys(workflow.jobs);
 
       expectedJobs.forEach((job) => {
@@ -210,13 +203,13 @@ describe("CI Workflow Tests", () => {
       const nodeStep = qualityJob.steps.find((step: any) => step.name === "🔧 Setup Node.js");
       expect(typeof nodeStep.uses).toBe("string");
       expect(nodeStep.uses).toMatch(/^actions\/setup-node@/);
-      expect(nodeStep.with["node-version"]).toBe(20);
+      expect(nodeStep.with["node-version"]).toBe(25);
       expect(["npm", "pnpm"]).toContain(nodeStep.with.cache);
     });
 
     test("should have correct test command", () => {
       const testStep = qualityJob.steps.find((step: any) => step.name === "🧪 Unit Tests with Coverage");
-      expect(testStep.run).toBe("pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary");
+      expect(testStep.run).toBe("pnpm test --coverage --watchAll=false --coverageReporters=json-summary");
     });
 
     test("should archive coverage files from correct locations", () => {
@@ -345,7 +338,7 @@ describe("CI Workflow Tests", () => {
 
     test("should run integration tests with correct flags", () => {
       const testStep = integrationJob.steps.find((step: any) => step.name === "🔗 Integration Tests");
-      expect(testStep.run).toBe("pnpm run test:integration -- --runInBand --watchAll=false");
+      expect(testStep.run).toBe("pnpm run test:integration --runInBand --watchAll=false");
     });
   });
 
@@ -429,12 +422,14 @@ describe("CI Workflow Tests", () => {
       const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
       expect(stepNames).toContain("🐳 Build and Push Production Docker Image");
+      expect(stepNames).toContain("🐳 Build and Push Production Web Docker Image");
     });
 
     test("should have Trivy scan", () => {
       const steps = productionBuildJob.steps;
       const stepNames = steps.map((step: any) => step.name);
-      expect(stepNames).toContain("🔍 Trivy Container Scan");
+      expect(stepNames).toContain("🔍 Trivy Container Scan (API)");
+      expect(stepNames).toContain("🔍 Trivy Container Scan (Web)");
     });
 
     test("should generate SBOM", () => {
@@ -448,8 +443,15 @@ describe("CI Workflow Tests", () => {
         (s: any) => s.name === "🐳 Build and Push Production Docker Image",
       );
       expect(buildStep).toBeDefined();
-      expect(buildStep.with["cache-from"]).toBe("type=gha");
-      expect(buildStep.with["cache-to"]).toBe("type=gha,mode=max");
+      expect(buildStep.with["cache-from"]).toBe("type=gha,scope=api");
+      expect(buildStep.with["cache-to"]).toBe("type=gha,mode=max,scope=api");
+
+      const webBuildStep = productionBuildJob.steps.find(
+        (s: any) => s.name === "🐳 Build and Push Production Web Docker Image",
+      );
+      expect(webBuildStep).toBeDefined();
+      expect(webBuildStep.with["cache-from"]).toBe("type=gha,scope=web");
+      expect(webBuildStep.with["cache-to"]).toBe("type=gha,mode=max,scope=web");
     });
   });
 

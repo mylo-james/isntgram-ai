@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+
+FROM node:25-alpine AS base
+
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HUSKY=0
+
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN pnpm install --frozen-lockfile
+
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY . .
+
+# Build-time public API URL (baked into the browser bundle).
+# Leave empty to use same-origin relative API calls in production (recommended).
+ARG NEXT_PUBLIC_API_URL=
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Optional client-side observability (baked into the browser bundle)
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+ENV NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=${NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE}
+
+RUN pnpm --filter web build
+
+FROM base AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup -g 1001 -S nextjs && adduser -S nextjs -u 1001 -G nextjs
+
+# Standalone output is rooted at the monorepo root (see next.config.mjs outputFileTracingRoot),
+# so it contains `apps/web/server.js` and a nested `.next/` folder.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+
+RUN mkdir -p apps/web/public
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/web/server.js"]

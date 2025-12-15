@@ -5,6 +5,10 @@
 This document outlines the comprehensive fixes implemented to resolve script circular dependencies in the Isntgram AI
 monorepo and the prevention measures put in place to avoid future issues.
 
+Update (2025-12-15): the repo now uses `pnpm` at the root, Playwright starts servers via `playwright.config.ts`, and the
+previous `packages/shared-types` workspace has been removed. Some examples below are preserved as historical context,
+but the source of truth is the current `package.json` scripts and the CI workflow.
+
 ## Problem Summary
 
 The project experienced critical script circular dependencies that caused:
@@ -28,33 +32,22 @@ The project experienced critical script circular dependencies that caused:
 
 #### Root Package Scripts
 
-- **Build Scripts**: Use direct commands instead of workspace calls
+- **Build Scripts**: Avoid script name collisions; keep build entrypoints explicit
 
   ```json
-  "build:api": "cd apps/api && nest build",
-  "build:web": "cd apps/web && next build",
-  "build:shared-types": "cd packages/shared-types && tsc"
+  "build:all": "pnpm -r --if-present build",
+  "build:api": "pnpm --filter api build",
+  "build:web": "pnpm --filter web build"
   ```
 
-- **Dev Scripts**: Use cd commands to avoid workspace resolution
+- **Dev Scripts**: Keep dev entrypoints explicit
 
   ```json
-  "dev:web": "cd apps/web && npm run dev",
-  "dev:api": "cd apps/api && npm run start:dev"
+  "dev:web": "pnpm --filter web dev",
+  "dev:api": "pnpm --filter api start:dev"
   ```
 
-- **Start Scripts**: Use direct commands for production starts
-
-  ```json
-  "start": "cd apps/web && PORT=3000 npx next start & cd apps/api && SKIP_DB=true PORT=3001 node dist/main"
-  ```
-
-- **CI Start Scripts**: Use workspace syntax for distinct E2E scripts
-
-  ```json
-  "ci:start:web": "npm run start:e2e --workspace=apps/web",
-  "ci:start:api": "npm run start:prod:e2e --workspace=apps/api"
-  ```
+Playwright E2E starts the web/API processes directly (no wrapper scripts) via `playwright.config.ts`.
 
 #### Workspace Package Scripts
 
@@ -78,16 +71,9 @@ The project experienced critical script circular dependencies that caused:
 
 ```bash
 Root Scripts:
-├── build → build:api & build:web & build:shared-types
+├── build:all → pnpm -r --if-present build
 ├── dev → dev:web & dev:api
-├── start → direct commands (npx next start & node dist/main)
 ├── test:e2e → build + playwright test
-└── ci:start:* → workspace-specific E2E scripts
-
-Workspace Scripts:
-├── apps/web/start:e2e → PORT=3000 next start
-├── apps/api/start:prod:e2e → SKIP_DB=true PORT=3001 node dist/main
-└── build:local → same as build
 ```
 
 ### 3. Prevention Measures
@@ -114,7 +100,7 @@ Created `scripts/validate-scripts.cjs` that can be run independently to:
 
 #### CI Integration
 
-- Added `npm run validate:scripts` to CI pipeline
+- CI validates scripts/config via `pnpm run test:ci:workflow` (fast) and the normal quality gates
 - Updated E2E configuration tests
 - Enhanced CI validation workflow
 
@@ -166,7 +152,6 @@ Created `scripts/validate-scripts.cjs` that can be run independently to:
 - `package.json` (root) - Complete script restructuring
 - `apps/web/package.json` - Added E2E and build:local scripts
 - `apps/api/package.json` - Added E2E and build:local scripts
-- `packages/shared-types/package.json` - Added build:local script
 
 ### Configuration Files
 
@@ -207,7 +192,7 @@ Created `scripts/validate-scripts.cjs` that can be run independently to:
 2. **Use `cd` commands** for direct workspace execution
 3. **Use `--workspace` syntax** only for distinct, non-conflicting scripts
 4. **Set environment variables** in the appropriate script scope
-5. **Run `npm run validate:scripts`** before committing script changes
+5. **Run `node scripts/validate-scripts.cjs`** (or `pnpm run test:ci:workflow`) before committing script changes
 6. **Follow the established patterns** in existing scripts
 
 ### Common Pitfalls to Avoid
@@ -220,17 +205,18 @@ Created `scripts/validate-scripts.cjs` that can be run independently to:
 ### Validation Commands
 
 ```bash
-# Run all tests including script validation
-npm test
+# Fast CI/workflow validation
+pnpm run test:ci:workflow
 
-# Run script validation only
-npm run validate:scripts
+# More extensive CI tooling checks (optional)
+pnpm run test:ci:pro
 
-# Run E2E tests
-npm run test:e2e
-
-# Run CI validation
-npm run test:ci
+# Full quality gate
+pnpm run lint:all
+pnpm run type-check
+pnpm test --watchAll=false
+pnpm run build:all
+pnpm run test:e2e
 ```
 
 ## Conclusion

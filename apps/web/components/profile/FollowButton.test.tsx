@@ -1,9 +1,16 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import FollowButton from "./FollowButton";
+import { ToastProvider } from "@/components/ui/ToastProvider";
+import type { ReactElement } from "react";
+
+function renderWithToasts(ui: ReactElement) {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+}
 
 describe("FollowButton", () => {
   it("renders Follow when not following", () => {
-    render(
+    renderWithToasts(
       <FollowButton
         username="alice"
         isFollowing={false}
@@ -16,7 +23,7 @@ describe("FollowButton", () => {
   });
 
   it("renders Following when isFollowing is true", () => {
-    render(
+    renderWithToasts(
       <FollowButton
         username="alice"
         isFollowing={true}
@@ -32,8 +39,9 @@ describe("FollowButton", () => {
   it("toggles state on click calling provided handlers", async () => {
     const onFollow = jest.fn().mockResolvedValue(undefined);
     const onUnfollow = jest.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
 
-    render(
+    renderWithToasts(
       <FollowButton
         username="alice"
         isFollowing={false}
@@ -44,7 +52,10 @@ describe("FollowButton", () => {
     );
 
     const btn = screen.getByRole("button", { name: /follow alice/i });
-    await fireEvent.click(btn);
-    expect(onFollow).toHaveBeenCalled();
+    await user.click(btn);
+
+    await waitFor(() => {
+      expect(onFollow).toHaveBeenCalled();
+    });
   });
 });

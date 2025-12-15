@@ -3,8 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
 import { apiClient } from "@/lib/api-client";
 import {
   validateEmail,
@@ -13,6 +11,7 @@ import {
   validateUsername,
   ValidationResult,
 } from "@/lib/validation";
+import AuthShell from "@/components/auth/AuthShell";
 
 interface FormData {
   email: string;
@@ -156,90 +155,103 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold text-gray-900">Isntgram</h1>
-          <p className="mt-2 text-sm text-gray-600">Share your moments with the world</p>
-        </div>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-sm border border-gray-200 sm:rounded-xl sm:px-10">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              label="Email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              onBlur={() => handleBlur("email")}
-              error={errors.email}
-              placeholder="Enter your email"
-              required
-            />
-
-            <Input
-              id="fullName"
-              name="fullName"
-              type="text"
-              label="Full Name"
-              value={formData.fullName}
-              onChange={(e) => handleInputChange("fullName", e.target.value)}
-              onBlur={() => handleBlur("fullName")}
-              error={errors.fullName}
-              placeholder="Enter your full name"
-              required
-            />
-
-            <Input
+    <AuthShell>
+      <div className="mt-[12%] flex w-full flex-col items-center justify-center">
+        <form onSubmit={handleSubmit} className="flex w-full flex-col items-center gap-4">
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="username">
+              Username
+            </label>
+            <input
               id="username"
               name="username"
               type="text"
-              label="Username"
               value={formData.username}
               onChange={(e) => handleInputChange("username", e.target.value)}
               onBlur={() => handleBlur("username")}
-              error={errors.username}
-              placeholder="Choose a username"
+              placeholder="Username"
               required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
             />
+            {errors.username ? <div className="mt-1 text-left text-xs text-red-700">{errors.username}</div> : null}
+          </div>
 
-            <Input
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              onBlur={() => handleBlur("email")}
+              placeholder="Email"
+              required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
+            />
+            {errors.email ? <div className="mt-1 text-left text-xs text-red-700">{errors.email}</div> : null}
+          </div>
+
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="fullName">
+              Full name
+            </label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              value={formData.fullName}
+              onChange={(e) => handleInputChange("fullName", e.target.value)}
+              onBlur={() => handleBlur("fullName")}
+              placeholder="Full Name"
+              required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
+            />
+            {errors.fullName ? <div className="mt-1 text-left text-xs text-red-700">{errors.fullName}</div> : null}
+          </div>
+
+          <div className="w-[80%] text-center text-[0.9rem]">
+            <label className="sr-only" htmlFor="password">
+              Password
+            </label>
+            <input
               id="password"
               name="password"
               type="password"
-              label="Password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
               onBlur={() => handleBlur("password")}
-              error={errors.password}
-              placeholder="Create a password"
+              placeholder="Password"
               required
+              className="h-8 w-full rounded-[5px] border border-[#dfdfdf] px-[5px] text-left text-[0.9rem] text-[#262626] outline-none"
             />
-
-            {successMessage && (
-              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
-                {successMessage}
-              </div>
-            )}
-
-            <Button type="submit" loading={isLoading} loadingText="Signing up..." className="w-full">
-              Sign Up
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
-                Log in
-              </Link>
-            </p>
+            {errors.password ? <div className="mt-1 text-left text-xs text-red-700">{errors.password}</div> : null}
           </div>
-        </div>
+
+          {successMessage ? (
+            <div className="w-[80%] rounded-[5px] border border-green-200 bg-green-50 p-3 text-left text-sm text-green-700">
+              {successMessage}
+            </div>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="h-[30px] w-[80%] rounded-[5px] bg-[#0095f6] text-[0.9rem] font-bold text-white disabled:opacity-60"
+          >
+            {isLoading ? "Signing up..." : "Register"}
+          </button>
+
+          <div className="w-[80%] text-center text-[0.9rem] text-[#262626]">
+            Have an account?{" "}
+            <Link href="/login" className="font-bold text-[#0095f6] hover:underline">
+              Log in
+            </Link>
+          </div>
+        </form>
       </div>
-    </div>
+    </AuthShell>
   );
 }

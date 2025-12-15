@@ -199,26 +199,33 @@ validate_job_dependencies() {
     print_status "✅ Job dependencies: PASS"
 }
 
-# Function to validate npm scripts
+# Function to validate package scripts referenced in CI
 validate_npm_scripts() {
-    print_step "Validating npm scripts used in CI..."
-    
-    # Extract npm commands from workflow
-    local npm_commands=$(grep -E "npm run [a-zA-Z-]+" .github/workflows/ci.yml | sed 's/.*npm run \([a-zA-Z-]*\).*/\1/' || true)
-    
-    if [ -n "$npm_commands" ]; then
+    print_step "Validating package scripts used in CI..."
+
+    # Extract scripts referenced via `pnpm run <script>` (and legacy `npm run <script>`)
+    local workflow_scripts=$(
+        {
+            grep -E "pnpm run [^ ]+" .github/workflows/ci.yml | sed -E 's/.*pnpm run ([^ ]+).*/\\1/' || true
+            grep -E "npm run [^ ]+" .github/workflows/ci.yml | sed -E 's/.*npm run ([^ ]+).*/\\1/' || true
+        } | sort -u
+    )
+
+    if [ -n "$workflow_scripts" ]; then
         while IFS= read -r script; do
-            if [ -n "$script" ]; then
-                if ! npm run --silent "$script" --help >/dev/null 2>&1; then
-                    print_error "npm script not found: $script"
-                    print_error "This script is required by the CI workflow"
-                    exit 1
-                fi
+            if [ -z "$script" ]; then
+                continue
             fi
-        done <<< "$npm_commands"
+
+            if ! node -e "const pkg=require('./package.json'); process.exit(pkg.scripts && pkg.scripts['$script'] ? 0 : 1)"; then
+                print_error "Script not found in root package.json: $script"
+                print_error "This script is required by the CI workflow"
+                exit 1
+            fi
+        done <<< "$workflow_scripts"
     fi
-    
-    print_status "✅ NPM scripts: PASS"
+
+    print_status "✅ CI scripts: PASS"
 }
 
 # Function to simulate coverage workflow
@@ -226,16 +233,15 @@ simulate_coverage_workflow() {
     print_step "Simulating coverage workflow..."
     
     # Create test coverage directories
-    mkdir -p coverage apps/web/coverage apps/api/coverage packages/shared-types/coverage
+    mkdir -p coverage apps/web/coverage apps/api/coverage
     
     # Create dummy coverage files
     echo '{"coverage": "test"}' > coverage/coverage-summary.json
     echo '{"coverage": "test"}' > apps/web/coverage/coverage-summary.json
     echo '{"coverage": "test"}' > apps/api/coverage/coverage-summary.json
-    echo '{"coverage": "test"}' > packages/shared-types/coverage/coverage-summary.json
     
     # Simulate the archive command from CI
-    local archive_command="tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage packages/shared-types/coverage"
+    local archive_command="tar -czf coverage-artifacts.tgz coverage/ apps/web/coverage apps/api/coverage"
     
     print_step "Running archive command: $archive_command"
     eval "$archive_command"
@@ -251,10 +257,10 @@ simulate_coverage_workflow() {
         
         # Check if files were extracted correctly
         local extracted_files=$(find . -name "coverage-summary.json" | wc -l)
-        if [ "$extracted_files" -eq 4 ]; then
+        if [ "$extracted_files" -eq 3 ]; then
             print_status "✅ Coverage workflow: PASS"
         else
-            print_error "Coverage extraction failed - expected 4 files, found $extracted_files"
+            print_error "Coverage extraction failed - expected 3 files, found $extracted_files"
             exit 1
         fi
         
@@ -266,7 +272,7 @@ simulate_coverage_workflow() {
     fi
     
     # Cleanup
-    rm -rf coverage apps/web/coverage apps/api/coverage packages/shared-types/coverage coverage-artifacts.tgz
+    rm -rf coverage apps/web/coverage apps/api/coverage coverage-artifacts.tgz
 }
 
 # Function to show professional CI testing summary

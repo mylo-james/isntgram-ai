@@ -2,13 +2,13 @@
 
 ## Coding Standards
 
-Critical, non-negotiable standards are defined, focusing on TypeScript strictness, use of shared types, environment
-variable handling, error handling, and immutability.
+Critical, non-negotiable standards are defined, focusing on TypeScript strictness, environment variable handling, error
+handling, and immutability.
 
 ### TypeScript Standards
 
 - **Strict Mode**: All TypeScript strict flags enabled
-- **Shared Types**: Use shared types from `packages/shared-types` for consistency
+- **No contract drift**: Keep DTOs and API responses typed; avoid hand-maintained shared types that drift over time
 - **No `any`**: Explicit typing required, no implicit any types
 - **Interface over Type**: Prefer interfaces for object shapes
 - **Generic Constraints**: Use generic constraints for type safety
@@ -38,7 +38,6 @@ variable handling, error handling, and immutability.
 
 - **No Direct Mutations**: Avoid direct object/array mutations
 - **Immutable Updates**: Use spread operators or immutable libraries
-- **Redux Toolkit**: Use RTK's immutable update patterns
 - **Functional Programming**: Prefer pure functions where possible
 
 ### Documentation

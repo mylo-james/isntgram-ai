@@ -20,28 +20,20 @@ jest.mock("@/lib/api-client", () => ({
   },
 }));
 
-jest.mock("./components/ProfileHeader", () => {
-  return function MockProfileHeader({ profile }: { profile: { username: string; fullName: string } }) {
-    return (
-      <div data-testid="profile-header">
-        <span data-testid="profile-username">{profile.username}</span>
-        <span data-testid="profile-fullname">{profile.fullName}</span>
-      </div>
-    );
-  };
-});
-
 jest.mock("./components/ProfileStats", () => {
   return function MockProfileStats({
     profile,
+    variant,
   }: {
     profile: { postCount: number; followerCount: number; followingCount: number };
+    variant?: "mobile" | "desktop";
   }) {
+    const v = variant ?? "desktop";
     return (
-      <div data-testid="profile-stats">
-        <span data-testid="post-count">{profile.postCount}</span>
-        <span data-testid="follower-count">{profile.followerCount}</span>
-        <span data-testid="following-count">{profile.followingCount}</span>
+      <div data-testid={`profile-stats-${v}`}>
+        <span data-testid={`post-count-${v}`}>{profile.postCount}</span>
+        <span data-testid={`follower-count-${v}`}>{profile.followerCount}</span>
+        <span data-testid={`following-count-${v}`}>{profile.followingCount}</span>
       </div>
     );
   };
@@ -51,16 +43,25 @@ jest.mock("./components/ProfileActions", () => {
   return function MockProfileActions({
     currentUser,
     isOwnProfile,
+    variant,
   }: {
     currentUser?: { username: string } | null;
     isOwnProfile: boolean;
+    variant?: "mobile" | "desktop";
   }) {
+    const v = variant ?? "desktop";
     return (
-      <div data-testid="profile-actions">
-        <span data-testid="is-own-profile">{isOwnProfile.toString()}</span>
-        <span data-testid="current-user">{currentUser?.username || "no-user"}</span>
+      <div data-testid={`profile-actions-${v}`}>
+        <span data-testid={`is-own-profile-${v}`}>{isOwnProfile.toString()}</span>
+        <span data-testid={`current-user-${v}`}>{currentUser?.username || "no-user"}</span>
       </div>
     );
+  };
+});
+
+jest.mock("./components/ProfilePosts", () => {
+  return function MockProfilePosts({ username }: { username: string }) {
+    return <div data-testid="profile-posts">{username}</div>;
   };
 });
 
@@ -91,14 +92,13 @@ describe("ProfilePage", () => {
     id: "1",
     username: "testuser",
     fullName: "Test User",
-    email: "test@example.com",
     profilePictureUrl: "https://example.com/avatar.jpg",
     bio: "Test bio",
     postCount: 10,
     followerCount: 100,
     followingCount: 50,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   beforeEach(() => {
@@ -122,16 +122,16 @@ describe("ProfilePage", () => {
     render(<ProfilePage username="testuser" currentUser={mockCurrentUser} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("profile-header")).toBeInTheDocument();
-      expect(screen.getByTestId("profile-stats")).toBeInTheDocument();
-      expect(screen.getByTestId("profile-actions")).toBeInTheDocument();
+      expect(screen.getByTestId("profile-stats-mobile")).toBeInTheDocument();
+      expect(screen.getByTestId("profile-actions-mobile")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("profile-username")).toHaveTextContent("testuser");
-    expect(screen.getByTestId("profile-fullname")).toHaveTextContent("Test User");
-    expect(screen.getByTestId("post-count")).toHaveTextContent("10");
-    expect(screen.getByTestId("follower-count")).toHaveTextContent("100");
-    expect(screen.getByTestId("following-count")).toHaveTextContent("50");
+    expect(screen.getAllByText("testuser").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Test User").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Test bio").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("post-count-mobile")).toHaveTextContent("10");
+    expect(screen.getByTestId("follower-count-mobile")).toHaveTextContent("100");
+    expect(screen.getByTestId("following-count-mobile")).toHaveTextContent("50");
   });
 
   it("shows error state when fetch fails", async () => {
@@ -175,7 +175,7 @@ describe("ProfilePage", () => {
     render(<ProfilePage username="testuser" currentUser={{ ...mockCurrentUser, username: "testuser" }} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("is-own-profile")).toHaveTextContent("true");
+      expect(screen.getByTestId("is-own-profile-mobile")).toHaveTextContent("true");
     });
   });
 
@@ -185,7 +185,7 @@ describe("ProfilePage", () => {
     render(<ProfilePage username="testuser" currentUser={{ ...mockCurrentUser, username: "otheruser" }} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("is-own-profile")).toHaveTextContent("false");
+      expect(screen.getByTestId("is-own-profile-mobile")).toHaveTextContent("false");
     });
   });
 
@@ -195,7 +195,7 @@ describe("ProfilePage", () => {
     render(<ProfilePage username="testuser" currentUser={null} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("current-user")).toHaveTextContent("no-user");
+      expect(screen.getByTestId("current-user-mobile")).toHaveTextContent("no-user");
     });
   });
 

@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.js": "/static/js/main.d93b5cd0.chunk.js",
+    "main.js.map": "/static/js/main.d93b5cd0.chunk.js.map",
+    "runtime-main.js": "/static/js/runtime-main.8a910ed6.js",
+    "runtime-main.js.map": "/static/js/runtime-main.8a910ed6.js.map",
+    "static/css/2.a08119d7.chunk.css": "/static/css/2.a08119d7.chunk.css",
+    "static/js/2.2091fb19.chunk.js": "/static/js/2.2091fb19.chunk.js",
+    "static/js/2.2091fb19.chunk.js.map": "/static/js/2.2091fb19.chunk.js.map",
+    "index.html": "/index.html",
+    "static/css/2.a08119d7.chunk.css.map": "/static/css/2.a08119d7.chunk.css.map",
+    "static/js/2.2091fb19.chunk.js.LICENSE.txt": "/static/js/2.2091fb19.chunk.js.LICENSE.txt",
+    "static/media/aaron-profile.0be3fbd5.jpeg": "/static/media/aaron-profile.0be3fbd5.jpeg",
+    "static/media/logo.6e7a0de2.svg": "/static/media/logo.6e7a0de2.svg",
+    "static/media/mylo-profile.18f67e0e.jpg": "/static/media/mylo-profile.18f67e0e.jpg",
+    "static/media/profile.7dbe6742.jpeg": "/static/media/profile.7dbe6742.jpeg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.8a910ed6.js",
+    "static/css/2.a08119d7.chunk.css",
+    "static/js/2.2091fb19.chunk.js",
+    "static/js/main.d93b5cd0.chunk.js"
+  ]
+}

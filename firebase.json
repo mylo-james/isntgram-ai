@@ -1,0 +1,25 @@
+{
+  "hosting": [
+    {
+      "target": "isntgram",
+      "public": "firebase/public",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "run": {
+            "serviceId": "isntgram-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "**",
+          "run": {
+            "serviceId": "isntgram-web",
+            "region": "us-central1"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,10 @@
 **Auditor:** AI Assistant  
 **Scope:** Complete npm scripts ecosystem across monorepo
 
+Note (2025-12-15): this is a **historical audit report**. The current repo uses `pnpm` scripts, Playwright starts
+servers directly via `playwright.config.ts`, and the previous `packages/shared-types` workspace has been removed. For
+the current state, rely on `package.json`, `.github/workflows/ci.yml`, and `docs/script-circular-dependency-fixes.md`.
+
 ## Executive Summary
 
 This audit reveals **multiple critical circular dependencies** and **runtime execution issues** in the npm scripts

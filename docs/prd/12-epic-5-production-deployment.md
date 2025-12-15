@@ -12,7 +12,8 @@ fast, secure, and resource-efficient.
 
 **Acceptance Criteria**:
 
-- Multi-stage Dockerfile.prod is optimized for production with:
+- Per-app production Dockerfiles are optimized for production (`apps/web/Dockerfile.prod`, `apps/api/Dockerfile.prod`)
+  with:
   - Separate build and runtime stages
   - Minimal runtime image size
   - Non-root user execution

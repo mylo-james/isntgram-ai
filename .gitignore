@@ -130,6 +130,10 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# Firebase
+.firebase/
+firebase-debug.log
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
@@ -141,6 +145,7 @@ node_modules/
 # Logs
 logs
 *.log
+junit.xml
 
 # Runtime data
 pids
@@ -243,3 +248,7 @@ coverage/
 
 # Turborepo
 .turbo
+
+# Portfolio artifacts (never commit auth cookies)
+docs/perf/**/extra-headers.json
+docs/assets/.tmp-video/

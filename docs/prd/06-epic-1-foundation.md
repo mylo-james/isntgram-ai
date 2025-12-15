@@ -61,6 +61,9 @@ be reliably deployed to production environments.
 - Bootstrap scripts for server setup and deployment automation.
 - Documentation for deployment procedures, rollback processes, and infrastructure management.
 
+Note: The repo uses per-app production Dockerfiles (`apps/web/Dockerfile.prod`, `apps/api/Dockerfile.prod`) rather than
+a single root Dockerfile.
+
 ### Story 1.4: User Registration & Login UI
 
 **As a new user**, I want to see and interact with registration and login forms, so that I can create an account or sign

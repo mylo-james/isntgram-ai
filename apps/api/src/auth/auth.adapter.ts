@@ -8,12 +8,6 @@ import {
 import { User } from '../users/entities/user.entity';
 import { Repository } from 'typeorm';
 
-// Extended interface for our custom user properties
-interface ExtendedAdapterUser extends AdapterUser {
-  username?: string;
-  password?: string;
-}
-
 // Disabled insecure adapter: it could store plaintext passwords if used.
 // Keeping the class exported for potential future implementation, but methods are no-ops.
 export class NestJSAdapter implements Adapter {
@@ -31,7 +25,6 @@ export class NestJSAdapter implements Adapter {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getUserByAccount(_params: {
     provider: string;
     providerAccountId: string;
@@ -48,13 +41,11 @@ export class NestJSAdapter implements Adapter {
 
   async deleteUser(_userId: string) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async linkAccount(account: AdapterAccount): Promise<void> {
+  async linkAccount(_account: AdapterAccount): Promise<void> {
     // This would need to be implemented if you want to support OAuth providers
     // For now, just return void as required by the interface
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async unlinkAccount(_params: {
     provider: string;
     providerAccountId: string;
@@ -76,7 +67,6 @@ export class NestJSAdapter implements Adapter {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getSessionAndUser(_sessionToken: string) {
     // For JWT strategy, this is not needed
     return null;
@@ -93,7 +83,6 @@ export class NestJSAdapter implements Adapter {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deleteSession(_sessionToken: string) {
     // For JWT strategy, this is not needed
     return null;
@@ -106,7 +95,6 @@ export class NestJSAdapter implements Adapter {
     return verificationToken;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async useVerificationToken(_params: { identifier: string; token: string }) {
     // This would need to be implemented if you want email verification
     return null;

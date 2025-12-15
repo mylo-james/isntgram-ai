@@ -43,6 +43,28 @@ describe("UserProfilePage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Match Next.js behavior: `notFound()` throws to stop rendering.
+    mockNotFound.mockImplementation(() => {
+      throw new Error("NEXT_NOT_FOUND");
+    });
+
+    // Mock server-side fetch for initial profile data
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "1",
+        username: "testuser",
+        fullName: "Test User",
+        postCount: 0,
+        followerCount: 0,
+        followingCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    } as unknown as Response);
+
     const authModule = jest.requireMock("@/lib/auth");
     authModule.auth.mockResolvedValue({
       user: { id: "1", username: "testuser", email: "test@example.com" },
@@ -50,7 +72,7 @@ describe("UserProfilePage", () => {
   });
 
   it("renders profile page with valid username", async () => {
-    const params = { username: "testuser" };
+    const params = Promise.resolve({ username: "testuser" });
 
     render(await UserProfilePage({ params }));
 
@@ -61,25 +83,25 @@ describe("UserProfilePage", () => {
   });
 
   it("calls notFound for empty username", async () => {
-    const params = { username: "" };
+    const params = Promise.resolve({ username: "" });
 
-    await UserProfilePage({ params });
+    await expect(UserProfilePage({ params })).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(mockNotFound).toHaveBeenCalled();
   });
 
   it("calls notFound for whitespace-only username", async () => {
-    const params = { username: "   " };
+    const params = Promise.resolve({ username: "   " });
 
-    await UserProfilePage({ params });
+    await expect(UserProfilePage({ params })).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(mockNotFound).toHaveBeenCalled();
   });
 
   it("calls notFound for undefined username", async () => {
-    const params = { username: undefined as never };
+    const params = Promise.resolve({ username: undefined as never });
 
-    await UserProfilePage({ params });
+    await expect(UserProfilePage({ params })).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(mockNotFound).toHaveBeenCalled();
   });
@@ -91,7 +113,7 @@ describe("UserProfilePage", () => {
     const authModule = jest.requireMock("@/lib/auth");
     authModule.auth.mockResolvedValue(mockSession as never);
 
-    const params = { username: "testuser" };
+    const params = Promise.resolve({ username: "testuser" });
 
     render(await UserProfilePage({ params }));
 
@@ -104,7 +126,7 @@ describe("UserProfilePage", () => {
     const authModule = jest.requireMock("@/lib/auth");
     authModule.auth.mockResolvedValue(null as never);
 
-    const params = { username: "testuser" };
+    const params = Promise.resolve({ username: "testuser" });
 
     render(await UserProfilePage({ params }));
 
@@ -114,7 +136,7 @@ describe("UserProfilePage", () => {
   });
 
   it("generates correct metadata", async () => {
-    const params = { username: "testuser" };
+    const params = Promise.resolve({ username: "testuser" });
 
     // Import the generateMetadata function directly
     const { generateMetadata } = await import("./page");

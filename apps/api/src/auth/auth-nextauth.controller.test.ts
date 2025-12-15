@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthNextAuthController } from './auth-nextauth.controller';
 import { AuthService } from './auth.service';
-import { Response } from 'express';
+import { UnauthorizedException } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 
@@ -11,19 +11,12 @@ describe('AuthNextAuthController', () => {
 
   const mockAuthService = {
     validateUser: jest.fn(),
-    register: jest.fn(),
+    getOrCreateDemoUser: jest.fn(),
   };
 
   const mockJwtService = {
     sign: jest.fn().mockReturnValue('test-token'),
   } as unknown as JwtService;
-
-  const mockResponse = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn().mockReturnThis(),
-    cookie: jest.fn().mockReturnThis(),
-    clearCookie: jest.fn().mockReturnThis(),
-  } as unknown as Response;
 
   beforeEach(async () => {
     const moduleBuilder = Test.createTestingModule({
@@ -76,14 +69,13 @@ describe('AuthNextAuthController', () => {
     it('should sign in user successfully', async () => {
       mockAuthService.validateUser.mockResolvedValue(mockUser);
 
-      await controller.signIn(credentials, mockResponse);
+      const result = await controller.signIn(credentials);
 
       expect(authService.validateUser).toHaveBeenCalledWith(
         credentials.email,
         credentials.password,
       );
-      expect(mockResponse.cookie).not.toHaveBeenCalled();
-      expect(mockResponse.json).toHaveBeenCalledWith({
+      expect(result).toEqual({
         message: 'Sign in successful',
         user: expect.objectContaining({
           id: 'test-uuid',
@@ -96,60 +88,42 @@ describe('AuthNextAuthController', () => {
     it('should return 401 for invalid credentials', async () => {
       mockAuthService.validateUser.mockResolvedValue(null);
 
-      await controller.signIn(credentials, mockResponse);
+      await expect(controller.signIn(credentials)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
 
       expect(authService.validateUser).toHaveBeenCalledWith(
         credentials.email,
         credentials.password,
       );
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'Invalid credentials',
-      });
     });
   });
 
   describe('signOut', () => {
-    it('should clear session cookie and return success message', async () => {
-      await controller.signOut(mockResponse);
-
-      expect(mockResponse.clearCookie).not.toHaveBeenCalled();
-      expect(mockResponse.json).toHaveBeenCalledWith({
+    it('returns success message', async () => {
+      await expect(controller.signOut()).resolves.toEqual({
         message: 'Sign out successful',
       });
     });
   });
 
-  describe('register', () => {
-    const registerDto = {
-      email: 'test@example.com',
-      username: 'testuser',
-      fullName: 'Test User',
-      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
-    };
+  describe('demo', () => {
+    it('returns demo user payload', async () => {
+      const demoUser = {
+        id: 'demo-id',
+        email: 'demo@isntgram.ai',
+        username: 'demo',
+        fullName: 'Demo User',
+      };
+      mockAuthService.getOrCreateDemoUser.mockResolvedValue(demoUser);
 
-    const mockUser = {
-      id: 'test-uuid',
-      email: 'test@example.com',
-      username: 'testuser',
-      fullName: 'Test User',
-      postsCount: 0,
-      followerCount: 0,
-      followingCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      const result = await controller.demo();
 
-    it('should register user and create session', async () => {
-      mockAuthService.register.mockResolvedValue(mockUser);
-
-      await controller.register(registerDto, mockResponse);
-
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
-      expect(mockResponse.cookie).not.toHaveBeenCalled();
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: 'User registered successfully',
-        user: mockUser,
+      expect(authService.getOrCreateDemoUser).toHaveBeenCalled();
+      expect(result).toEqual({
+        message: 'Demo sign in successful',
+        user: demoUser,
+        isDemoUser: true,
       });
     });
   });

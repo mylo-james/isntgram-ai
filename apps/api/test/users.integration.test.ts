@@ -7,6 +7,9 @@ import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
 import { Follows } from '../src/follows/entities/follows.entity';
+import { Post as PostEntity } from '../src/posts/entities/post.entity';
+import { PostLike } from '../src/likes/entities/post-like.entity';
+import { Comment } from '../src/comments/entities/comment.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -20,7 +23,7 @@ describe('Users Integration Tests', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User, Follows],
+          entities: [User, Follows, PostEntity, PostLike, Comment],
           synchronize: true,
         }),
         // Disable throttling for tests
@@ -47,7 +50,7 @@ describe('Users Integration Tests', () => {
 
   it('should check username availability and update profile', async () => {
     // Create a user via register
-    const registerResponse = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'user@example.com',
@@ -57,18 +60,27 @@ describe('Users Integration Tests', () => {
       })
       .expect(201);
 
-    const userId = registerResponse.body.user.id as string;
-
     // Check username availability
     const checkRes = await request(app.getHttpServer())
       .get('/api/users/check-username/user2')
       .expect(200);
     expect(checkRes.body).toEqual({ available: true });
 
+    // Sign in to get access token
+    const signin = await request(app.getHttpServer())
+      .post('/api/auth/signin')
+      .send({
+        email: 'user@example.com',
+        password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
+      })
+      .expect(200);
+    const token = signin.body.accessToken as string;
+
     // Update profile
     const updateRes = await request(app.getHttpServer())
       .put('/api/users/profile')
-      .send({ id: userId, fullName: 'New Name', username: 'user2' })
+      .set('Authorization', `Bearer ${token}`)
+      .send({ fullName: 'New Name', username: 'user2' })
       .expect(200);
 
     expect(updateRes.body).toHaveProperty('username', 'user2');
