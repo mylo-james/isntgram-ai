@@ -4,6 +4,7 @@ export class CreateUsersTable1703123456789 implements MigrationInterface {
   name = 'CreateUsersTable1703123456789';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS \"pgcrypto\"');
     await queryRunner.createTable(
       new Table({
         name: 'users',
@@ -12,7 +13,7 @@ export class CreateUsersTable1703123456789 implements MigrationInterface {
             name: 'id',
             type: 'uuid',
             isPrimary: true,
-            default: 'uuid_generate_v4()',
+            default: 'gen_random_uuid()',
           },
           {
             name: 'username',

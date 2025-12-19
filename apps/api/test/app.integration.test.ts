@@ -20,11 +20,11 @@ describe('AppController (Integration)', () => {
   });
 
   describe('GET /', () => {
-    it('should return "Hello World!"', () => {
+    it('should return "Isntgram API"', () => {
       return request(app.getHttpServer())
         .get('/')
         .expect(200)
-        .expect('Hello World!');
+        .expect('Isntgram API');
     });
 
     it('should have correct content-type', () => {

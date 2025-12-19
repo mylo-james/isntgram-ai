@@ -45,22 +45,20 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button", { name: /try our demo/i })).toBeInTheDocument();
   });
 
-  it("clicking demo button calls backend demo endpoint then signs in", async () => {
+  it("clicking demo button signs in with demo credentials", async () => {
     const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
     signIn.mockResolvedValue({ ok: true, error: null });
-
-    (global as unknown as { fetch: jest.Mock }).fetch.mockResolvedValue({ ok: true, status: 200 });
 
     render(<LoginPage />);
 
     fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
 
     await waitFor(() => {
-      expect((global as unknown as { fetch: jest.Mock }).fetch).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
-      expect(signIn).toHaveBeenCalled();
+      expect(signIn).toHaveBeenCalledWith("credentials", {
+        email: "demo@isntgram.ai",
+        password: "demo",
+        redirect: false,
+      });
     });
 
     await waitFor(() => {
@@ -68,10 +66,9 @@ describe("LoginPage", () => {
     });
   });
 
-  it("shows a generic error if demo backend call fails", async () => {
+  it("shows a generic error if demo sign-in fails", async () => {
     const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
     signIn.mockResolvedValue({ ok: false, error: "some error" });
-    (global as unknown as { fetch: jest.Mock }).fetch.mockResolvedValue({ ok: false, status: 500 });
 
     render(<LoginPage />);
 
@@ -113,7 +110,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -121,7 +118,7 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(signIn).toHaveBeenCalledWith("credentials", {
         email: "test@example.com",
-        password: "password123",
+        password: "Password123",
         redirect: false,
       });
     });
@@ -154,7 +151,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -168,7 +165,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "WrongPass123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -184,7 +181,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpassword" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "WrongPass123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -200,7 +197,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);

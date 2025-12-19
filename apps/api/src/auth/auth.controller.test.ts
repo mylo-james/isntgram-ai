@@ -4,13 +4,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { INestApplication } from '@nestjs/common';
-import { AppModule } from '../app.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
+import { Post } from '../posts/entities/post.entity';
+import { Follow } from '../follows/entities/follow.entity';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -18,6 +19,7 @@ describe('AuthController', () => {
 
   const mockAuthService = {
     register: jest.fn(),
+    login: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -35,6 +37,12 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -86,11 +94,32 @@ describe('AuthController', () => {
       await expect(controller.register(registerDto)).rejects.toThrow(error);
       expect(authService.register).toHaveBeenCalledWith(registerDto);
     });
+  });
 
-    it('should validate input data', async () => {
-      // This test verifies that the ValidationPipe is applied
-      // The actual validation will be handled by the ValidationPipe
-      expect(controller.register).toBeDefined();
+  describe('login', () => {
+    it('should return access token and user', async () => {
+      const loginResult = {
+        user: {
+          id: 'test-uuid',
+          email: 'test@example.com',
+          username: 'testuser',
+          fullName: 'Test User',
+        },
+        accessToken: 'jwt-token',
+      };
+
+      mockAuthService.login.mockResolvedValue(loginResult);
+
+      const result = await controller.login({
+        email: 'test@example.com',
+        password: 'Password123',
+      });
+
+      expect(result).toEqual({
+        message: 'Login successful',
+        user: loginResult.user,
+        accessToken: loginResult.accessToken,
+      });
     });
   });
 });
@@ -99,13 +128,15 @@ describe('Auth demo endpoint (integration)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.DEMO_ENABLED = 'true';
+    process.env.JWT_SECRET = 'test-jwt-secret';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User],
+          entities: [User, Post, Follow],
           synchronize: true,
         }),
         ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
@@ -130,6 +161,7 @@ describe('Auth demo endpoint (integration)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('user');
     expect(res.body.user).toHaveProperty('email');
+    expect(res.body).toHaveProperty('accessToken');
     expect(res.body).toHaveProperty('isDemoUser', true);
   });
 });

@@ -1,100 +1,51 @@
-import { User, Post, ApiResponse } from "./index";
+import { FeedResponse, PostItem, PublicUserProfile, UploadUrlResponse } from "./index";
 
 describe("Shared Types", () => {
-  describe("User interface", () => {
-    it("should have required properties", () => {
-      const user: User = {
-        id: "1",
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        postsCount: 0,
-        followerCount: 0,
-        followingCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+  it("should allow public user profile shape", () => {
+    const user: PublicUserProfile = {
+      id: "1",
+      username: "testuser",
+      fullName: "Test User",
+      postCount: 0,
+      followerCount: 0,
+      followingCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-      expect(user.id).toBeDefined();
-      expect(user.email).toBeDefined();
-      expect(user.username).toBeDefined();
-      expect(user.fullName).toBeDefined();
-    });
-
-    it("should allow optional properties", () => {
-      const user: User = {
-        id: "1",
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        profilePictureUrl: "https://example.com/avatar.jpg",
-        bio: "Test bio",
-        postsCount: 0,
-        followerCount: 0,
-        followingCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      expect(user.fullName).toBe("Test User");
-      expect(user.profilePictureUrl).toBeDefined();
-      expect(user.bio).toBeDefined();
-    });
+    expect(user.username).toBe("testuser");
+    expect(user.postCount).toBe(0);
   });
 
-  describe("Post interface", () => {
-    it("should have required properties", () => {
-      const post: Post = {
+  it("should allow feed response shape", () => {
+    const post: PostItem = {
+      id: "1",
+      content: "Hello",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      author: {
         id: "1",
-        userId: "1",
-        content: "Test post",
-        likes: 0,
-        comments: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+        username: "testuser",
+        fullName: "Test User",
+      },
+    };
 
-      expect(post.id).toBeDefined();
-      expect(post.userId).toBeDefined();
-      expect(post.content).toBeDefined();
-    });
+    const feed: FeedResponse = {
+      items: [post],
+      nextCursor: "cursor",
+    };
 
-    it("should allow optional mediaUrls", () => {
-      const post: Post = {
-        id: "1",
-        userId: "1",
-        content: "Test post",
-        mediaUrls: ["https://example.com/image.jpg"],
-        likes: 0,
-        comments: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      expect(post.mediaUrls).toHaveLength(1);
-    });
+    expect(feed.items[0].content).toBe("Hello");
   });
 
-  describe("ApiResponse interface", () => {
-    it("should handle success response", () => {
-      const response: ApiResponse<string> = {
-        success: true,
-        data: "test data",
-        message: "Success",
-      };
+  it("should allow upload url response shape", () => {
+    const upload: UploadUrlResponse = {
+      uploadUrl: "https://example.com/upload",
+      publicUrl: "https://example.com/public",
+      key: "uploads/1/file.jpg",
+      expiresIn: 900,
+    };
 
-      expect(response.success).toBe(true);
-      expect(response.data).toBe("test data");
-    });
-
-    it("should handle error response", () => {
-      const response: ApiResponse<null> = {
-        success: false,
-        error: "Something went wrong",
-      };
-
-      expect(response.success).toBe(false);
-      expect(response.error).toBeDefined();
-    });
+    expect(upload.expiresIn).toBe(900);
   });
 });

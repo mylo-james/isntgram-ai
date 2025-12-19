@@ -1,28 +1,5 @@
 module.exports = {
   projects: [
-    // Root-level tests (CI workflow, etc.)
-    {
-      displayName: "root",
-      testEnvironment: "node",
-      testMatch: ["<rootDir>/test/**/*.test.ts"],
-      transform: {
-        "^.+\\.ts$": [
-          "babel-jest",
-          {
-            presets: [
-              [
-                "@babel/preset-env",
-                {
-                  targets: { node: "20" },
-                },
-              ],
-              "@babel/preset-typescript",
-            ],
-          },
-        ],
-      },
-      moduleFileExtensions: ["ts", "js"],
-    },
     // Next.js Web App
     {
       displayName: "web",
@@ -86,7 +63,7 @@ module.exports = {
             ],
             plugins: [
               ["@babel/plugin-proposal-decorators", { legacy: true }],
-              ["@babel/plugin-proposal-class-properties", { loose: true }],
+              ["@babel/plugin-transform-class-properties", { loose: true }],
               "babel-plugin-transform-typescript-metadata",
             ],
           },
@@ -142,6 +119,7 @@ module.exports = {
         "packages/shared-types/src/**/*.ts",
         "!packages/shared-types/src/**/*.test.ts",
         "!packages/shared-types/src/**/*.d.ts",
+        "!packages/shared-types/src/openapi.ts",
       ],
       coverageReporters: ["text", "lcov", "html", "json-summary"],
       coverageDirectory: "<rootDir>/packages/shared-types/coverage",

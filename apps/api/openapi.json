@@ -1,0 +1,1239 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "AppController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "operationId": "AppController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "operationId": "MetricsController_getMetrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Prometheus metrics exposition"
+          }
+        },
+        "tags": ["metrics"]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthRegisterResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["auth"]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLoginResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["auth"]
+      }
+    },
+    "/api/auth/demo": {
+      "post": {
+        "operationId": "AuthController_demo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLoginResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["auth"]
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "operationId": "UsersController_getCurrentUser",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateUserProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["users"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/check-username/{username}": {
+      "get": {
+        "operationId": "UsersController_checkUsername",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "available": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["users"]
+      }
+    },
+    "/api/users/{username}": {
+      "get": {
+        "operationId": "UsersController_getUserProfile",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["users"]
+      }
+    },
+    "/api/users/profile": {
+      "put": {
+        "operationId": "UsersController_updateProfile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateUserProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["users"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/posts": {
+      "post": {
+        "operationId": "PostsController_createPost",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePostDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PostDto"
+                    }
+                  ],
+                  "example": {
+                    "id": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a",
+                    "content": "Shipping a fresh batch of ideas after today's research sprint.",
+                    "mediaUrl": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg",
+                    "createdAt": "2025-12-19T10:12:00.000Z",
+                    "updatedAt": "2025-12-19T10:12:00.000Z",
+                    "author": {
+                      "id": "b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e",
+                      "username": "ava",
+                      "fullName": "Ava Thompson",
+                      "profilePictureUrl": "https://cdn.isntgram.ai/avatars/ava.jpg"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["posts"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/posts/feed": {
+      "get": {
+        "operationId": "PostsController_getFeed",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque cursor from previous page",
+            "schema": {
+              "example": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDEyMy1wb3N0LWlk",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/FeedResponseDto"
+                    }
+                  ],
+                  "example": {
+                    "items": [
+                      {
+                        "id": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a",
+                        "content": "Shipping a fresh batch of ideas after today's research sprint.",
+                        "mediaUrl": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg",
+                        "createdAt": "2025-12-19T10:12:00.000Z",
+                        "updatedAt": "2025-12-19T10:12:00.000Z",
+                        "author": {
+                          "id": "b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e",
+                          "username": "ava",
+                          "fullName": "Ava Thompson",
+                          "profilePictureUrl": "https://cdn.isntgram.ai/avatars/ava.jpg"
+                        }
+                      }
+                    ],
+                    "nextCursor": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDdjMWEyZjA0LTFjZjMtNGM3NS1iNDJmLThmNmMwZjNlNGQ1YQ=="
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["posts"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/posts/user/{username}": {
+      "get": {
+        "operationId": "PostsController_getUserPosts",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque cursor from previous page",
+            "schema": {
+              "example": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDEyMy1wb3N0LWlk",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/FeedResponseDto"
+                    }
+                  ],
+                  "example": {
+                    "items": [
+                      {
+                        "id": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a",
+                        "content": "Shipping a fresh batch of ideas after today's research sprint.",
+                        "mediaUrl": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg",
+                        "createdAt": "2025-12-19T10:12:00.000Z",
+                        "updatedAt": "2025-12-19T10:12:00.000Z",
+                        "author": {
+                          "id": "b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e",
+                          "username": "ava",
+                          "fullName": "Ava Thompson",
+                          "profilePictureUrl": "https://cdn.isntgram.ai/avatars/ava.jpg"
+                        }
+                      }
+                    ],
+                    "nextCursor": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDdjMWEyZjA0LTFjZjMtNGM3NS1iNDJmLThmNmMwZjNlNGQ1YQ=="
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["posts"]
+      }
+    },
+    "/api/follows/{username}/status": {
+      "get": {
+        "operationId": "FollowsController_getFollowStatus",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Follow status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/FollowStatusDto"
+                    }
+                  ],
+                  "example": {
+                    "isFollowing": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["follows"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/follows/{username}": {
+      "post": {
+        "operationId": "FollowsController_followUser",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Followed user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/FollowStatusDto"
+                    }
+                  ],
+                  "example": {
+                    "isFollowing": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot follow yourself",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["follows"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "FollowsController_unfollowUser",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unfollowed user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/FollowStatusDto"
+                    }
+                  ],
+                  "example": {
+                    "isFollowing": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["follows"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/media/presign": {
+      "post": {
+        "operationId": "MediaController_createUploadUrl",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadUrlDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Presigned upload URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/UploadUrlDto"
+                    }
+                  ],
+                  "example": {
+                    "uploadUrl": "https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+                    "publicUrl": "https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg",
+                    "key": "uploads/ava/1702990000-uuid-photo.jpg",
+                    "expiresIn": 900
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsupported media type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Media storage is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["media"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/ai/rewrite": {
+      "post": {
+        "operationId": "AiController_rewrite",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRewriteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rewrite post content using an AI provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/AiRewriteResponseDto"
+                    }
+                  ],
+                  "example": {
+                    "content": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share.",
+                    "provider": "mock"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["ai"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Isntgram API",
+    "description": "Isntgram API documentation",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": ["email", "username", "fullName", "password"]
+      },
+      "PrivateUserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "profilePictureUrl": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "postCount": {
+            "type": "number"
+          },
+          "followerCount": {
+            "type": "number"
+          },
+          "followingCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "fullName",
+          "postCount",
+          "followerCount",
+          "followingCount",
+          "createdAt",
+          "updatedAt",
+          "email"
+        ]
+      },
+      "AuthRegisterResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PrivateUserProfileDto"
+          }
+        },
+        "required": ["message", "user"]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": ["email", "password"]
+      },
+      "AuthLoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PrivateUserProfileDto"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "isDemoUser": {
+            "type": "boolean"
+          }
+        },
+        "required": ["message", "user", "accessToken"]
+      },
+      "PublicUserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "profilePictureUrl": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "postCount": {
+            "type": "number"
+          },
+          "followerCount": {
+            "type": "number"
+          },
+          "followingCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "fullName",
+          "postCount",
+          "followerCount",
+          "followingCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3
+          }
+        },
+        "required": ["fullName", "username"]
+      },
+      "PostAuthorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e"
+          },
+          "username": {
+            "type": "string",
+            "example": "ava"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Ava Thompson"
+          },
+          "profilePictureUrl": {
+            "type": "string",
+            "example": "https://cdn.isntgram.ai/avatars/ava.jpg"
+          }
+        },
+        "required": ["id", "username", "fullName"]
+      },
+      "PostDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a"
+          },
+          "content": {
+            "type": "string",
+            "example": "Shipping a fresh batch of ideas after today's research sprint."
+          },
+          "mediaUrl": {
+            "type": "string",
+            "example": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-12-19T10:12:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-12-19T10:12:00.000Z"
+          },
+          "author": {
+            "$ref": "#/components/schemas/PostAuthorDto"
+          }
+        },
+        "required": ["id", "content", "createdAt", "updatedAt", "author"]
+      },
+      "FeedResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "example": [
+              {
+                "id": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a",
+                "content": "Shipping a fresh batch of ideas after today's research sprint.",
+                "mediaUrl": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg",
+                "createdAt": "2025-12-19T10:12:00.000Z",
+                "updatedAt": "2025-12-19T10:12:00.000Z",
+                "author": {
+                  "id": "b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e",
+                  "username": "ava",
+                  "fullName": "Ava Thompson",
+                  "profilePictureUrl": "https://cdn.isntgram.ai/avatars/ava.jpg"
+                }
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "description": "Use as cursor for next page",
+            "example": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDdjMWEyZjA0LTFjZjMtNGM3NS1iNDJmLThmNmMwZjNlNGQ1YQ=="
+          }
+        },
+        "required": ["items"]
+      },
+      "ApiErrorDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2025-12-19T12:34:56.789Z"
+          },
+          "path": {
+            "type": "string",
+            "example": "/api/posts/feed?limit=20"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "req_9a6b3f0c-4a0a-4f11-9c61-2f6a3c5d1b2c"
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid cursor"
+          },
+          "error": {
+            "type": "string",
+            "example": "BadRequestException"
+          }
+        },
+        "required": ["statusCode", "timestamp", "path", "message", "error"]
+      },
+      "CreatePostDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "example": "Shipping a fresh batch of ideas after today's research sprint."
+          },
+          "mediaUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 1000,
+            "example": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg"
+          }
+        },
+        "required": ["content"]
+      },
+      "FollowStatusDto": {
+        "type": "object",
+        "properties": {
+          "isFollowing": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": ["isFollowing"]
+      },
+      "UploadUrlDto": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "example": "https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=..."
+          },
+          "publicUrl": {
+            "type": "string",
+            "example": "https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg"
+          },
+          "key": {
+            "type": "string",
+            "example": "uploads/ava/1702990000-uuid-photo.jpg"
+          },
+          "expiresIn": {
+            "type": "number",
+            "example": 900
+          }
+        },
+        "required": ["uploadUrl", "publicUrl", "key", "expiresIn"]
+      },
+      "CreateUploadUrlDto": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "example": "photo.jpg"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "image/jpeg"
+          }
+        },
+        "required": ["fileName", "contentType"]
+      },
+      "AiRewriteResponseDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share."
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["mock", "openai"]
+          },
+          "model": {
+            "type": "string",
+            "example": "gpt-4o-mini"
+          }
+        },
+        "required": ["content", "provider"]
+      },
+      "AiRewriteRequestDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "example": "Shipping a fresh batch of ideas after today's research sprint."
+          },
+          "tone": {
+            "type": "string",
+            "enum": ["professional", "friendly", "concise"],
+            "default": "professional"
+          },
+          "maxLength": {
+            "type": "number",
+            "description": "Maximum character length for the rewritten content",
+            "default": 2000,
+            "minimum": 1,
+            "maximum": 2000
+          }
+        },
+        "required": ["content"]
+      }
+    }
+  }
+}

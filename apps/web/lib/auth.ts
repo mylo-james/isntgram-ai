@@ -1,12 +1,11 @@
 import NextAuth, { type NextAuthConfig, type Session, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
+import type { LoginResponse } from "@isntgram-ai/shared-types";
+import { getApiErrorMessage } from "./api-error";
+import { internalApi } from "./server-api";
 
 type JwtToken = JWT & { accessToken?: string; username?: string; isDemoUser?: boolean };
-type AppSession = Session & {
-  accessToken?: string;
-  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
-};
 
 const authConfig: NextAuthConfig = {
   trustHost: true,
@@ -20,39 +19,46 @@ const authConfig: NextAuthConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const email = typeof credentials?.email === "string" ? credentials.email : "";
+        const password = typeof credentials?.password === "string" ? credentials.password : "";
+
+        if (!email || !password) {
           return null;
         }
 
+        const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
+        const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";
+        const isDemoCredentials = email === demoEmail && password === demoPassword;
+
         // Authenticate against backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/auth/signin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: credentials.email, password: credentials.password }),
-        });
+        const { data, error, response } = isDemoCredentials
+          ? await internalApi.POST("/api/auth/demo", { cache: "no-store" })
+          : await internalApi.POST("/api/auth/login", {
+              body: { email, password },
+              cache: "no-store",
+            });
 
         if (response.status === 401) {
           return null;
         }
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error((error as { message?: string }).message || "Authentication failed");
+          throw new Error(getApiErrorMessage(error, "Authentication failed"));
         }
 
-        const data = (await response.json()) as {
-          user: { id: string; email: string; username: string; fullName: string };
-          accessToken?: string;
-          isDemoUser?: boolean;
-        };
+        if (!data) {
+          throw new Error("Authentication failed");
+        }
+
+        const payload = data as LoginResponse;
 
         return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.fullName,
-          username: data.user.username,
-          accessToken: data.accessToken,
-          // isDemoUser will be set in jwt callback if present
+          id: payload.user.id,
+          email: payload.user.email,
+          name: payload.user.fullName,
+          username: payload.user.username,
+          accessToken: payload.accessToken,
+          isDemoUser: payload.isDemoUser,
         } as unknown as User & { username?: string; accessToken?: string };
       },
     }),
@@ -67,6 +73,7 @@ const authConfig: NextAuthConfig = {
       if (user) {
         token.accessToken = user.accessToken;
         token.username = (user as unknown as { username?: string }).username;
+        if (user.isDemoUser) token.isDemoUser = true;
       }
 
       // If we can detect demo sign-in intent via custom env, set a stable flag when demo credentials are used
@@ -78,12 +85,11 @@ const authConfig: NextAuthConfig = {
       return token;
     },
     async session(params) {
-      const session = params.session as AppSession;
+      const session = params.session as Session;
       const token = params.token as JwtToken;
       if (token) {
         if (token.sub) session.user.id = token.sub as string;
         if (token.username) session.user.username = token.username;
-        if (token.accessToken) session.accessToken = token.accessToken;
         if (token.isDemoUser) session.user.isDemoUser = true;
       }
       return session;

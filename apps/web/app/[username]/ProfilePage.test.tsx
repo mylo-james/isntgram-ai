@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import { type Session } from "next-auth";
 
@@ -17,6 +17,8 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/lib/api-client", () => ({
   apiClient: {
     getUserProfile: jest.fn(),
+    getUserPosts: jest.fn(),
+    getFollowStatus: jest.fn(),
   },
 }));
 
@@ -79,6 +81,18 @@ jest.mock("./ProfilePageSkeleton", () => {
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockApiClient = apiClient as jest.Mocked<typeof apiClient>;
 
+const flushEffects = async () => {
+  const pending = [
+    ...mockApiClient.getUserPosts.mock.results.map((result) => result.value),
+    ...mockApiClient.getFollowStatus.mock.results.map((result) => result.value),
+  ].filter(Boolean);
+
+  await act(async () => {
+    await Promise.all(pending.map((promise) => Promise.resolve(promise)));
+    await Promise.resolve();
+  });
+};
+
 describe("ProfilePage", () => {
   const mockPush = jest.fn();
   const mockCurrentUser: AppSession["user"] = {
@@ -91,14 +105,13 @@ describe("ProfilePage", () => {
     id: "1",
     username: "testuser",
     fullName: "Test User",
-    email: "test@example.com",
     profilePictureUrl: "https://example.com/avatar.jpg",
     bio: "Test bio",
     postCount: 10,
     followerCount: 100,
     followingCount: 50,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   beforeEach(() => {
@@ -106,14 +119,17 @@ describe("ProfilePage", () => {
     mockUseRouter.mockReturnValue({
       push: mockPush,
     } as never);
+    mockApiClient.getUserPosts.mockResolvedValue({ items: [], nextCursor: undefined });
+    mockApiClient.getFollowStatus.mockResolvedValue({ isFollowing: false });
   });
 
-  it("renders loading state initially", () => {
+  it("renders loading state initially", async () => {
     mockApiClient.getUserProfile.mockImplementation(() => new Promise(() => {}));
 
     render(<ProfilePage username="testuser" currentUser={mockCurrentUser} />);
 
     expect(screen.getByTestId("profile-skeleton")).toBeInTheDocument();
+    await flushEffects();
   });
 
   it("renders profile data when fetch succeeds", async () => {
@@ -126,6 +142,9 @@ describe("ProfilePage", () => {
       expect(screen.getByTestId("profile-stats")).toBeInTheDocument();
       expect(screen.getByTestId("profile-actions")).toBeInTheDocument();
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalled());
+    await flushEffects();
 
     expect(screen.getByTestId("profile-username")).toHaveTextContent("testuser");
     expect(screen.getByTestId("profile-fullname")).toHaveTextContent("Test User");
@@ -143,6 +162,9 @@ describe("ProfilePage", () => {
       expect(screen.getByText("User Not Found")).toBeInTheDocument();
       expect(screen.getByText('The user "testuser" could not be found.')).toBeInTheDocument();
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalled());
+    await flushEffects();
   });
 
   it("shows error state when profile is null", async () => {
@@ -153,6 +175,9 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByText("User Not Found")).toBeInTheDocument();
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalled());
+    await flushEffects();
   });
 
   it("navigates to home when Go Home button is clicked", async () => {
@@ -163,6 +188,9 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByText("Go Home")).toBeInTheDocument();
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalled());
+    await flushEffects();
 
     screen.getByText("Go Home").click();
 
@@ -177,6 +205,8 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("is-own-profile")).toHaveTextContent("true");
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await flushEffects();
   });
 
   it("correctly identifies other user profile", async () => {
@@ -187,6 +217,9 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("is-own-profile")).toHaveTextContent("false");
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalled());
+    await flushEffects();
   });
 
   it("handles null current user", async () => {
@@ -197,6 +230,8 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("current-user")).toHaveTextContent("no-user");
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalled());
+    await flushEffects();
   });
 
   it("refetches profile when username changes", async () => {
@@ -207,6 +242,9 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(mockApiClient.getUserProfile).toHaveBeenCalledWith("testuser");
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledTimes(1));
+    await flushEffects();
 
     mockApiClient.getUserProfile.mockClear();
 
@@ -215,5 +253,8 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(mockApiClient.getUserProfile).toHaveBeenCalledWith("newuser");
     });
+    await waitFor(() => expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledTimes(2));
+    await flushEffects();
   });
 });

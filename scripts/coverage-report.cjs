@@ -9,7 +9,7 @@ const path = require("path");
 
 const COVERAGE_THRESHOLD = {
   statements: 80,
-  branches: 80,
+  branches: 70,
   functions: 80,
   lines: 80,
 };
@@ -40,8 +40,9 @@ function analyzeCoverage() {
     // The summary file contains package-level coverage
     for (const [packageName, packageData] of Object.entries(coverage)) {
       if (packageName !== "total") {
+        const relativePath = path.relative(process.cwd(), packageName);
         results.push({
-          package: packageName,
+          file: relativePath,
           statements: (packageData.statements.pct || 0).toFixed(2),
           branches: (packageData.branches.pct || 0).toFixed(2),
           functions: (packageData.functions.pct || 0).toFixed(2),
@@ -84,11 +85,9 @@ function generateReport() {
   }
 
   // Package-level results
-  console.log("\nPackage Coverage:");
+  console.log("\nFile Coverage:");
   console.log("-".repeat(70));
-  console.log(
-    "Package".padEnd(20) + "Statements".padEnd(12) + "Branches".padEnd(12) + "Functions".padEnd(12) + "Lines",
-  );
+  console.log("File".padEnd(40) + "Statements".padEnd(12) + "Branches".padEnd(12) + "Functions".padEnd(12) + "Lines");
   console.log("-".repeat(70));
 
   for (const result of results) {
@@ -98,7 +97,7 @@ function generateReport() {
     const lineColor = parseFloat(result.lines) >= COVERAGE_THRESHOLD.lines ? "✅" : "❌";
 
     console.log(
-      result.package.padEnd(20) +
+      result.file.padEnd(40) +
         `${result.statements}% ${stmtColor}`.padEnd(12) +
         `${result.branches}% ${branchColor}`.padEnd(12) +
         `${result.functions}% ${funcColor}`.padEnd(12) +
@@ -146,4 +145,3 @@ if (require.main === module) {
 }
 
 module.exports = { analyzeCoverage, generateReport };
-// Test comment

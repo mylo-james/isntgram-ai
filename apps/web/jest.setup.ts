@@ -1,3 +1,4 @@
+import "cross-fetch/polyfill";
 import "@testing-library/jest-dom";
 
 // Suppress expected console errors during tests to keep output clean

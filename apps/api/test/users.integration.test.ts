@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { Post } from '../src/posts/entities/post.entity';
+import { Follow } from '../src/follows/entities/follow.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -13,13 +15,14 @@ describe('Users Integration Tests', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.JWT_SECRET = 'test-jwt-secret';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User],
+          entities: [User, Post, Follow],
           synchronize: true,
         }),
         // Disable throttling for tests
@@ -37,6 +40,14 @@ describe('Users Integration Tests', () => {
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
     app.useGlobalFilters(new GlobalExceptionFilter());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
     await app.init();
   });
 
@@ -44,9 +55,9 @@ describe('Users Integration Tests', () => {
     await app.close();
   });
 
-  it('should check username availability and update profile', async () => {
+  it('should check username availability, update profile with auth, and protect PII', async () => {
     // Create a user via register
-    const registerResponse = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'user@example.com',
@@ -56,21 +67,74 @@ describe('Users Integration Tests', () => {
       })
       .expect(201);
 
-    const userId = registerResponse.body.user.id as string;
+    // Login to get access token
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'user@example.com',
+        password: 'Password123',
+      })
+      .expect(200);
 
-    // Check username availability
+    const token = loginResponse.body.accessToken as string;
+
+    // Check username availability (public)
     const checkRes = await request(app.getHttpServer())
       .get('/api/users/check-username/user2')
       .expect(200);
     expect(checkRes.body).toEqual({ available: true });
 
-    // Update profile
+    // Update profile (requires auth)
     const updateRes = await request(app.getHttpServer())
       .put('/api/users/profile')
-      .send({ id: userId, fullName: 'New Name', username: 'user2' })
+      .set('Authorization', `Bearer ${token}`)
+      .send({ fullName: 'New Name', username: 'user2' })
       .expect(200);
 
     expect(updateRes.body).toHaveProperty('username', 'user2');
     expect(updateRes.body).toHaveProperty('fullName', 'New Name');
+    expect(updateRes.body).toHaveProperty('email', 'user@example.com');
+
+    // Public profile should not expose email
+    const publicRes = await request(app.getHttpServer())
+      .get('/api/users/user2')
+      .expect(200);
+    expect(publicRes.body).not.toHaveProperty('email');
+  });
+
+  it('should reject /users/me without auth', async () => {
+    await request(app.getHttpServer()).get('/api/users/me').expect(401);
+  });
+
+  it('should reject update payloads with unexpected fields', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({
+        email: 'extra@example.com',
+        username: 'extra',
+        fullName: 'Extra User',
+        password: 'Password123',
+      })
+      .expect(201);
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'extra@example.com',
+        password: 'Password123',
+      })
+      .expect(200);
+
+    const token = loginResponse.body.accessToken as string;
+
+    await request(app.getHttpServer())
+      .put('/api/users/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        fullName: 'Extra User Updated',
+        username: 'extra_updated',
+        id: 'not-allowed',
+      })
+      .expect(400);
   });
 });

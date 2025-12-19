@@ -127,28 +127,13 @@ export default function RegisterPage() {
         router.push("/login?message=Registration successful! Please log in.");
       }, 2000);
     } catch (error: unknown) {
-      // Handle different types of errors
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        (error as { response?: { data?: { message?: string } } }).response?.data?.message
-      ) {
-        // Backend validation error
-        const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data
-          ?.message as string;
-        if (errorMessage.includes("email")) {
-          setErrors({ email: errorMessage });
-        } else if (errorMessage.includes("username")) {
-          setErrors({ username: errorMessage });
-        } else {
-          setErrors({ email: errorMessage });
-        }
-      } else if (error instanceof Error && error.message) {
-        // Network or other error
-        setErrors({ email: error.message });
+      const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+      if (message.toLowerCase().includes("username")) {
+        setErrors({ username: message });
+      } else if (message.toLowerCase().includes("email")) {
+        setErrors({ email: message });
       } else {
-        setErrors({ email: "Registration failed. Please try again." });
+        setErrors({ email: message });
       }
     } finally {
       setIsLoading(false);

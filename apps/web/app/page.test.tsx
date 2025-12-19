@@ -1,56 +1,40 @@
 import { render, screen } from "@testing-library/react";
 import Home from "./page";
 
+jest.mock("@/lib/auth", () => ({
+  auth: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("next/navigation", () => ({
+  redirect: jest.fn(),
+}));
+
 describe("Home", () => {
-  it("renders the main heading", () => {
-    render(<Home />);
-    // The text is split across multiple elements, so we need to be more specific
-    expect(screen.getByText("Welcome to")).toBeInTheDocument();
-    expect(screen.getByText("Isntgram")).toBeInTheDocument();
+  const renderHome = async () => {
+    const view = await Home();
+    render(view);
+  };
+
+  it("renders the main heading", async () => {
+    await renderHome();
+    expect(screen.getByText(/Build a signal-first social feed/i)).toBeInTheDocument();
   });
 
-  it("renders the hero description", () => {
-    render(<Home />);
-    expect(
-      screen.getByText(
-        /The AI-powered social media platform that connects you with meaningful content and conversations/i,
-      ),
-    ).toBeInTheDocument();
+  it("renders the hero description", async () => {
+    await renderHome();
+    expect(screen.getByText(/Isntgram is a modern, AI-assisted social platform/i)).toBeInTheDocument();
   });
 
-  it("renders call-to-action buttons", () => {
-    render(<Home />);
-    expect(screen.getByText("Get Started")).toBeInTheDocument();
-    expect(screen.getByText("Create Account")).toBeInTheDocument();
+  it("renders call-to-action buttons", async () => {
+    await renderHome();
+    expect(screen.getByText("Create account")).toBeInTheDocument();
+    expect(screen.getByText("Sign in")).toBeInTheDocument();
   });
 
-  it("renders feature sections", () => {
-    render(<Home />);
-    expect(screen.getByText("AI-Powered Feed")).toBeInTheDocument();
-    expect(screen.getByText("Smart Connections")).toBeInTheDocument();
-    expect(screen.getByText("Privacy First")).toBeInTheDocument();
-  });
-
-  it("renders development status section", () => {
-    render(<Home />);
-    expect(screen.getByText("Development Status")).toBeInTheDocument();
-    expect(screen.getByText("✅ Completed")).toBeInTheDocument();
-    expect(screen.getByText("🔄 In Progress")).toBeInTheDocument();
-  });
-
-  it("renders completed features list", () => {
-    render(<Home />);
-    expect(screen.getByText(/Monorepo structure with Next.js & NestJS/i)).toBeInTheDocument();
-    expect(screen.getByText(/Complete testing infrastructure/i)).toBeInTheDocument();
-    expect(screen.getByText(/CI\/CD pipeline with GitHub Actions/i)).toBeInTheDocument();
-    expect(screen.getByText(/TypeScript configuration and linting/i)).toBeInTheDocument();
-  });
-
-  it("renders in-progress features list", () => {
-    render(<Home />);
-    expect(screen.getByText(/User authentication system/i)).toBeInTheDocument();
-    expect(screen.getByText(/User profile management/i)).toBeInTheDocument();
-    expect(screen.getByText(/Social graph implementation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Post creation and feed/i)).toBeInTheDocument();
+  it("renders feature sections", async () => {
+    await renderHome();
+    expect(screen.getByText("Curated feed")).toBeInTheDocument();
+    expect(screen.getByText("Instant posting")).toBeInTheDocument();
+    expect(screen.getByText("Profile clarity")).toBeInTheDocument();
   });
 });

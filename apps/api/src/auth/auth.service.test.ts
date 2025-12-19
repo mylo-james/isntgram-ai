@@ -3,15 +3,17 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { User } from '../users/entities/user.entity';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import argon2 from 'argon2';
 import { ConfigModule } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 jest.mock('argon2');
 
 describe('AuthService', () => {
   let service: AuthService;
   let userRepository: Repository<User>;
+  let jwtService: JwtService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,19 +28,22 @@ describe('AuthService', () => {
             findOne: jest.fn(),
           },
         },
+        {
+          provide: JwtService,
+          useValue: {
+            signAsync: jest.fn().mockResolvedValue('jwt-token'),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   afterEach(() => {
     jest.resetAllMocks();
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
   });
 
   describe('register', () => {
@@ -101,6 +106,39 @@ describe('AuthService', () => {
       expect(userRepository.save).toHaveBeenCalled();
       expect(created).toHaveProperty('email', 'ok@example.com');
       expect((created as unknown as User).hashedPassword).toBeUndefined();
+    });
+  });
+
+  describe('login', () => {
+    it('should throw UnauthorizedException for invalid credentials', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce(null);
+      await expect(
+        service.login('bad@example.com', 'Password123!'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('should return access token and user for valid credentials', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'ok@example.com',
+        username: 'ok',
+        fullName: 'Ok',
+        hashedPassword: 'hashed',
+      } as unknown as User;
+
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce(mockUser);
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.login('ok@example.com', 'Password123!');
+
+      expect(result).toHaveProperty('accessToken', 'jwt-token');
+      expect(result.user).toHaveProperty('email', 'ok@example.com');
+      expect((result.user as unknown as User).hashedPassword).toBeUndefined();
+      expect(jwtService.signAsync).toHaveBeenCalledWith({
+        sub: '1',
+        email: 'ok@example.com',
+        username: 'ok',
+      });
     });
   });
 });

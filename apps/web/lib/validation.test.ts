@@ -34,8 +34,14 @@ describe("Validation Utilities", () => {
     });
 
     it("returns valid for strong password", () => {
-      const result = validatePassword("password123");
+      const result = validatePassword("Password123");
       expect(result.isValid).toBe(true);
+    });
+
+    it("returns error for missing complexity requirements", () => {
+      const result = validatePassword("password123");
+      expect(result.isValid).toBe(false);
+      expect(result.message).toContain("lowercase");
     });
   });
 

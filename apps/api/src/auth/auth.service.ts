@@ -1,10 +1,15 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import argon2 from 'argon2';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -12,7 +17,22 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {}
+
+  private sanitizeUser(user: User): Omit<User, 'hashedPassword'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { hashedPassword, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  private async signAccessToken(user: User): Promise<string> {
+    return this.jwtService.signAsync({
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    });
+  }
 
   async register(
     registerDto: RegisterDto,
@@ -52,11 +72,7 @@ export class AuthService {
     });
 
     const savedUser = await this.userRepository.save(user);
-
-    // Return user without hashed password
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _, ...userWithoutPassword } = savedUser;
-    return userWithoutPassword;
+    return this.sanitizeUser(savedUser);
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -71,16 +87,16 @@ export class AuthService {
     return null;
   }
 
-  async findUserById(id: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { id },
-    });
-  }
-
-  async findUserByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { email },
-    });
+  async login(email: string, password: string) {
+    const user = await this.validateUser(email, password);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const accessToken = await this.signAccessToken(user);
+    return {
+      user: this.sanitizeUser(user),
+      accessToken,
+    };
   }
 
   async getOrCreateDemoUser(): Promise<Omit<User, 'hashedPassword'>> {
@@ -114,8 +130,6 @@ export class AuthService {
     });
 
     const saved = await this.userRepository.save(demoUser);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _hp2, ...userWithoutPassword2 } = saved;
-    return userWithoutPassword2;
+    return this.sanitizeUser(saved);
   }
 }

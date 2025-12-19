@@ -123,13 +123,6 @@ function LoginInner() {
     setSuccessMessage("");
     setDemoLoading(true);
     try {
-      // Hit backend to ensure demo user exists and return user; NextAuth will not use this response directly,
-      // but this guarantees the account is present and DB is warmed.
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const res = await fetch(`${apiBase}/api/auth/demo`, { method: "POST" });
-      if (!res.ok) {
-        throw new Error("Demo sign-in failed");
-      }
       // Now sign in via credentials using demo email/password pair
       const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
       const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";

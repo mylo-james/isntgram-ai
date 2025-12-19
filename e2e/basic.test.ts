@@ -5,7 +5,7 @@ test.describe("Basic E2E Tests", () => {
     await page.goto("/");
     
     // Check that the page loads with expected content
-    await expect(page.locator("h1")).toContainText("Isntgram");
+    await expect(page.locator("h1")).toContainText("Build a signal-first social feed.");
     await expect(page.locator("h1")).toBeVisible();
   });
 

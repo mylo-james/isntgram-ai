@@ -1,209 +1,108 @@
 # Isntgram AI
 
-An AI-powered social media platform built with Next.js, NestJS, and PostgreSQL.
+A modern, full-stack social platform built with Next.js (App Router), NestJS, and PostgreSQL — with an optional
+AI-assisted “polish” workflow for posts.
 
-## 🚀 Quick Start
+## Highlights
+
+- **BFF auth model:** API JWT stays server-side (encrypted Auth.js cookie; never exposed to browser JS)
+- **OpenAPI contracts:** shared TypeScript API types generated from the NestJS OpenAPI spec (CI enforced)
+- **Typed clients:** `openapi-fetch` clients in web/server consume the generated contract (no stringly-typed endpoints)
+- **Cursor-based feeds:** stable pagination by `createdAt` + `id`
+- **S3-compatible media uploads:** works with MinIO locally
+- **AI assist (optional):** `POST /api/ai/rewrite` via `AI_PROVIDER=mock|openai`
+- **Tests:** unit + integration + Playwright E2E
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 20+
-- Docker Desktop
-- Git
+- Node.js 20.9+
+- pnpm 9+
+- Docker Desktop (for Postgres + optional MinIO)
 
 ### Setup
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd isntgram-ai
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Start the database**
-
-   ```bash
-   npm run db:start
-   ```
-
-4. **Set up environment variables**
-
-   ```bash
-   # Copy API environment file
-   cp apps/api/env.example apps/api/.env
-
-   # Copy web environment file (if needed)
-   cp apps/web/.env.example apps/web/.env.local
-   ```
-
-5. **Run database migrations**
-
-   ```bash
-   cd apps/api
-   npm run migration:run
-   ```
-
-6. **Start development servers**
-
-   ```bash
-   # Start both frontend and backend
-   npm run dev
-
-   # Or start them separately
-   npm run dev:web  # Frontend on http://localhost:3000
-   npm run dev:api  # Backend on http://localhost:3001
-   ```
-
-## 🗄️ Database Setup
-
-### Local Development
-
-The project uses Docker Compose to run PostgreSQL locally:
-
 ```bash
-# Start database
-npm run db:start
-
-# Stop database
-npm run db:stop
-
-# View database logs
-npm run db:logs
-
-# Reset database (removes all data)
-npm run db:reset
-```
-
-### Database Commands
-
-```bash
-# Run migrations
-cd apps/api && npm run migration:run
-
-# Generate new migration
-cd apps/api && npm run migration:generate -- -n MigrationName
-
-# Revert last migration
-cd apps/api && npm run migration:revert
-```
-
-## 🧪 Testing
-
-### Unit Tests
-
-```bash
-npm test                    # Run all tests
-npm run test:web           # Frontend tests only
-npm run test:api           # Backend tests only
-```
-
-### E2E Tests
-
-```bash
-npm run test:e2e           # Run E2E tests
-npm run test:e2e:headed    # Run with browser visible
-npm run test:e2e:ui        # Run with Playwright UI
-```
-
-### Integration Tests
-
-```bash
-npm run test:api           # Includes integration tests
-```
-
-## 🔧 Development
-
-### Code Quality
-
-```bash
-npm run lint               # Run all linters
-npm run format             # Format all code
-npm run type-check         # TypeScript type checking
-```
-
-### Database Management
-
-```bash
-npm run db:start           # Start PostgreSQL
-npm run db:stop            # Stop PostgreSQL
-npm run db:logs            # View database logs
-npm run db:reset           # Reset database
-```
-
-## 📁 Project Structure
-
-```bash
-isntgram-ai/
-├── apps/
-│   ├── api/              # NestJS backend
-│   └── web/              # Next.js frontend
-├── packages/
-│   └── shared-types/     # Shared TypeScript types
-├── docs/                 # Documentation
-├── e2e/                  # End-to-end tests
-└── scripts/              # Development scripts
-```
-
-## 🚀 Deployment
-
-### Environment Variables
-
-Copy the example environment files and configure them:
-
-```bash
-# Backend
+pnpm install
 cp apps/api/env.example apps/api/.env
-
-# Frontend
-cp apps/web/.env.example apps/web/.env.local
+cp apps/web/env.example apps/web/.env.local
+pnpm run dev:db
+pnpm run dev:all
 ```
 
-### Production Build
+- Web: <http://localhost:3000>
+- API: <http://localhost:3001>
+- API docs (non-prod): <http://localhost:3001/api/docs>
+
+### Demo Mode
+
+Set `DEMO_ENABLED=true` in `apps/api/.env` to allow the demo sign-in flow.
+
+### AI Mode (optional)
+
+- Default: `AI_PROVIDER=mock` (no external keys; deterministic rewrite for local dev/tests)
+- Real LLM: set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in `apps/api/.env`
+
+### Production secrets
+
+Set `AUTH_SECRET` (or `NEXTAUTH_SECRET`) for production runtime. Auth will not work correctly without it.
+
+## Scripts
 
 ```bash
-npm run build
+pnpm run validate
+pnpm run contracts:check
+pnpm run lint:all
+pnpm run type-check
+pnpm run test -- --watchAll=false
+pnpm run test:e2e
 ```
 
-## 🐛 Troubleshooting
+## Database + Migrations
 
-### Database Connection Issues
+Migrations run automatically on API startup in non-test environments. If you want to run them manually:
 
-1. **Docker not running**: Start Docker Desktop
-2. **Port already in use**: Stop other PostgreSQL instances
-3. **Permission denied**: Run `chmod +x scripts/dev-db.sh`
+```bash
+pnpm --filter api migration:run
+```
 
-### Test Failures
+## Media Uploads (S3-compatible)
 
-1. **Integration tests failing**: Ensure database is running
-2. **E2E tests failing**: Check if both frontend and backend are running
-3. **Unit tests failing**: Check for TypeScript errors
+Local dev uses MinIO (via `docker-compose.yml`). Configure these in `apps/api/.env`:
 
-### Common Issues
+- `S3_BUCKET`
+- `S3_REGION`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_ENDPOINT` (for MinIO)
+- `S3_PUBLIC_BASE_URL`
 
-- **"Database connection failed"**: Run `npm run db:start`
-- **"Port 3000/3001 in use"**: Kill existing processes or change ports
-- **"TypeScript errors"**: Run `npm run type-check` to see issues
+## Production (Docker)
 
-## 📚 Documentation
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
 
-- [Architecture Documentation](./docs/architecture/)
-- [Product Requirements](./docs/prd/)
-- [User Stories](./docs/stories/)
+Services:
 
-## 🤝 Contributing
+- `web` (Next.js)
+- `api` (NestJS)
+- `postgres`
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests: `npm test`
-4. Run linting: `npm run lint`
-5. Commit with proper message
-6. Create a pull request
+## Project Structure
 
-## 📄 License
+```text
+apps/
+  api/        NestJS API
+  web/        Next.js App Router
+packages/
+  shared-types/
+```
 
-This project is licensed under the MIT License.
+## Documentation
+
+- `ENVIRONMENT.md` — full env var reference
+- `docs/deployment.md` — deployment notes
+- `docs/adr/` — architecture decisions
+- `docs/system-design/` — system design docs

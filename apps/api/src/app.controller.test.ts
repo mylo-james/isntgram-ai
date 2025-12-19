@@ -16,13 +16,21 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+      expect(appController.getHello()).toBe('Isntgram API');
     });
   });
 
   describe('health', () => {
     it('should return ok status', () => {
       expect(appController.health()).toEqual({ status: 'ok' });
+    });
+  });
+
+  describe('ready', () => {
+    it('should return readiness status', async () => {
+      const result = await appController.readiness();
+      expect(result).toHaveProperty('status');
+      expect(result).toHaveProperty('database');
     });
   });
 });

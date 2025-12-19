@@ -52,7 +52,7 @@ describe("UserProfilePage", () => {
   it("renders profile page with valid username", async () => {
     const params = { username: "testuser" };
 
-    render(await UserProfilePage({ params }));
+    render(await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) }));
 
     await waitFor(() => {
       expect(screen.getByTestId("profile-page")).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("UserProfilePage", () => {
   it("calls notFound for empty username", async () => {
     const params = { username: "" };
 
-    await UserProfilePage({ params });
+    await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) });
 
     expect(mockNotFound).toHaveBeenCalled();
   });
@@ -71,7 +71,7 @@ describe("UserProfilePage", () => {
   it("calls notFound for whitespace-only username", async () => {
     const params = { username: "   " };
 
-    await UserProfilePage({ params });
+    await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) });
 
     expect(mockNotFound).toHaveBeenCalled();
   });
@@ -79,7 +79,7 @@ describe("UserProfilePage", () => {
   it("calls notFound for undefined username", async () => {
     const params = { username: undefined as never };
 
-    await UserProfilePage({ params });
+    await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) });
 
     expect(mockNotFound).toHaveBeenCalled();
   });
@@ -93,7 +93,7 @@ describe("UserProfilePage", () => {
 
     const params = { username: "testuser" };
 
-    render(await UserProfilePage({ params }));
+    render(await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) }));
 
     await waitFor(() => {
       expect(screen.getByTestId("current-user")).toHaveTextContent("currentuser");
@@ -106,7 +106,7 @@ describe("UserProfilePage", () => {
 
     const params = { username: "testuser" };
 
-    render(await UserProfilePage({ params }));
+    render(await UserProfilePage({ params: Promise.resolve(params), searchParams: Promise.resolve({}) }));
 
     await waitFor(() => {
       expect(screen.getByTestId("current-user")).toHaveTextContent("no-user");
@@ -119,7 +119,7 @@ describe("UserProfilePage", () => {
     // Import the generateMetadata function directly
     const { generateMetadata } = await import("./page");
 
-    const metadata = await generateMetadata({ params });
+    const metadata = await generateMetadata({ params: Promise.resolve(params), searchParams: Promise.resolve({}) });
 
     expect(metadata).toEqual({
       title: "testuser - Profile | Isntgram",

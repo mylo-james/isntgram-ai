@@ -19,6 +19,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    const isProduction = process.env.NODE_ENV === 'production';
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
     let error = 'InternalServerError';
@@ -36,14 +37,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         error = exception.name;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      error = exception.name;
+      if (!isProduction) {
+        message = exception.message;
+        error = exception.name;
+      }
     }
 
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
+      requestId: request.requestId,
       message,
       error,
     };

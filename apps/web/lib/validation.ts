@@ -28,6 +28,14 @@ export const validatePassword = (password: string): ValidationResult => {
     };
   }
 
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+  if (!passwordRegex.test(password)) {
+    return {
+      isValid: false,
+      message: "Password must contain at least one lowercase letter, one uppercase letter, and one number",
+    };
+  }
+
   return { isValid: true };
 };
 

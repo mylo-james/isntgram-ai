@@ -1,7 +1,5 @@
-import React, { ReactElement } from "react";
+import type { ReactElement } from "react";
 import { render, RenderOptions } from "@testing-library/react";
-import { Provider } from "react-redux";
-import { store } from "./store";
 
 // Define proper types for our mock data
 export interface MockUser {
@@ -23,24 +21,9 @@ export interface MockPost {
   comments?: number;
 }
 
-// Custom render function that includes providers
-const customRender = (
-  ui: ReactElement,
-  {
-    store: customStore = store,
-    ...renderOptions
-  }: {
-    store?: typeof store;
-  } & Omit<RenderOptions, "wrapper"> = {},
-) => {
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    return <Provider store={customStore}>{children}</Provider>;
-  };
-
-  return {
-    store: customStore,
-    ...render(ui, { wrapper: Wrapper, ...renderOptions }),
-  };
+// Custom render function (no additional providers yet)
+const customRender = (ui: ReactElement, renderOptions?: Omit<RenderOptions, "wrapper">) => {
+  return render(ui, { ...renderOptions });
 };
 
 // Mock data factories with proper typing

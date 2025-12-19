@@ -6,20 +6,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-
-export interface UserProfileDto {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -40,14 +28,6 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new NotFoundException(`User with email "${email}" not found`);
-    }
-    return user;
-  }
-
   async isUsernameTaken(
     username: string,
     excludeUserId?: string,
@@ -58,25 +38,36 @@ export class UsersService {
     return true;
   }
 
-  async toUserProfileDto(user: User): Promise<UserProfileDto> {
+  toPublicProfileDto(user: User): PublicUserProfileDto {
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      email: user.email,
       profilePictureUrl: user.profilePictureUrl,
       bio: user.bio,
       postCount: user.postsCount,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
   }
 
-  async getUserProfile(username: string): Promise<UserProfileDto> {
+  toPrivateProfileDto(user: User): PrivateUserProfileDto {
+    return {
+      ...this.toPublicProfileDto(user),
+      email: user.email,
+    };
+  }
+
+  async getPublicProfile(username: string): Promise<PublicUserProfileDto> {
     const user = await this.findByUsername(username);
-    return this.toUserProfileDto(user);
+    return this.toPublicProfileDto(user);
+  }
+
+  async getPrivateProfileById(id: string): Promise<PrivateUserProfileDto> {
+    const user = await this.findById(id);
+    return this.toPrivateProfileDto(user);
   }
 
   async findById(id: string): Promise<User> {
@@ -94,7 +85,7 @@ export class UsersService {
   async updateProfile(
     id: string,
     updates: { fullName: string; username: string },
-  ): Promise<UserProfileDto> {
+  ): Promise<PrivateUserProfileDto> {
     const user = await this.findById(id);
 
     // Username uniqueness check (exclude current user)
@@ -107,6 +98,6 @@ export class UsersService {
     user.username = updates.username;
 
     const saved = await this.userRepository.save(user);
-    return this.toUserProfileDto(saved);
+    return this.toPrivateProfileDto(saved);
   }
 }

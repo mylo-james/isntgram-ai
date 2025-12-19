@@ -1,32 +1,41 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpStatus } from '@nestjs/common';
+import { Request } from 'express';
 import { UsersController } from './users.controller';
-import { UsersService, UserProfileDto } from './users.service';
+import { UsersService } from './users.service';
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
+import { AuthUser } from '../auth/jwt.types';
 
 describe('UsersController', () => {
   let controller: UsersController;
   let usersService: UsersService;
 
-  const mockUserProfile: UserProfileDto = {
+  const mockPublicProfile: PublicUserProfileDto = {
     id: '1',
     username: 'testuser',
     fullName: 'Test User',
-    email: 'test@example.com',
     profilePictureUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
     postCount: 10,
     followerCount: 100,
     followingCount: 50,
-    createdAt: new Date('2023-01-01'),
-    updatedAt: new Date('2023-01-01'),
+    createdAt: new Date('2023-01-01').toISOString(),
+    updatedAt: new Date('2023-01-01').toISOString(),
+  };
+
+  const mockPrivateProfile: PrivateUserProfileDto = {
+    ...mockPublicProfile,
+    email: 'test@example.com',
+    createdAt: new Date('2023-01-01').toISOString(),
+    updatedAt: new Date('2023-01-01').toISOString(),
   };
 
   const mockUsersService = {
-    getUserProfile: jest.fn(),
+    getPublicProfile: jest.fn(),
+    getPrivateProfileById: jest.fn(),
     isUsernameTaken: jest.fn(),
     updateProfile: jest.fn(),
     findById: jest.fn(),
-    findByEmail: jest.fn(),
   } as unknown as jest.Mocked<UsersService>;
 
   beforeEach(async () => {
@@ -50,14 +59,14 @@ describe('UsersController', () => {
 
   describe('getUserProfile', () => {
     it('should return user profile when user exists', async () => {
-      (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(
-        mockUserProfile,
+      (mockUsersService.getPublicProfile as jest.Mock).mockResolvedValue(
+        mockPublicProfile,
       );
 
       const result = await controller.getUserProfile('testuser');
 
-      expect(result).toEqual(mockUserProfile);
-      expect(usersService.getUserProfile).toHaveBeenCalledWith('testuser');
+      expect(result).toEqual(mockPublicProfile);
+      expect(usersService.getPublicProfile).toHaveBeenCalledWith('testuser');
     });
 
     it('should handle various username formats', async () => {
@@ -70,22 +79,15 @@ describe('UsersController', () => {
       ];
 
       for (const username of usernames) {
-        (mockUsersService.getUserProfile as jest.Mock).mockResolvedValue(
-          mockUserProfile,
+        (mockUsersService.getPublicProfile as jest.Mock).mockResolvedValue(
+          mockPublicProfile,
         );
 
         const result = await controller.getUserProfile(username);
 
-        expect(result).toEqual(mockUserProfile);
-        expect(usersService.getUserProfile).toHaveBeenCalledWith(username);
+        expect(result).toEqual(mockPublicProfile);
+        expect(usersService.getPublicProfile).toHaveBeenCalledWith(username);
       }
-    });
-
-    it('should return correct HTTP status code', async () => {
-      const method = controller.getUserProfile;
-      const metadata = Reflect.getMetadata('__httpCode__', method);
-      expect(typeof method).toBe('function');
-      expect(metadata).toBe(HttpStatus.OK);
     });
   });
 
@@ -107,21 +109,40 @@ describe('UsersController', () => {
 
   describe('updateProfile', () => {
     it('should update user profile and return dto', async () => {
-      const updated: UserProfileDto = {
-        ...mockUserProfile,
+      const updated: PrivateUserProfileDto = {
+        ...mockPrivateProfile,
         username: 'newname',
         fullName: 'New Name',
       };
       (mockUsersService.updateProfile as jest.Mock).mockResolvedValue(updated);
-      const body = { id: '1', fullName: 'New Name', username: 'newname' };
+      const body = { fullName: 'New Name', username: 'newname' };
+      const req = { user: { userId: '1' } } as unknown as Request & {
+        user: AuthUser;
+      };
 
-      const result = await controller.updateProfile(body as never);
+      const result = await controller.updateProfile(req, body as never);
 
       expect(result).toEqual(updated);
       expect(usersService.updateProfile).toHaveBeenCalledWith('1', {
         fullName: 'New Name',
         username: 'newname',
       });
+    });
+  });
+
+  describe('getCurrentUser', () => {
+    it('should return private profile for authenticated user', async () => {
+      (mockUsersService.getPrivateProfileById as jest.Mock).mockResolvedValue(
+        mockPrivateProfile,
+      );
+      const req = { user: { userId: '1' } } as unknown as Request & {
+        user: AuthUser;
+      };
+
+      const result = await controller.getCurrentUser(req);
+
+      expect(result).toEqual(mockPrivateProfile);
+      expect(usersService.getPrivateProfileById).toHaveBeenCalledWith('1');
     });
   });
 });

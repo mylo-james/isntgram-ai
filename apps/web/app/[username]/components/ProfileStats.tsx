@@ -1,24 +1,12 @@
-interface UserProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { PublicUserProfile } from "@/lib/api-client";
 
 interface ProfileStatsProps {
-  profile: UserProfile;
+  profile: PublicUserProfile;
 }
 
 export default function ProfileStats({ profile }: ProfileStatsProps) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div className="mt-6 border-t border-slate-200 pt-6">
       <div className="flex justify-around">
         {/* Posts Count */}
         <div className="text-center">

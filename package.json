@@ -17,6 +17,7 @@
     "lint:api": "pnpm --filter api lint",
     "lint:shared-types": "pnpm --filter @isntgram-ai/shared-types lint",
     "type-check": "pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p packages/shared-types/tsconfig.json --noEmit",
+    "validate": "pnpm run lint:all && pnpm run type-check && pnpm test -- --watchAll=false && pnpm run build:all",
     "test": "jest",
     "test:integration": "jest --selectProjects api --testPathPatterns integration",
     "test:e2e": "pnpm run build:all && playwright test",
@@ -26,27 +27,24 @@
     "build:api": "pnpm --filter api build",
     "build:shared-types": "pnpm --filter @isntgram-ai/shared-types build",
     "coverage:report": "node scripts/coverage-report.cjs",
-    "test:ci:workflow": "jest test/ci-workflow.test.ts --watchAll=false",
-    "test:ci:pro": "bash scripts/ci-test-pro.sh",
-    "setup:ci-tools": "bash scripts/ci-setup-tools.sh",
+    "contracts:generate": "pnpm --filter api openapi:generate && pnpm exec openapi-typescript apps/api/openapi.json --default-non-nullable=false -o packages/shared-types/src/openapi.ts",
+    "contracts:check": "git ls-files --error-unmatch apps/api/openapi.json packages/shared-types/src/openapi.ts >/dev/null && pnpm run contracts:generate && git diff --exit-code -- apps/api/openapi.json packages/shared-types/src/openapi.ts",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:db": "bash scripts/dev-db.sh",
-    "dev:all": "pnpm run dev:db && concurrently -n web,api -c green,cyan \"NEXT_PUBLIC_API_URL=http://localhost:3001 pnpm --filter web dev\" \"pnpm --filter api start:dev\"",
-    "prepare": "husky install"
+    "dev:all": "pnpm run dev:db && pnpm --filter @isntgram-ai/shared-types build && concurrently -n web,api -c green,cyan \"NEXT_PUBLIC_API_URL=http://localhost:3001 INTERNAL_API_URL=http://localhost:3001 pnpm --filter web dev\" \"pnpm --filter api start:dev\"",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
     "@babel/plugin-proposal-decorators": "^7.28.0",
+    "@babel/plugin-transform-class-properties": "^7.27.1",
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-typescript": "^7.27.1",
-    "@eslint/js": "^9.32.0",
     "@nestjs/cli": "^10.0.0",
     "@playwright/test": "^1.54.2",
     "@swc/core": "^1.7.42",
     "@swc/jest": "^0.2.39",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/supertest": "^6.0.3",
     "babel-jest": "^30.0.5",
@@ -58,10 +56,10 @@
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
     "jest-junit": "^16.0.0",
-    "js-yaml": "^4.1.0",
     "lint-staged": "^16.1.5",
     "markdownlint-cli": "^0.37.0",
-    "next": "^14.0.0",
+    "next": "14.2.35",
+    "openapi-typescript": "^7.10.1",
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
     "typescript": "^5.0.0",
@@ -70,7 +68,7 @@
   "lint-staged": {
     "apps/api/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
-      "bash -c 'cd apps/api && pnpm exec eslint --fix'",
+      "bash -c 'cd apps/api && pnpm exec eslint \"src/**/*.ts\" \"test/**/*.ts\" \"ormconfig.ts\" --fix'",
       "bash -c 'cd apps/api && pnpm exec tsc -p . --noEmit'",
       "jest --selectProjects api --testPathIgnorePatterns=integration"
     ],
@@ -95,7 +93,7 @@
     ]
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.9.0",
     "pnpm": ">=9.0.0"
   },
   "overrides": {
@@ -109,6 +107,6 @@
   },
   "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files.",
   "dependencies": {
-    "next-auth": "^5.0.0-beta.29"
+    "next-auth": "^5.0.0-beta.30"
   }
 }

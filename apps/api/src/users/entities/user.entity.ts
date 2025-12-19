@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
+import { Post } from '../../posts/entities/post.entity';
+import { Follow } from '../../follows/entities/follow.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -46,4 +49,13 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @OneToMany(() => Post, (post) => post.author)
+  posts?: Post[];
+
+  @OneToMany(() => Follow, (follow) => follow.follower)
+  following?: Follow[];
+
+  @OneToMany(() => Follow, (follow) => follow.following)
+  followers?: Follow[];
 }
