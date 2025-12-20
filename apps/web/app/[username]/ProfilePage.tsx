@@ -2,78 +2,61 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type Session } from "next-auth";
+import type { Session } from "next-auth";
 
-type AppSession = Session & {
-  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
-};
-import { apiClient, PublicUserProfile, PostItem } from "@/lib/api-client";
+import { apiClient, type PublicUserProfile, type PostItem } from "@/lib/api-client";
+import Button from "@/components/ui/Button";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
+import PostCard from "@/components/posts/PostCard";
 import ProfileHeader from "./components/ProfileHeader";
 import ProfileActions from "./components/ProfileActions";
 import ProfileStats from "./components/ProfileStats";
-import ProfilePageSkeleton from "./ProfilePageSkeleton";
-import ErrorBoundary from "@/components/common/ErrorBoundary";
-import PostCard from "@/components/posts/PostCard";
 
 interface ProfilePageProps {
   username: string;
-  currentUser?: AppSession["user"] | null;
+  currentUser?: Session["user"] | null;
+  initialProfile: PublicUserProfile;
+  initialPosts: PostItem[];
+  initialCursor?: string;
+  initialIsFollowing?: boolean | null;
 }
 
-export default function ProfilePage({ username, currentUser }: ProfilePageProps) {
-  const [profile, setProfile] = useState<PublicUserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [posts, setPosts] = useState<PostItem[]>([]);
-  const [postsCursor, setPostsCursor] = useState<string | undefined>();
-  const [postsLoading, setPostsLoading] = useState(true);
+export default function ProfilePage({
+  username,
+  currentUser,
+  initialProfile,
+  initialPosts,
+  initialCursor,
+  initialIsFollowing,
+}: ProfilePageProps) {
+  const [profile, setProfile] = useState<PublicUserProfile>(initialProfile);
+  const [posts, setPosts] = useState<PostItem[]>(initialPosts);
+  const [postsCursor, setPostsCursor] = useState<string | undefined>(initialCursor);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
-  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(initialIsFollowing ?? null);
   const router = useRouter();
 
-  const isOwnProfile = currentUser?.username === username;
+  const isOwnProfile = currentUser?.id ? currentUser.id === profile.id : currentUser?.username === username;
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const profileData = await apiClient.getUserProfile(username);
-        setProfile(profileData);
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError(err instanceof Error ? err.message : "Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [username]);
+    setProfile(initialProfile);
+  }, [initialProfile]);
 
   useEffect(() => {
-    const fetchPosts = async () => {
-      setPostsLoading(true);
-      setPostsError(null);
-      try {
-        const response = await apiClient.getUserPosts(username);
-        setPosts(response.items);
-        setPostsCursor(response.nextCursor);
-      } catch (err) {
-        setPostsError(err instanceof Error ? err.message : "Failed to load posts");
-      } finally {
-        setPostsLoading(false);
-      }
-    };
+    setPosts(initialPosts);
+    setPostsCursor(initialCursor);
+    setPostsLoading(false);
+    setPostsError(null);
+  }, [initialPosts, initialCursor]);
 
-    fetchPosts();
-  }, [username]);
+  useEffect(() => {
+    setIsFollowing(initialIsFollowing ?? null);
+  }, [initialIsFollowing, username]);
 
   useEffect(() => {
     const fetchFollowStatus = async () => {
-      if (!currentUser || isOwnProfile) {
-        setIsFollowing(null);
+      if (!currentUser || isOwnProfile || initialIsFollowing !== null) {
         return;
       }
 
@@ -86,28 +69,25 @@ export default function ProfilePage({ username, currentUser }: ProfilePageProps)
     };
 
     fetchFollowStatus();
-  }, [currentUser, isOwnProfile, username]);
+  }, [currentUser, isOwnProfile, username, initialIsFollowing]);
 
   const handleProfileUpdated = (updated: { fullName: string; username: string }) => {
-    setProfile((prev) => (prev ? { ...prev, fullName: updated.fullName, username: updated.username } : prev));
+    setProfile((prev) => ({ ...prev, fullName: updated.fullName, username: updated.username }));
   };
 
   const handleFollowChange = (next: boolean) => {
     setIsFollowing(next);
-    setProfile((prev) =>
-      prev
-        ? {
-            ...prev,
-            followerCount: Math.max(0, prev.followerCount + (next ? 1 : -1)),
-          }
-        : prev,
-    );
+    setProfile((prev) => ({
+      ...prev,
+      followerCount: Math.max(0, prev.followerCount + (next ? 1 : -1)),
+    }));
   };
 
   const loadMorePosts = async () => {
     if (!postsCursor) return;
     try {
       setPostsLoading(true);
+      setPostsError(null);
       const response = await apiClient.getUserPosts(username, { cursor: postsCursor });
       setPosts((prev) => [...prev, ...response.items]);
       setPostsCursor(response.nextCursor);
@@ -118,39 +98,15 @@ export default function ProfilePage({ username, currentUser }: ProfilePageProps)
     }
   };
 
-  if (loading) {
-    return <ProfilePageSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">User Not Found</h1>
-          <p className="text-gray-600 mb-6">The user &quot;{username}&quot; could not be found.</p>
-          <button
-            onClick={() => router.push("/")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Go Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">User Not Found</h1>
           <p className="text-gray-600 mb-6">The user &quot;{username}&quot; could not be found.</p>
-          <button
-            onClick={() => router.push("/")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
+          <Button onClick={() => router.push("/")} type="button">
             Go Home
-          </button>
+          </Button>
         </div>
       </div>
     );

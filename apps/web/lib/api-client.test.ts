@@ -24,6 +24,11 @@ describe("apiClient", () => {
     });
   }
 
+  async function readRequestJson(request: Request): Promise<unknown> {
+    // openapi-fetch uses the Fetch API Request; read the body to verify payload shaping.
+    return request.json();
+  }
+
   it("registers a user", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       toResponse(
@@ -102,6 +107,109 @@ describe("apiClient", () => {
 
     const result = await apiClient.getMyProfile();
     expect(result.email).toBe("me@example.com");
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/me");
+  });
+
+  it("checks username availability", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ available: true }, { status: 200 }));
+
+    const result = await apiClient.checkUsernameAvailability("availableuser");
+    expect(result.available).toBe(true);
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/check-username/availableuser");
+  });
+
+  it("updates a profile", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    const result = await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+    expect(result.username).toBe("newuser");
+
+    const req = getLastRequest();
+    expect(req.method).toBe("PUT");
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/profile");
+    await expect(readRequestJson(req)).resolves.toEqual({ fullName: "New Name", username: "newuser" });
+  });
+
+  it("adds CSRF header for state-changing requests when cookie is present", async () => {
+    document.cookie = "isntgram-csrf=token%3A123";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+
+    const req = getLastRequest();
+    expect(req.headers.get("x-csrf-token")).toBe("token:123");
+  });
+
+  it("omits CSRF header when cookie is missing", async () => {
+    document.cookie = "isntgram-csrf=";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+
+    const req = getLastRequest();
+    expect(req.headers.has("x-csrf-token")).toBe(false);
+  });
+
+  it("does not add CSRF header for GET requests", async () => {
+    document.cookie = "isntgram-csrf=token%3A123";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse({ items: [], nextCursor: undefined }, { status: 200 }),
+    );
+
+    await apiClient.getFeed();
+
+    const req = getLastRequest();
+    expect(req.method).toBe("GET");
+    expect(req.headers.has("x-csrf-token")).toBe(false);
   });
 
   it("creates a post", async () => {
@@ -152,6 +260,90 @@ describe("apiClient", () => {
     expect(url.pathname).toBe("/api/bff/posts/feed");
     expect(url.searchParams.get("cursor")).toBe("cursor");
     expect(url.searchParams.get("limit")).toBe("10");
+  });
+
+  it("omits feed query parameters when not provided", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse({ items: [], nextCursor: undefined }, { status: 200 }),
+    );
+
+    await apiClient.getFeed();
+
+    const req = getLastRequest();
+    const url = new URL(req.url, "http://localhost");
+    expect(url.pathname).toBe("/api/bff/posts/feed");
+    expect(url.searchParams.has("cursor")).toBe(false);
+    expect(url.searchParams.has("limit")).toBe(false);
+  });
+
+  it("fetches a user's posts with query parameters", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ items: [], nextCursor: "next" }, { status: 200 }));
+
+    await apiClient.getUserPosts("testuser", { cursor: "c1", limit: 25 });
+
+    const req = getLastRequest();
+    const url = new URL(req.url, "http://localhost");
+    expect(url.pathname).toBe("/api/bff/posts/user/testuser");
+    expect(url.searchParams.get("cursor")).toBe("c1");
+    expect(url.searchParams.get("limit")).toBe("25");
+  });
+
+  it("gets follow status", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ isFollowing: true }, { status: 200 }));
+
+    const status = await apiClient.getFollowStatus("ava");
+    expect(status.isFollowing).toBe(true);
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/follows/ava/status");
+  });
+
+  it("follows and unfollows a user", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(toResponse({ isFollowing: true }, { status: 200 }))
+      .mockResolvedValueOnce(toResponse({ isFollowing: false }, { status: 200 }));
+
+    await apiClient.followUser("ava");
+
+    const followReq = getLastRequest();
+    expect(followReq.method).toBe("POST");
+    expect(new URL(followReq.url, "http://localhost").pathname).toBe("/api/bff/follows/ava");
+
+    await apiClient.unfollowUser("ava");
+
+    const unfollowReq = getLastRequest();
+    expect(unfollowReq.method).toBe("DELETE");
+    expect(new URL(unfollowReq.url, "http://localhost").pathname).toBe("/api/bff/follows/ava");
+  });
+
+  it("creates an upload url", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          uploadUrl: "https://example.com/upload",
+          publicUrl: "https://cdn.example.com/file",
+          key: "uploads/file",
+          expiresIn: 60,
+        },
+        { status: 201 },
+      ),
+    );
+
+    const result = await apiClient.createUploadUrl({
+      fileName: "hello.png",
+      contentType: "image/png",
+      contentLength: 123,
+    });
+    expect(result.publicUrl).toBe("https://cdn.example.com/file");
+
+    const req = getLastRequest();
+    expect(req.method).toBe("POST");
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/media/presign");
+    await expect(readRequestJson(req)).resolves.toEqual({
+      fileName: "hello.png",
+      contentType: "image/png",
+      contentLength: 123,
+    });
   });
 
   it("throws on API errors", async () => {

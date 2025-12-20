@@ -2,7 +2,7 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -15,8 +15,10 @@ import { MetricsModule } from './metrics/metrics.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { join } from 'path';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
-import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
-import { MetricsMiddleware } from './metrics/metrics.middleware';
+import { MetricsInterceptor } from './metrics/metrics.interceptor';
+import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
+import { validateEnv } from './config/env.validation';
+import { getPostgresSslOptions } from './config/postgres-ssl';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -46,10 +48,7 @@ function getDatabaseModules() {
         synchronize: false,
         migrationsRun: true,
         logging: process.env.NODE_ENV === 'development',
-        ssl:
-          process.env.NODE_ENV === 'production'
-            ? { rejectUnauthorized: false }
-            : false,
+        ssl: getPostgresSslOptions(process.env),
         ...baseConfig,
       };
 
@@ -92,6 +91,7 @@ function getThrottlerOptions() {
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
+      validate: validateEnv,
     }),
     ThrottlerModule.forRoot(getThrottlerOptions()),
     MetricsModule,
@@ -106,14 +106,18 @@ function getThrottlerOptions() {
       useClass: GlobalExceptionFilter,
     },
     RequestIdMiddleware,
-    RequestLoggingMiddleware,
-    MetricsMiddleware,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestIdMiddleware, MetricsMiddleware, RequestLoggingMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
   }
 }

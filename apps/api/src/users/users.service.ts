@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { PublicUserProfileDto } from './dto/public-user-profile.dto';
 import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
+import { isUniqueConstraintError } from '../common/db-errors';
 
 @Injectable()
 export class UsersService {
@@ -16,9 +17,17 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private normalizeUsername(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private normalizeFullName(value: string): string {
+    return value.trim();
+  }
+
   async findByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { username },
+      where: { username: this.normalizeUsername(username) },
     });
 
     if (!user) {
@@ -32,7 +41,9 @@ export class UsersService {
     username: string,
     excludeUserId?: string,
   ): Promise<boolean> {
-    const existing = await this.userRepository.findOne({ where: { username } });
+    const existing = await this.userRepository.findOne({
+      where: { username: this.normalizeUsername(username) },
+    });
     if (!existing) return false;
     if (excludeUserId && existing.id === excludeUserId) return false;
     return true;
@@ -61,7 +72,7 @@ export class UsersService {
   }
 
   async getPublicProfile(username: string): Promise<PublicUserProfileDto> {
-    const user = await this.findByUsername(username);
+    const user = await this.findByUsername(this.normalizeUsername(username));
     return this.toPublicProfileDto(user);
   }
 
@@ -88,16 +99,26 @@ export class UsersService {
   ): Promise<PrivateUserProfileDto> {
     const user = await this.findById(id);
 
+    const nextUsername = this.normalizeUsername(updates.username);
+    const nextFullName = this.normalizeFullName(updates.fullName);
+
     // Username uniqueness check (exclude current user)
-    const usernameTaken = await this.isUsernameTaken(updates.username, id);
+    const usernameTaken = await this.isUsernameTaken(nextUsername, id);
     if (usernameTaken) {
       throw new ConflictException('Username already taken');
     }
 
-    user.fullName = updates.fullName;
-    user.username = updates.username;
+    user.fullName = nextFullName;
+    user.username = nextUsername;
 
-    const saved = await this.userRepository.save(user);
-    return this.toPrivateProfileDto(saved);
+    try {
+      const saved = await this.userRepository.save(user);
+      return this.toPrivateProfileDto(saved);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('Username already taken');
+      }
+      throw error;
+    }
   }
 }

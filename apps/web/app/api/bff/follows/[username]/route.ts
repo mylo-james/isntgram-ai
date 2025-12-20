@@ -1,42 +1,49 @@
 import { NextResponse } from "next/server";
-import { getApiAccessToken, internalApi } from "@/lib/server-api";
+import { internalApi } from "@/lib/server-api";
+import { attachRequestId, getRequestId, requireApiAuth, requireCsrf } from "@/lib/bff";
 
 interface Params {
   params: Promise<{ username: string }>;
 }
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
+  const requestId = getRequestId(request);
+  const csrfError = await requireCsrf(request);
+  if (csrfError) return attachRequestId(csrfError, requestId);
+
   const { username } = await params;
-  const accessToken = await getApiAccessToken();
-  if (!accessToken) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const normalizedUsername = username.trim().toLowerCase();
+  const accessToken = await requireApiAuth();
+  if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
   const { data, error, response } = await internalApi.POST("/api/follows/{username}", {
     params: {
-      path: { username },
+      path: { username: normalizedUsername },
     },
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  return NextResponse.json(data ?? error ?? {}, { status: response.status });
+  return attachRequestId(NextResponse.json(data ?? error ?? {}, { status: response.status }), requestId);
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
+  const requestId = getRequestId(request);
+  const csrfError = await requireCsrf(request);
+  if (csrfError) return attachRequestId(csrfError, requestId);
+
   const { username } = await params;
-  const accessToken = await getApiAccessToken();
-  if (!accessToken) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const normalizedUsername = username.trim().toLowerCase();
+  const accessToken = await requireApiAuth();
+  if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
   const { data, error, response } = await internalApi.DELETE("/api/follows/{username}", {
     params: {
-      path: { username },
+      path: { username: normalizedUsername },
     },
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  return NextResponse.json(data ?? error ?? {}, { status: response.status });
+  return attachRequestId(NextResponse.json(data ?? error ?? {}, { status: response.status }), requestId);
 }

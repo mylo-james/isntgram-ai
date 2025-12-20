@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { getApiAccessToken, internalApi } from "@/lib/server-api";
+import { internalApi } from "@/lib/server-api";
+import { attachRequestId, getRequestId, requireApiAuth, requireCsrf } from "@/lib/bff";
 
 export async function POST(request: Request) {
-  const accessToken = await getApiAccessToken();
-  if (!accessToken) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const requestId = getRequestId(request);
+  const csrfError = await requireCsrf(request);
+  if (csrfError) return attachRequestId(csrfError, requestId);
+
+  const accessToken = await requireApiAuth();
+  if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
   const body = await request.json();
   const { data, error, response } = await internalApi.POST("/api/media/presign", {
     body,
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  return NextResponse.json(data ?? error ?? {}, { status: response.status });
+  return attachRequestId(NextResponse.json(data ?? error ?? {}, { status: response.status }), requestId);
 }

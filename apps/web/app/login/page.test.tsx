@@ -6,21 +6,26 @@ jest.mock("next-auth/react", () => ({
 
 // Mock Next.js navigation
 const mockPush = jest.fn();
+const mockSearchParams = jest.fn(() => new URLSearchParams());
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams(),
 }));
 
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import LoginPage from "./page";
 
 // Mock fetch
 const originalFetch = global.fetch;
 
 describe("LoginPage", () => {
+  const originalDemoEnabled = process.env.NEXT_PUBLIC_DEMO_ENABLED;
+
   beforeEach(() => {
     jest.clearAllMocks();
     (global as unknown as { fetch: typeof fetch }).fetch = jest.fn();
+    mockSearchParams.mockReturnValue(new URLSearchParams());
+    process.env.NEXT_PUBLIC_DEMO_ENABLED = "true";
     // Mock unauthenticated session
     const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
     useSession.mockReturnValue({
@@ -31,6 +36,11 @@ describe("LoginPage", () => {
 
   afterAll(() => {
     (global as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+    if (originalDemoEnabled === undefined) {
+      delete process.env.NEXT_PUBLIC_DEMO_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_DEMO_ENABLED = originalDemoEnabled;
+    }
   });
 
   it("renders login form with required fields", () => {
@@ -79,6 +89,19 @@ describe("LoginPage", () => {
     });
   });
 
+  it("shows a generic error if demo sign-in throws", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockRejectedValueOnce(new Error("boom"));
+
+    render(<LoginPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/demo sign-in failed/i)).toBeInTheDocument();
+    });
+  });
+
   it("shows validation errors for empty fields on submit", async () => {
     render(<LoginPage />);
     const emailInput = screen.getByLabelText(/email/i);
@@ -102,6 +125,46 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
     });
+  });
+
+  it("does not show an error on blur when the email is valid", async () => {
+    render(<LoginPage />);
+    const emailInput = screen.getByLabelText(/email/i);
+
+    fireEvent.change(emailInput, { target: { value: "valid@example.com" } });
+    fireEvent.blur(emailInput);
+
+    await waitFor(() => expect(screen.queryByText(/please enter a valid email address/i)).not.toBeInTheDocument());
+  });
+
+  it("clears field errors when the user edits the field", async () => {
+    render(<LoginPage />);
+    const emailInput = screen.getByLabelText(/email/i);
+
+    fireEvent.change(emailInput, { target: { value: "bad-email" } });
+    fireEvent.blur(emailInput);
+
+    await waitFor(() => {
+      expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(emailInput, { target: { value: "valid@example.com" } });
+    await waitFor(() => expect(screen.queryByText(/please enter a valid email address/i)).not.toBeInTheDocument());
+  });
+
+  it("validates password format on blur and clears on change", async () => {
+    render(<LoginPage />);
+    const passwordInput = screen.getByLabelText(/password/i);
+
+    fireEvent.change(passwordInput, { target: { value: "weak" } });
+    fireEvent.blur(passwordInput);
+
+    await waitFor(() => {
+      expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(passwordInput, { target: { value: "Password123" } });
+    await waitFor(() => expect(screen.queryByText(/password must be at least 8 characters/i)).not.toBeInTheDocument());
   });
 
   it("submits valid form and calls Auth.js signIn", async () => {
@@ -128,20 +191,63 @@ describe("LoginPage", () => {
     });
   });
 
+  it("redirects after successful login", async () => {
+    jest.useFakeTimers();
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/login successful/i)).toBeInTheDocument());
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/");
+    jest.useRealTimers();
+  });
+
+  it("shows a friendly error when signIn throws", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockRejectedValueOnce(new Error("Network down"));
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/network down/i)).toBeInTheDocument());
+  });
+
+  it("shows a generic error when signIn throws a non-Error", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockRejectedValueOnce("boom");
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/login failed/i)).toBeInTheDocument());
+  });
+
   it("renders success message from search params", async () => {
-    // Override only for this test to provide a message param
-    jest.doMock("next/navigation", () => ({
-      useRouter: () => ({ push: mockPush }),
-      useSearchParams: () => new URLSearchParams("message=Welcome%20back%21"),
-    }));
+    mockSearchParams.mockReturnValue(new URLSearchParams("message=Welcome%20back%21"));
 
-    // Re-require after mocking
-    const { default: LoginPageWithMessage } = await import("./page");
-
-    render(<LoginPageWithMessage />);
+    render(<LoginPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
+      expect(screen.getByText(/welcome back!/i)).toBeInTheDocument();
     });
   });
 
@@ -172,6 +278,22 @@ describe("LoginPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows an unmapped sign-in error message", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: false, error: "Account locked" });
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/account locked/i)).toBeInTheDocument();
     });
   });
 
@@ -219,5 +341,59 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/");
     });
+  });
+
+  it("uses demo credentials from environment when provided", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+
+    const originalEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL;
+    const originalPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD;
+    process.env.NEXT_PUBLIC_DEMO_EMAIL = "demo@custom.test";
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD = "custompass";
+
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect(signIn).toHaveBeenCalledWith("credentials", {
+        email: "demo@custom.test",
+        password: "custompass",
+        redirect: false,
+      });
+    });
+
+    process.env.NEXT_PUBLIC_DEMO_EMAIL = originalEmail;
+    process.env.NEXT_PUBLIC_DEMO_PASSWORD = originalPassword;
+  });
+
+  it("does not redirect when signIn returns no result", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue(undefined);
+
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/login successful/i)).not.toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalledWith("/");
+  });
+
+  it("does not redirect or show error when demo sign-in returns no result", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue(undefined);
+
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/demo sign-in failed/i)).not.toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalledWith("/");
   });
 });

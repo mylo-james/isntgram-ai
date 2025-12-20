@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
@@ -196,6 +196,24 @@ describe('UsersService', () => {
         service.updateProfile('1', {
           fullName: 'New Name',
           username: 'testuser',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when unique constraint error occurs on save', async () => {
+      (mockUserRepository.findOne as jest.Mock)
+        .mockResolvedValueOnce(mockUser) // findById
+        .mockResolvedValueOnce(null); // isUsernameTaken
+
+      const error = new QueryFailedError('query', [], {
+        code: '23505',
+      } as unknown as Error);
+      (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(error);
+
+      await expect(
+        service.updateProfile('1', {
+          fullName: 'New Name',
+          username: 'newname',
         }),
       ).rejects.toThrow(ConflictException);
     });

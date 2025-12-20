@@ -15,14 +15,17 @@ import { ConfigModule } from '@nestjs/config';
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
+  let postRepository: Repository<Post>;
+  let followRepository: Repository<Follow>;
+  let isPostgres = false;
 
   beforeAll(async () => {
     process.env.DEMO_ENABLED = 'true';
     process.env.JWT_SECRET = 'test-jwt-secret';
     // Use SQLite for testing by default, PostgreSQL only when DATABASE_URL is explicitly set
-    const usePostgres =
-      process.env.DATABASE_URL && process.env.NODE_ENV !== 'test';
-    const databaseConfig = usePostgres
+    isPostgres =
+      Boolean(process.env.DATABASE_URL) && process.env.NODE_ENV !== 'test';
+    const databaseConfig = isPostgres
       ? {
           type: 'postgres' as const,
           url: process.env.DATABASE_URL,
@@ -42,6 +45,7 @@ describe('Auth Integration Tests', () => {
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot(databaseConfig),
+        TypeOrmModule.forFeature([User, Post, Follow]),
         // Disable throttling for tests
         ThrottlerModule.forRoot([
           {
@@ -77,10 +81,22 @@ describe('Auth Integration Tests', () => {
     userRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
     );
+    postRepository = moduleFixture.get<Repository<Post>>(
+      getRepositoryToken(Post),
+    );
+    followRepository = moduleFixture.get<Repository<Follow>>(
+      getRepositoryToken(Follow),
+    );
   }, 30000); // Increase timeout to 30 seconds
 
   beforeEach(async () => {
     // Clean up database before each test
+    if (isPostgres) {
+      await userRepository.query('TRUNCATE TABLE "users" CASCADE');
+      return;
+    }
+    await followRepository.clear();
+    await postRepository.clear();
     await userRepository.clear();
   });
 

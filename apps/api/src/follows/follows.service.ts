@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Follow } from './entities/follow.entity';
 import { User } from '../users/entities/user.entity';
+import { isUniqueConstraintError } from '../common/db-errors';
 
 @Injectable()
 export class FollowsService {
@@ -55,15 +56,22 @@ export class FollowsService {
       return { isFollowing: true };
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      const follow = manager.create(Follow, {
-        followerId,
-        followingId: target.id,
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        const follow = manager.create(Follow, {
+          followerId,
+          followingId: target.id,
+        });
+        await manager.save(follow);
+        await manager.increment(User, { id: followerId }, 'followingCount', 1);
+        await manager.increment(User, { id: target.id }, 'followerCount', 1);
       });
-      await manager.save(follow);
-      await manager.increment(User, { id: followerId }, 'followingCount', 1);
-      await manager.increment(User, { id: target.id }, 'followerCount', 1);
-    });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return { isFollowing: true };
+      }
+      throw error;
+    }
 
     return { isFollowing: true };
   }

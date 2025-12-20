@@ -42,7 +42,8 @@ export default function RegisterPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = field === "email" || field === "username" ? value.toLowerCase() : value;
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
 
     // Clear error when user starts typing
     if (errors[field]) {
@@ -106,9 +107,9 @@ export default function RegisterPage() {
     try {
       // Call the registration API
       await apiClient.register({
-        email: formData.email,
-        username: formData.username,
-        fullName: formData.fullName,
+        email: formData.email.trim().toLowerCase(),
+        username: formData.username.trim().toLowerCase(),
+        fullName: formData.fullName.trim(),
         password: formData.password,
       });
 
@@ -162,6 +163,8 @@ export default function RegisterPage() {
               onBlur={() => handleBlur("email")}
               error={errors.email}
               placeholder="Enter your email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
 
@@ -188,6 +191,8 @@ export default function RegisterPage() {
               onBlur={() => handleBlur("username")}
               error={errors.username}
               placeholder="Choose a username"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
 

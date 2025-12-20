@@ -18,6 +18,7 @@ export type RegisterRequest = Schemas["RegisterDto"];
 export type RegisterResponse = Schemas["AuthRegisterResponseDto"];
 export type LoginRequest = Schemas["LoginDto"];
 export type LoginResponse = Schemas["AuthLoginResponseDto"];
+export type AuthLogoutResponse = Schemas["AuthLogoutResponseDto"];
 
 export type PostAuthor = Schemas["PostAuthorDto"];
 export type PostItem = Schemas["PostDto"];

@@ -24,6 +24,9 @@ docker compose -f docker-compose.prod.yml up --build
 ### API
 
 - `DATABASE_URL`
+- `DATABASE_SSL` (recommended for managed Postgres; set `false` for local Postgres container)
+- `DATABASE_SSL_REJECT_UNAUTHORIZED` (recommended `true` when TLS is enabled)
+- `DATABASE_SSL_CA` (optional; PEM string for custom CA bundles)
 - `JWT_SECRET`
 - `CORS_ORIGIN`
 - `S3_BUCKET`
@@ -40,7 +43,11 @@ docker compose -f docker-compose.prod.yml up --build
 
 - `AUTH_SECRET`
 - `NEXTAUTH_URL`
+- `AUTH_SESSION_MAX_AGE` (aligns session TTL with API JWT expiry)
 - `INTERNAL_API_URL`
+- `NEXT_PUBLIC_APP_URL` (origin used for CSRF checks)
+- `NEXT_PUBLIC_MEDIA_HOSTS` (for `next/image` allowlist)
+- `NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES` (UI upload hint, bytes)
 
 ## Health checks
 

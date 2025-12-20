@@ -18,6 +18,11 @@ export class ApiErrorDto {
   @ApiProperty({ example: 'Invalid cursor' })
   message!: string;
 
+  @ApiPropertyOptional({
+    example: ['username must be longer than or equal to 3 characters'],
+  })
+  errors?: string[];
+
   @ApiProperty({ example: 'BadRequestException' })
   error!: string;
 }

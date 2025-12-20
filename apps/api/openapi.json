@@ -123,6 +123,30 @@
         "tags": ["auth"]
       }
     },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLogoutResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["auth"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/users/me": {
       "get": {
         "operationId": "UsersController_getCurrentUser",
@@ -952,6 +976,15 @@
         },
         "required": ["message", "user", "accessToken"]
       },
+      "AuthLogoutResponseDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["message"]
+      },
       "PublicUserProfileDto": {
         "type": "object",
         "properties": {
@@ -1121,6 +1154,15 @@
             "type": "string",
             "example": "Invalid cursor"
           },
+          "errors": {
+            "example": [
+              "username must be longer than or equal to 3 characters"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "error": {
             "type": "string",
             "example": "BadRequestException"
@@ -1188,9 +1230,15 @@
           "contentType": {
             "type": "string",
             "example": "image/jpeg"
+          },
+          "contentLength": {
+            "type": "number",
+            "example": 245000,
+            "maximum": 5242880,
+            "description": "File size in bytes"
           }
         },
-        "required": ["fileName", "contentType"]
+        "required": ["fileName", "contentType", "contentLength"]
       },
       "AiRewriteResponseDto": {
         "type": "object",

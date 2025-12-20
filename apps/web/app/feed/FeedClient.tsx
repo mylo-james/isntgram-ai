@@ -43,9 +43,7 @@ export default function FeedClient({ initialFeed, isDemoUser }: FeedClientProps)
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Daily Signal</p>
             <h1 className="mt-3 text-3xl font-semibold text-slate-900">Your curated feed</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Posts from the people you follow and your own latest updates.
-            </p>
+            <p className="mt-2 text-sm text-slate-500">Posts from the people you follow and your own latest updates.</p>
           </div>
 
           <PostComposer onPostCreated={handlePostCreated} isDemoUser={isDemoUser} />
@@ -78,8 +76,8 @@ export default function FeedClient({ initialFeed, isDemoUser }: FeedClientProps)
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Focus</h2>
             <p className="mt-3 text-sm text-slate-700">
-              Keep your feed intentional. Post thoughtful updates, follow people you want to learn from,
-              and build a signal-first network.
+              Keep your feed intentional. Post thoughtful updates, follow people you want to learn from, and build a
+              signal-first network.
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

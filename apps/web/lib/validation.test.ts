@@ -74,7 +74,7 @@ describe("Validation Utilities", () => {
     it("returns error for invalid characters", () => {
       const result = validateUsername("test@user");
       expect(result.isValid).toBe(false);
-      expect(result.message).toBe("Username can only contain letters, numbers, and underscores");
+      expect(result.message).toBe("Username can only contain lowercase letters, numbers, and underscores");
     });
 
     it("returns valid for correct username", () => {

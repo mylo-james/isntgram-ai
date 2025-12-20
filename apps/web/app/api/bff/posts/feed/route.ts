@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getApiAccessToken, internalApi } from "@/lib/server-api";
+import { internalApi } from "@/lib/server-api";
+import { attachRequestId, getRequestId, requireApiAuth } from "@/lib/bff";
 
 export async function GET(request: Request) {
-  const accessToken = await getApiAccessToken();
-  if (!accessToken) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const requestId = getRequestId(request);
+  const accessToken = await requireApiAuth();
+  if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor") ?? undefined;
@@ -19,9 +19,9 @@ export async function GET(request: Request) {
         limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
       },
     },
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  return NextResponse.json(data ?? error ?? {}, { status: response.status });
+  return attachRequestId(NextResponse.json(data ?? error ?? {}, { status: response.status }), requestId);
 }

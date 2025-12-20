@@ -2,19 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { type Session } from "next-auth";
+import type { Session } from "next-auth";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import SignOutButton from "@/components/auth/SignOutButton";
-import { apiClient, PublicUserProfile } from "@/lib/api-client";
-
-// Extend the Session type to include username
-type AppSession = Session & {
-  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
-};
+import { apiClient, type PublicUserProfile } from "@/lib/api-client";
 
 interface ProfileActionsProps {
   profile: PublicUserProfile;
-  currentUser?: AppSession["user"] | null;
+  currentUser?: Session["user"] | null;
   isOwnProfile: boolean;
   onProfileUpdated?: (profile: { fullName: string; username: string }) => void;
   isFollowing?: boolean | null;
@@ -72,15 +67,16 @@ export default function ProfileActions({
   };
 
   const checkUsername = async (username: string) => {
-    const res = await apiClient.checkUsernameAvailability(username);
-    return res.available || username === profile.username; // allow unchanged
+    const normalized = username.trim().toLowerCase();
+    const res = await apiClient.checkUsernameAvailability(normalized);
+    return res.available || normalized === profile.username; // allow unchanged
   };
 
   const submitEdit = async (values: { fullName: string; username: string }) => {
     if (!currentUser?.id || isDemoUser) return;
     const updated = await apiClient.updateProfile({
-      fullName: values.fullName,
-      username: values.username,
+      fullName: values.fullName.trim(),
+      username: values.username.trim().toLowerCase(),
     });
     setIsEditOpen(false);
     onProfileUpdated?.({ fullName: updated.fullName, username: updated.username });
@@ -94,6 +90,7 @@ export default function ProfileActions({
     return (
       <div className="mt-6">
         <button
+          type="button"
           onClick={() => router.push("/login")}
           className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
@@ -108,6 +105,7 @@ export default function ProfileActions({
       {isOwnProfile ? (
         <>
           <button
+            type="button"
             onClick={handleEditProfile}
             className="w-full px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium disabled:bg-gray-500 disabled:cursor-not-allowed"
             disabled={isDemoUser}
@@ -127,16 +125,13 @@ export default function ProfileActions({
         </>
       ) : (
         <button
+          type="button"
           onClick={handleFollowToggle}
           disabled={isFollowLoading || isDemoUser}
           className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
           title={isDemoUser ? "Demo mode: following disabled" : undefined}
         >
-          {isFollowLoading
-            ? "Updating..."
-            : isFollowing
-              ? "Unfollow"
-              : "Follow"}
+          {isFollowLoading ? "Updating..." : isFollowing ? "Unfollow" : "Follow"}
         </button>
       )}
     </div>

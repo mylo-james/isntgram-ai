@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -35,6 +36,7 @@ const REWRITE_EXAMPLE = {
 @ApiTags('ai')
 @ApiExtraModels(AiRewriteResponseDto, ApiErrorDto)
 @Controller('ai')
+@UseGuards(ThrottlerGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

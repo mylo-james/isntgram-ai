@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { PostItem } from "@/lib/api-client";
 
 function formatDate(date: string) {
@@ -23,10 +24,11 @@ export default function PostCard({ post }: { post: PostItem }) {
       <div className="flex items-center justify-between">
         <Link href={`/${post.author.username}`} className="flex items-center gap-3">
           {post.author.profilePictureUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={post.author.profilePictureUrl}
               alt={post.author.fullName}
+              width={40}
+              height={40}
               className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
@@ -46,8 +48,15 @@ export default function PostCard({ post }: { post: PostItem }) {
 
       {post.mediaUrl ? (
         <div className="mt-4 overflow-hidden rounded-xl border border-slate-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.mediaUrl} alt="Post media" className="h-72 w-full object-cover" />
+          <div className="relative h-72 w-full">
+            <Image
+              src={post.mediaUrl}
+              alt="Post media"
+              fill
+              sizes="(max-width: 1024px) 100vw, 640px"
+              className="object-cover"
+            />
+          </div>
         </div>
       ) : null}
     </article>

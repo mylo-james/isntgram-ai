@@ -2,11 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import { AppModule } from '../src/app.module';
 
 async function main() {
   // Ensure the AppModule uses SQLite (in-memory) so this can run without external infra.
-  process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+  process.env.NODE_ENV = 'test';
+  // AuthModule/JwtStrategy require a JWT secret at bootstrap time. This is safe for spec generation
+  // and avoids requiring CI to inject secrets for a non-runtime task.
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'openapi_gen_secret';
+
+  // Import after env is set so ConfigModule validation sees it.
+  const { AppModule } = await import('../src/app.module');
 
   const app = await NestFactory.create(AppModule, { logger: false });
   app.setGlobalPrefix('api');

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import { apiClient } from "@/lib/api-client";
 
 interface SignOutButtonProps {
   className?: string;
@@ -19,6 +20,10 @@ export default function SignOutButton({ className = "", variant = "destructive",
   const handleSignOut = async () => {
     setIsLoading(true);
     try {
+      await apiClient.logout().catch((error) => {
+        console.error("Logout API error:", error);
+      });
+
       await signOut({
         redirect: false,
         callbackUrl: "/login",

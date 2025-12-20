@@ -11,6 +11,8 @@ module.exports = {
         "^@/(.*)$": "<rootDir>/apps/web/$1",
         "^@/components/(.*)$": "<rootDir>/apps/web/components/$1",
         "^@/lib/(.*)$": "<rootDir>/apps/web/lib/$1",
+        "^next-auth/jwt$": "<rootDir>/apps/web/test/next-auth-jwt.ts",
+        "^server-only$": "<rootDir>/apps/web/test/server-only.ts",
         "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       },
       transform: {
@@ -33,10 +35,10 @@ module.exports = {
       ],
       coverageThreshold: {
         global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
+          branches: 90,
+          functions: 95,
+          lines: 95,
+          statements: 95,
         },
       },
       coverageReporters: ["text", "lcov", "html", "json-summary"],
@@ -85,10 +87,10 @@ module.exports = {
       ],
       coverageThreshold: {
         global: {
-          branches: 70,
-          functions: 70,
-          lines: 70,
-          statements: 70,
+          branches: 90,
+          functions: 95,
+          lines: 95,
+          statements: 95,
         },
       },
       coverageReporters: ["text", "lcov", "html", "json-summary"],

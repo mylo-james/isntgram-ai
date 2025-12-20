@@ -37,4 +37,14 @@ describe("Home", () => {
     expect(screen.getByText("Instant posting")).toBeInTheDocument();
     expect(screen.getByText("Profile clarity")).toBeInTheDocument();
   });
+
+  it("redirects to /feed when authenticated", async () => {
+    const { auth } = jest.requireMock("@/lib/auth") as { auth: jest.Mock };
+    auth.mockResolvedValueOnce({ user: { id: "1" } });
+
+    await renderHome();
+
+    const { redirect } = jest.requireMock("next/navigation") as { redirect: jest.Mock };
+    expect(redirect).toHaveBeenCalledWith("/feed");
+  });
 });

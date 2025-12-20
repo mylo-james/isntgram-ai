@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 
 const DEFAULT_EXPIRES_IN = 900; // 15 minutes
+const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_CONTENT_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -41,6 +42,7 @@ export class MediaService {
     userId: string;
     fileName: string;
     contentType: string;
+    contentLength: number;
   }): Promise<{
     uploadUrl: string;
     publicUrl: string;
@@ -61,12 +63,25 @@ export class MediaService {
       throw new BadRequestException('Unsupported media type');
     }
 
+    const maxBytesRaw = this.configService.get<string>(
+      'MEDIA_MAX_UPLOAD_BYTES',
+    );
+    const maxBytes = Number(maxBytesRaw ?? DEFAULT_MAX_UPLOAD_BYTES);
+    if (!Number.isFinite(maxBytes) || maxBytes <= 0) {
+      throw new InternalServerErrorException('Invalid media upload limit');
+    }
+
+    if (params.contentLength > maxBytes) {
+      throw new BadRequestException('File too large');
+    }
+
     const key = this.buildObjectKey(params.userId, params.fileName);
     const client = this.createClient();
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       ContentType: params.contentType,
+      ContentLength: params.contentLength,
     });
 
     const uploadUrl = await getSignedUrl(client, command, {

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { Follow } from '../follows/entities/follow.entity';
 import { User } from '../users/entities/user.entity';
@@ -12,8 +12,14 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { FeedQueryDto } from './dto/feed-query.dto';
 import { FeedResponseDto } from './dto/feed-response.dto';
 import { PostAuthorDto, PostDto } from './dto/post.dto';
+import { ConfigService } from '@nestjs/config';
 
 const DEFAULT_FEED_LIMIT = 20;
+const DEFAULT_MEDIA_HOSTS = [
+  'cdn.isntgram.ai',
+  'localhost:9000',
+  '127.0.0.1:9000',
+];
 
 @Injectable()
 export class PostsService {
@@ -24,22 +30,59 @@ export class PostsService {
     private readonly followRepository: Repository<Follow>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
+  private shouldUseTransactionalWrites(): boolean {
+    const options = this.dataSource.options as {
+      type?: string;
+      database?: string | undefined;
+    };
+    return !(options.type === 'sqlite' && options.database === ':memory:');
+  }
+
   async createPost(authorId: string, dto: CreatePostDto): Promise<PostDto> {
-    const post = this.postRepository.create({
-      authorId,
-      content: dto.content,
-      mediaUrl: dto.mediaUrl,
-    });
+    if (dto.mediaUrl && !this.isAllowedMediaUrl(dto.mediaUrl)) {
+      throw new BadRequestException('Unsupported media host');
+    }
 
-    const saved = await this.postRepository.save(post);
-    await this.userRepository.increment({ id: authorId }, 'postsCount', 1);
+    const created = this.shouldUseTransactionalWrites()
+      ? await this.dataSource.transaction(async (manager) => {
+          const postRepository = manager.getRepository(Post);
+          const userRepository = manager.getRepository(User);
 
-    const created = await this.postRepository.findOne({
-      where: { id: saved.id },
-      relations: ['author'],
-    });
+          const post = postRepository.create({
+            authorId,
+            content: dto.content,
+            mediaUrl: dto.mediaUrl,
+          });
+
+          const saved = await postRepository.save(post);
+          await userRepository.increment({ id: authorId }, 'postsCount', 1);
+
+          return postRepository.findOne({
+            where: { id: saved.id },
+            relations: ['author'],
+          });
+        })
+      : await (async () => {
+          const post = this.postRepository.create({
+            authorId,
+            content: dto.content,
+            mediaUrl: dto.mediaUrl,
+          });
+          const saved = await this.postRepository.save(post);
+          await this.userRepository.increment(
+            { id: authorId },
+            'postsCount',
+            1,
+          );
+          return this.postRepository.findOne({
+            where: { id: saved.id },
+            relations: ['author'],
+          });
+        })();
 
     if (!created) {
       throw new NotFoundException('Post not found after creation');
@@ -50,22 +93,29 @@ export class PostsService {
 
   async getFeed(userId: string, query: FeedQueryDto): Promise<FeedResponseDto> {
     const limit = query.limit ?? DEFAULT_FEED_LIMIT;
-    const authorIds = await this.getAuthorIdsForFeed(userId);
+    const followsSubquery = this.followRepository
+      .createQueryBuilder('follow')
+      .select('follow.followingId')
+      .where('follow.followerId = :viewerId', { viewerId: userId });
 
     const qb = this.postRepository
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
-      .where('post.authorId IN (:...authorIds)', { authorIds })
+      .where(
+        `post.authorId = :viewerId OR post.authorId IN (${followsSubquery.getQuery()})`,
+        { viewerId: userId },
+      )
       .orderBy('post.createdAt', 'DESC')
       .addOrderBy('post.id', 'DESC')
       .take(limit + 1);
 
     if (query.cursor) {
       const cursor = this.decodeCursor(query.cursor);
+      const cursorCreatedAt = this.toCursorCreatedAtParam(cursor.createdAt);
       qb.andWhere(
         '(post.createdAt < :cursorCreatedAt OR (post.createdAt = :cursorCreatedAt AND post.id < :cursorId))',
         {
-          cursorCreatedAt: cursor.createdAt,
+          cursorCreatedAt,
           cursorId: cursor.id,
         },
       );
@@ -105,10 +155,11 @@ export class PostsService {
 
     if (query.cursor) {
       const cursor = this.decodeCursor(query.cursor);
+      const cursorCreatedAt = this.toCursorCreatedAtParam(cursor.createdAt);
       qb.andWhere(
         '(post.createdAt < :cursorCreatedAt OR (post.createdAt = :cursorCreatedAt AND post.id < :cursorId))',
         {
-          cursorCreatedAt: cursor.createdAt,
+          cursorCreatedAt,
           cursorId: cursor.id,
         },
       );
@@ -125,18 +176,6 @@ export class PostsService {
       items: items.map((post) => this.toPostDto(post)),
       nextCursor,
     };
-  }
-
-  private async getAuthorIdsForFeed(userId: string): Promise<string[]> {
-    const follows = await this.followRepository.find({
-      where: { followerId: userId },
-      select: ['followingId'],
-    });
-    const uniqueIds = new Set<string>([
-      userId,
-      ...follows.map((f) => f.followingId),
-    ]);
-    return Array.from(uniqueIds);
   }
 
   private toPostDto(post: Post): PostDto {
@@ -157,6 +196,43 @@ export class PostsService {
       fullName: user.fullName,
       profilePictureUrl: user.profilePictureUrl,
     };
+  }
+
+  private isAllowedMediaUrl(url: string): boolean {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return false;
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+
+    const configuredHosts =
+      this.configService.get<string>('MEDIA_ALLOWED_HOSTS') || '';
+    const allowedHosts = configuredHosts
+      .split(',')
+      .map((host) => host.trim())
+      .filter(Boolean);
+
+    const publicBaseUrl = this.configService.get<string>('S3_PUBLIC_BASE_URL');
+    let publicHost: string | undefined;
+    if (publicBaseUrl) {
+      try {
+        publicHost = new URL(publicBaseUrl).host;
+      } catch {
+        publicHost = undefined;
+      }
+    }
+
+    const mergedHosts = [
+      ...(publicHost ? [publicHost] : []),
+      ...(allowedHosts.length > 0 ? allowedHosts : DEFAULT_MEDIA_HOSTS),
+    ];
+    const finalHosts = Array.from(new Set(mergedHosts));
+    return finalHosts.includes(parsed.host);
   }
 
   private encodeCursor(post: Post): string {
@@ -184,5 +260,15 @@ export class PostsService {
     }
 
     return { createdAt, id };
+  }
+
+  private toCursorCreatedAtParam(createdAt: Date): Date | string {
+    const dbType = this.dataSource?.options?.type;
+    // SQLite stores CreateDateColumn with second precision by default; comparing against a value with
+    // millisecond precision can cause cursor pagination to repeat items.
+    if (dbType === 'sqlite' || dbType === 'better-sqlite3') {
+      return createdAt.toISOString().slice(0, 19).replace('T', ' ');
+    }
+    return createdAt;
   }
 }

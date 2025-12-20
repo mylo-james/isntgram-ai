@@ -30,8 +30,11 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared-types/package.json packages/shared-types/
 
 RUN corepack enable && corepack prepare pnpm@9.12.3 --activate \
-  && pnpm install --prod --frozen-lockfile --ignore-scripts \
-  && pnpm store prune
+  && pnpm --filter web... install --prod --frozen-lockfile --ignore-scripts \
+  && pnpm store prune \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+  && rm -rf /usr/local/lib/node_modules/corepack /usr/local/bin/corepack /usr/local/bin/pnpm /usr/local/bin/pnpx \
+  && rm -rf /root/.cache/node/corepack
 
 COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/apps/web/public ./apps/web/public
@@ -43,4 +46,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["pnpm", "--filter", "web", "start"]
+CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start"]

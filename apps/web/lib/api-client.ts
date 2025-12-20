@@ -11,20 +11,39 @@ import type {
   PublicUserProfile,
   RegisterRequest,
   RegisterResponse,
+  AuthLogoutResponse,
   UploadUrlResponse,
 } from "@isntgram-ai/shared-types";
 
 import createClient from "openapi-fetch";
 import { getApiErrorMessage } from "./api-error";
+import { CSRF_HEADER_NAME, getCsrfTokenFromCookie, isStateChangingMethod } from "./csrf";
 
 type BffPaths = {
   [K in keyof ApiPaths as K extends "/api" ? never : K extends `/api${infer Rest}` ? Rest : never]: ApiPaths[K];
 };
 
+const csrfFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const request = input instanceof Request ? (init ? new Request(input, init) : input) : new Request(input, init);
+  const method = request.method || (init?.method ?? "GET");
+  if (!isStateChangingMethod(method)) {
+    return fetch(request);
+  }
+
+  const csrfToken = getCsrfTokenFromCookie();
+  if (!csrfToken) {
+    return fetch(request);
+  }
+
+  const headers = new Headers(request.headers);
+  headers.set(CSRF_HEADER_NAME, csrfToken);
+  return fetch(new Request(request, { headers }));
+};
+
 const client = createClient<BffPaths>({
   baseUrl: "/api/bff",
   // Allow tests to swap `global.fetch` after module import.
-  fetch: (request) => fetch(request),
+  fetch: csrfFetch as unknown as (input: Request) => Promise<Response>,
 });
 
 async function unwrap<T>(result: Promise<unknown>): Promise<T> {
@@ -118,6 +137,10 @@ export const apiClient = {
     );
   },
 
+  async logout(): Promise<AuthLogoutResponse> {
+    return unwrap<AuthLogoutResponse>(client.POST("/auth/logout"));
+  },
+
   async rewritePost(data: AiRewriteRequest): Promise<AiRewriteResponse> {
     return unwrap<AiRewriteResponse>(
       client.POST("/ai/rewrite", {
@@ -173,4 +196,5 @@ export type {
   PostItem,
   FollowStatus,
   UploadUrlResponse,
+  AuthLogoutResponse,
 };

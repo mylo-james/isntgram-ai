@@ -1,45 +1,81 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { type Session } from "next-auth";
-
-// Extend the Session type to include username
-type AppSession = Session & {
-  user: NonNullable<Session["user"]> & { id: string; username?: string; isDemoUser?: boolean };
-};
-
+import { getApiAccessToken, getRequestId, internalApi } from "@/lib/server-api";
+import type { FeedResponse, PublicUserProfile } from "@/lib/api-client";
 import ProfilePage from "./ProfilePage";
-import ProfilePageSkeleton from "./ProfilePageSkeleton";
 
 type UserProfilePageProps = {
-  params: Promise<{ username: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  params: { username: string } | Promise<{ username: string }>;
 };
 
 export default async function UserProfilePage({ params }: UserProfilePageProps) {
-  const { username } = await params;
+  const resolvedParams = await Promise.resolve(params);
+  const { username } = resolvedParams ?? {};
+  if (typeof username !== "string") {
+    notFound();
+  }
+  const normalizedUsername = username.trim().toLowerCase();
 
-  // Validate username parameter
-  if (!username || typeof username !== "string" || username.trim().length === 0) {
+  if (normalizedUsername.length === 0) {
     notFound();
   }
 
-  // Get current user session for authentication checks
   const session = await auth();
+  const requestId = await getRequestId();
+
+  const [{ data: profileData, response: profileResponse }, { data: postsData }] = await Promise.all([
+    internalApi.GET("/api/users/{username}", {
+      params: { path: { username: normalizedUsername } },
+      headers: { "x-request-id": requestId },
+      cache: "no-store",
+    }),
+    internalApi.GET("/api/posts/user/{username}", {
+      params: { path: { username: normalizedUsername } },
+      headers: { "x-request-id": requestId },
+      cache: "no-store",
+    }),
+  ]);
+
+  if (!profileResponse.ok || !profileData) {
+    notFound();
+  }
+
+  const initialFeed = (postsData ?? { items: [] }) as FeedResponse;
+
+  let initialIsFollowing: boolean | null = null;
+  if (session?.user?.id) {
+    const accessToken = await getApiAccessToken();
+    if (accessToken) {
+      const { data: followData } = await internalApi.GET("/api/follows/{username}/status", {
+        params: { path: { username: normalizedUsername } },
+        headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
+        cache: "no-store",
+      });
+      if (followData && typeof followData.isFollowing === "boolean") {
+        initialIsFollowing = followData.isFollowing;
+      }
+    }
+  }
 
   return (
-    <Suspense fallback={<ProfilePageSkeleton />}>
-      <ProfilePage username={username} currentUser={session?.user as AppSession["user"]} />
-    </Suspense>
+    <ProfilePage
+      username={normalizedUsername}
+      currentUser={session?.user}
+      initialProfile={profileData as PublicUserProfile}
+      initialPosts={initialFeed.items}
+      initialCursor={initialFeed.nextCursor}
+      initialIsFollowing={initialIsFollowing}
+    />
   );
 }
 
-// Generate metadata for the page
 export async function generateMetadata({ params }: UserProfilePageProps) {
-  const { username } = await params;
+  const resolvedParams = await Promise.resolve(params);
+  const { username } = resolvedParams ?? {};
+  const normalizedUsername = typeof username === "string" ? username.trim().toLowerCase() : "profile";
 
   return {
-    title: `${username} - Profile | Isntgram`,
-    description: `View ${username}'s profile on Isntgram`,
+    title: `${normalizedUsername} - Profile | Isntgram`,
+    description: `View ${normalizedUsername}'s profile on Isntgram`,
   };
 }

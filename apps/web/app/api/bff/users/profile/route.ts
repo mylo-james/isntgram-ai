@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
-import { getApiAccessToken, internalApi } from "@/lib/server-api";
+import { internalApi } from "@/lib/server-api";
+import { attachRequestId, getRequestId, requireApiAuth, requireCsrf } from "@/lib/bff";
 
 export async function PUT(request: Request) {
-  const accessToken = await getApiAccessToken();
+  const requestId = getRequestId(request);
+  const csrfError = await requireCsrf(request);
+  if (csrfError) return attachRequestId(csrfError, requestId);
 
-  if (!accessToken) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const accessToken = await requireApiAuth();
+  if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
   const body = await request.json();
 
   const { data, error, response } = await internalApi.PUT("/api/users/profile", {
     body,
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  return NextResponse.json(data ?? error ?? {}, { status: response.status });
+  return attachRequestId(NextResponse.json(data ?? error ?? {}, { status: response.status }), requestId);
 }

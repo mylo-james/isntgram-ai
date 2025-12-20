@@ -8,6 +8,12 @@ jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
 }));
 
+jest.mock("@/lib/api-client", () => ({
+  apiClient: {
+    logout: jest.fn(),
+  },
+}));
+
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SignOutButton from "./SignOutButton";
 
@@ -22,6 +28,9 @@ describe("SignOutButton", () => {
 
     const { useRouter } = jest.requireMock("next/navigation") as { useRouter: jest.Mock };
     useRouter.mockReturnValue({ push: mockPush });
+
+    const { apiClient } = jest.requireMock("@/lib/api-client") as { apiClient: { logout: jest.Mock } };
+    apiClient.logout.mockResolvedValue(undefined);
   });
 
   it("renders sign out button", () => {
@@ -60,6 +69,22 @@ describe("SignOutButton", () => {
     expect(mockPush).toHaveBeenCalledWith("/login");
   });
 
+  it("redirects even when signOut throws", async () => {
+    mockSignOut.mockRejectedValue(new Error("boom"));
+
+    render(<SignOutButton />);
+
+    fireEvent.click(screen.getByText("Sign Out"));
+    fireEvent.click(screen.getByText("Yes, Sign Out"));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/login");
+    });
+
+    expect(screen.queryByText("Yes, Sign Out")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign Out")).toBeInTheDocument();
+  });
+
   it("shows loading state during sign out", async () => {
     // Mock a slow sign out
     mockSignOut.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
@@ -88,6 +113,7 @@ describe("SignOutButton", () => {
     // Click cancel
     fireEvent.click(screen.getByText("Cancel"));
 
+    expect(mockSignOut).not.toHaveBeenCalled();
     expect(screen.queryByText("Are you sure?")).not.toBeInTheDocument();
     expect(screen.queryByText("Yes, Sign Out")).not.toBeInTheDocument();
     expect(screen.queryByText("Cancel")).not.toBeInTheDocument();

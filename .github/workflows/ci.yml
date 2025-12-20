@@ -154,7 +154,8 @@ jobs:
         with:
           path: apps/web/.next/cache
           key:
-            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json', 'apps/web/next.config.mjs') }}
+            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
           restore-keys: |
             next-cache-${{ runner.os }}-
 
@@ -196,7 +197,8 @@ jobs:
         with:
           path: apps/web/.next/cache
           key:
-            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json', 'apps/web/next.config.mjs') }}
+            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json',
+            'apps/web/next.config.mjs') }}
           restore-keys: |
             next-cache-${{ runner.os }}-
 

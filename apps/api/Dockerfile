@@ -30,8 +30,11 @@ COPY apps/api/package.json apps/api/
 COPY packages/shared-types/package.json packages/shared-types/
 
 RUN corepack enable && corepack prepare pnpm@9.12.3 --activate \
-  && pnpm install --prod --frozen-lockfile --ignore-scripts \
-  && pnpm store prune
+  && pnpm --filter api... install --prod --frozen-lockfile --ignore-scripts \
+  && pnpm store prune \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+  && rm -rf /usr/local/lib/node_modules/corepack /usr/local/bin/corepack /usr/local/bin/pnpm /usr/local/bin/pnpx \
+  && rm -rf /root/.cache/node/corepack
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist

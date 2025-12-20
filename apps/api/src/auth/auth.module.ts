@@ -8,6 +8,23 @@ import { AuthService } from './auth.service';
 import { User } from '../users/entities/user.entity';
 import { JwtStrategy } from './jwt.strategy';
 
+export function getJwtSecret(
+  configService: Pick<ConfigService, 'get'>,
+): string {
+  const secret = configService.get<string>('JWT_SECRET');
+  if (!secret) {
+    throw new Error('JWT_SECRET must be set');
+  }
+  return secret;
+}
+
+export function getJwtExpiresIn(
+  configService: Pick<ConfigService, 'get'>,
+): JwtSignOptions['expiresIn'] {
+  return (configService.get<string>('JWT_EXPIRES_IN') ||
+    '7d') as JwtSignOptions['expiresIn'];
+}
+
 @Module({
   imports: [
     ConfigModule,
@@ -16,16 +33,9 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: (() => {
-          const secret = configService.get<string>('JWT_SECRET');
-          if (!secret) {
-            throw new Error('JWT_SECRET must be set');
-          }
-          return secret;
-        })(),
+        secret: getJwtSecret(configService),
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
-            '7d') as JwtSignOptions['expiresIn'],
+          expiresIn: getJwtExpiresIn(configService),
         },
       }),
     }),

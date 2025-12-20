@@ -29,6 +29,9 @@ export class User {
   @Column({ type: 'varchar', length: 255 })
   hashedPassword!: string;
 
+  @Column({ type: 'integer', default: 0 })
+  tokenVersion!: number;
+
   @Column({ type: 'varchar', length: 500, nullable: true })
   profilePictureUrl?: string;
 

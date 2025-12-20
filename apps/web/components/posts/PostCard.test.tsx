@@ -35,4 +35,45 @@ describe("PostCard", () => {
     const img = screen.getByAltText("Jane Thompson") as HTMLImageElement;
     expect(img).toHaveAttribute("src", "https://example.com/avatar.jpg");
   });
+
+  it("renders post media when mediaUrl is present", () => {
+    render(
+      <PostCard
+        post={{
+          ...basePost,
+          mediaUrl: "https://cdn.example.com/post.jpg",
+        }}
+      />,
+    );
+
+    const img = screen.getByAltText("Post media") as HTMLImageElement;
+    expect(img).toHaveAttribute("src", "https://cdn.example.com/post.jpg");
+  });
+
+  it("renders an empty date when createdAt is invalid", () => {
+    const { container } = render(
+      <PostCard
+        post={{
+          ...basePost,
+          createdAt: "not-a-date",
+        }}
+      />,
+    );
+
+    const date = container.querySelector("span.text-xs.text-slate-400");
+    expect(date?.textContent).toBe("");
+  });
+
+  it("falls back to a generic initial when the author name is empty", () => {
+    render(
+      <PostCard
+        post={{
+          ...basePost,
+          author: { ...basePost.author, fullName: "" },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("U")).toBeInTheDocument();
+  });
 });

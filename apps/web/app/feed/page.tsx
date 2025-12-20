@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import FeedClient from "./FeedClient";
-import { getApiAccessToken, internalApi } from "@/lib/server-api";
+import { getApiAccessToken, getRequestId, internalApi } from "@/lib/server-api";
 import type { FeedResponse } from "@/lib/api-client";
 
 export default async function FeedPage() {
   const session = await auth();
   const accessToken = await getApiAccessToken();
+  const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
     redirect("/login");
@@ -14,7 +15,7 @@ export default async function FeedPage() {
 
   let initialFeed: FeedResponse = { items: [] };
   const { data, response } = await internalApi.GET("/api/posts/feed", {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 

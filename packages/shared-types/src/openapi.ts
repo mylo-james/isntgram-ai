@@ -116,6 +116,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["AuthController_logout"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/users/me": {
     parameters: {
       query?: never;
@@ -333,6 +349,9 @@ export interface components {
       accessToken: string;
       isDemoUser?: boolean;
     };
+    AuthLogoutResponseDto: {
+      message: string;
+    };
     PublicUserProfileDto: {
       id: string;
       username: string;
@@ -416,6 +435,12 @@ export interface components {
       requestId?: string;
       /** @example Invalid cursor */
       message: string;
+      /**
+       * @example [
+       *       "username must be longer than or equal to 3 characters"
+       *     ]
+       */
+      errors?: string[];
       /** @example BadRequestException */
       error: string;
     };
@@ -447,6 +472,11 @@ export interface components {
       fileName: string;
       /** @example image/jpeg */
       contentType: string;
+      /**
+       * @description File size in bytes
+       * @example 245000
+       */
+      contentLength: number;
     };
     AiRewriteResponseDto: {
       /** @example Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share. */
@@ -609,6 +639,25 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuthLoginResponseDto"];
+        };
+      };
+    };
+  };
+  AuthController_logout: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthLogoutResponseDto"];
         };
       };
     };

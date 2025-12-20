@@ -22,3 +22,8 @@ export class AuthLoginResponseDto {
   @ApiPropertyOptional()
   isDemoUser?: boolean;
 }
+
+export class AuthLogoutResponseDto {
+  @ApiProperty()
+  message!: string;
+}

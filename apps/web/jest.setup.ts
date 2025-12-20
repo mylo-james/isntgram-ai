@@ -1,6 +1,25 @@
 import "cross-fetch/polyfill";
 import "@testing-library/jest-dom";
 
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: Record<string, unknown>) => {
+    const React = jest.requireActual("react") as typeof import("react");
+    const { src, alt, ...rest } = props as {
+      src?: unknown;
+      alt?: unknown;
+    } & Record<string, unknown>;
+
+    delete rest.fill;
+    delete rest.sizes;
+    delete rest.priority;
+    delete rest.loader;
+
+    const resolvedSrc = typeof src === "string" ? src : ((src as { src?: string } | null)?.src ?? "");
+    return React.createElement("img", { ...rest, src: resolvedSrc, alt });
+  },
+}));
+
 // Suppress expected console errors during tests to keep output clean
 const originalConsoleError = console.error;
 

@@ -12,6 +12,7 @@ erDiagram
     uuid id PK
     string username
     string email
+    int tokenVersion
   }
   POSTS {
     uuid id PK
@@ -32,6 +33,7 @@ erDiagram
 - `fullName`
 - `email` (unique)
 - `hashedPassword`
+- `tokenVersion` (revocation counter for API JWTs)
 - `profilePictureUrl` (nullable)
 - `bio` (nullable)
 - `postsCount`, `followerCount`, `followingCount`
@@ -65,10 +67,11 @@ users 1 ──── * follows (as following)
 - `users(username)`
 - `users(email)`
 - `posts(authorId, createdAt)`
-- `follows(followerId)`
-- `follows(followingId)`
+- `follows(followerId, createdAt)`
+- `follows(followingId, createdAt)`
 
 ## Notes
 
+- Usernames and emails are normalized (trimmed/lowercased) at the API boundary.
 - Follow counts are updated transactionally on follow/unfollow.
-- Post counts are updated on create (future: decrement on delete).
+- Post counts are updated transactionally on create (future: decrement on delete).

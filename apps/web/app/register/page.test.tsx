@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import RegisterPage from "./page";
 
 // Mock Next.js router
@@ -83,6 +83,19 @@ describe("RegisterPage", () => {
     });
   });
 
+  it("clears a field error when the user edits the field", async () => {
+    render(<RegisterPage />);
+
+    const emailInput = screen.getByLabelText(/email/i);
+    fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+    fireEvent.blur(emailInput);
+
+    await waitFor(() => expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument());
+
+    fireEvent.change(emailInput, { target: { value: "valid@example.com" } });
+    await waitFor(() => expect(screen.queryByText(/please enter a valid email address/i)).not.toBeInTheDocument());
+  });
+
   it("validates password complexity", async () => {
     render(<RegisterPage />);
 
@@ -138,6 +151,38 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
     });
+  });
+
+  it("redirects to login after successful registration", async () => {
+    jest.useFakeTimers();
+    mockRegister.mockResolvedValue({
+      user: {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        fullName: "Test User",
+      },
+      message: "User registered successfully",
+    });
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/registration successful/i)).toBeInTheDocument());
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/login?message=Registration successful! Please log in.");
+    jest.useRealTimers();
   });
 
   it("shows loading state during form submission", async () => {
@@ -242,6 +287,28 @@ describe("RegisterPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/network down/i)).toBeInTheDocument();
+    });
+  });
+
+  it("validates username and full name on blur", async () => {
+    render(<RegisterPage />);
+
+    const username = screen.getByLabelText(/username/i);
+    fireEvent.change(username, { target: { value: "bad user" } });
+    fireEvent.blur(username);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/username can only contain (lowercase )?letters, numbers, and underscores/i),
+      ).toBeInTheDocument();
+    });
+
+    const fullName = screen.getByLabelText(/full name/i);
+    fireEvent.change(fullName, { target: { value: "   " } });
+    fireEvent.blur(fullName);
+
+    await waitFor(() => {
+      expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
     });
   });
 });

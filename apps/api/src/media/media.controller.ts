@@ -16,6 +16,7 @@ import { MediaService } from './media.service';
 import { CreateUploadUrlDto } from './dto/create-upload-url.dto';
 import { UploadUrlDto } from './dto/upload-url.dto';
 import { ApiErrorDto } from '../common/dto/api-error.dto';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 const UPLOAD_URL_EXAMPLE = {
   uploadUrl:
@@ -28,6 +29,7 @@ const UPLOAD_URL_EXAMPLE = {
 @ApiTags('media')
 @ApiExtraModels(UploadUrlDto, ApiErrorDto)
 @Controller('media')
+@UseGuards(ThrottlerGuard)
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
@@ -61,6 +63,7 @@ export class MediaController {
       userId: req.user.userId,
       fileName: body.fileName,
       contentType: body.contentType,
+      contentLength: body.contentLength,
     });
   }
 }

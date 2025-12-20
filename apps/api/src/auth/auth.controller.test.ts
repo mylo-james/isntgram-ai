@@ -1,25 +1,20 @@
-import request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { INestApplication } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ForbiddenException } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { AuthModule } from '../auth/auth.module';
-import { User } from '../users/entities/user.entity';
-import { Post } from '../posts/entities/post.entity';
-import { Follow } from '../follows/entities/follow.entity';
-import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: AuthService;
+  let configService: { get: jest.Mock };
 
   const mockAuthService = {
     register: jest.fn(),
     login: jest.fn(),
+    getOrCreateDemoUser: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -49,6 +44,7 @@ describe('AuthController', () => {
 
     controller = module.get<AuthController>(AuthController);
     authService = module.get<AuthService>(AuthService);
+    configService = module.get(ConfigService) as unknown as { get: jest.Mock };
   });
 
   afterEach(() => {
@@ -122,46 +118,87 @@ describe('AuthController', () => {
       });
     });
   });
-});
 
-describe('Auth demo endpoint (integration)', () => {
-  let app: INestApplication;
+  describe('demo', () => {
+    it('throws ForbiddenException when demo mode is disabled', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'DEMO_ENABLED') return 'false';
+        return undefined;
+      });
 
-  beforeAll(async () => {
-    process.env.DEMO_ENABLED = 'true';
-    process.env.JWT_SECRET = 'test-jwt-secret';
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [User, Post, Follow],
-          synchronize: true,
-        }),
-        ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
-        AuthModule,
-      ],
-    }).compile();
+      await expect(controller.demo()).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(mockAuthService.getOrCreateDemoUser).not.toHaveBeenCalled();
+      expect(mockAuthService.login).not.toHaveBeenCalled();
+    });
 
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api');
-    app.useGlobalFilters(new GlobalExceptionFilter());
-    await app.init();
-  });
+    it('signs in a demo user using the default demo password', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'DEMO_ENABLED') return 'true';
+        if (key === 'DEMO_PASSWORD') return undefined;
+        return undefined;
+      });
 
-  afterAll(async () => {
-    await app.close();
-  });
+      mockAuthService.getOrCreateDemoUser.mockResolvedValue({
+        email: 'demo@isntgram.ai',
+      });
+      mockAuthService.login.mockResolvedValue({
+        user: {
+          id: 'demo',
+          email: 'demo@isntgram.ai',
+          username: 'demo',
+          fullName: 'Demo User',
+        },
+        accessToken: 'jwt-token',
+      });
 
-  it('POST /api/auth/demo returns a demo user and 200', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/api/auth/demo')
-      .send({});
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('user');
-    expect(res.body.user).toHaveProperty('email');
-    expect(res.body).toHaveProperty('accessToken');
-    expect(res.body).toHaveProperty('isDemoUser', true);
+      const result = await controller.demo();
+
+      expect(mockAuthService.getOrCreateDemoUser).toHaveBeenCalledTimes(1);
+      expect(mockAuthService.login).toHaveBeenCalledWith(
+        'demo@isntgram.ai',
+        'demo',
+      );
+      expect(result).toEqual({
+        message: 'Demo sign in successful',
+        user: {
+          id: 'demo',
+          email: 'demo@isntgram.ai',
+          username: 'demo',
+          fullName: 'Demo User',
+        },
+        accessToken: 'jwt-token',
+        isDemoUser: true,
+      });
+    });
+
+    it('signs in a demo user using the configured demo password', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'DEMO_ENABLED') return 'true';
+        if (key === 'DEMO_PASSWORD') return 'supersecret';
+        return undefined;
+      });
+
+      mockAuthService.getOrCreateDemoUser.mockResolvedValue({
+        email: 'demo@isntgram.ai',
+      });
+      mockAuthService.login.mockResolvedValue({
+        user: {
+          id: 'demo',
+          email: 'demo@isntgram.ai',
+          username: 'demo',
+          fullName: 'Demo User',
+        },
+        accessToken: 'jwt-token',
+      });
+
+      await controller.demo();
+
+      expect(mockAuthService.login).toHaveBeenCalledWith(
+        'demo@isntgram.ai',
+        'supersecret',
+      );
+    });
   });
 });

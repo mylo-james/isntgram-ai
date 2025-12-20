@@ -1,3 +1,4 @@
+import "server-only";
 import NextAuth, { type NextAuthConfig, type Session, type User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
@@ -6,6 +7,32 @@ import { getApiErrorMessage } from "./api-error";
 import { internalApi } from "./server-api";
 
 type JwtToken = JWT & { accessToken?: string; username?: string; isDemoUser?: boolean };
+
+function parseDurationSeconds(value: string | undefined, fallbackSeconds: number): number {
+  if (!value) return fallbackSeconds;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return fallbackSeconds;
+
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric)) {
+    return Math.max(1, Math.floor(numeric));
+  }
+
+  const match = trimmed.match(/^(\d+)(s|m|h|d)$/);
+  if (!match) return fallbackSeconds;
+
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return fallbackSeconds;
+
+  const unit = match[2];
+  const multipliers: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
+  return amount * (multipliers[unit] ?? 1);
+}
+
+const sessionMaxAgeSeconds = parseDurationSeconds(
+  process.env.AUTH_SESSION_MAX_AGE ?? process.env.NEXTAUTH_SESSION_MAX_AGE,
+  60 * 60 * 24 * 7,
+);
 
 const authConfig: NextAuthConfig = {
   trustHost: true,
@@ -26,9 +53,10 @@ const authConfig: NextAuthConfig = {
           return null;
         }
 
+        const demoEnabled = process.env.NEXT_PUBLIC_DEMO_ENABLED === "true";
         const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
         const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";
-        const isDemoCredentials = email === demoEmail && password === demoPassword;
+        const isDemoCredentials = demoEnabled && email === demoEmail && password === demoPassword;
 
         // Authenticate against backend API
         const { data, error, response } = isDemoCredentials
@@ -63,7 +91,8 @@ const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: sessionMaxAgeSeconds },
+  jwt: { maxAge: sessionMaxAgeSeconds },
   callbacks: {
     async jwt(params) {
       const token = params.token as JwtToken;
@@ -78,7 +107,11 @@ const authConfig: NextAuthConfig = {
 
       // If we can detect demo sign-in intent via custom env, set a stable flag when demo credentials are used
       const maybeEmail = (params.account?.providerAccountId as string) || (user?.email as string | undefined);
-      if (maybeEmail && maybeEmail === (process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai")) {
+      if (
+        process.env.NEXT_PUBLIC_DEMO_ENABLED === "true" &&
+        maybeEmail &&
+        maybeEmail === (process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai")
+      ) {
         token.isDemoUser = true;
       }
 

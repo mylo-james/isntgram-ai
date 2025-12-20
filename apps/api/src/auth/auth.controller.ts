@@ -4,9 +4,8 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  ValidationPipe,
-  UsePipes,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -14,11 +13,20 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuthLoginResponseDto,
   AuthRegisterResponseDto,
+  AuthLogoutResponseDto,
 } from './dto/auth-response.dto';
+import { JwtAuthGuard } from './jwt.guard';
+import { AuthUser } from './jwt.types';
+import { Request } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -31,7 +39,6 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiCreatedResponse({ type: AuthRegisterResponseDto })
   async register(@Body() registerDto: RegisterDto) {
     const user = await this.authService.register(registerDto);
@@ -43,7 +50,6 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOkResponse({ type: AuthLoginResponseDto })
   async login(@Body() body: LoginDto) {
     const { user, accessToken } = await this.authService.login(
@@ -78,5 +84,15 @@ export class AuthController {
       accessToken: login.accessToken,
       isDemoUser: true,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: AuthLogoutResponseDto })
+  async logout(@Req() req: Request & { user: AuthUser }) {
+    await this.authService.revokeUserTokens(req.user.userId);
+    return { message: 'Logged out' };
   }
 }

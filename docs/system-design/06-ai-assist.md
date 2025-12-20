@@ -30,6 +30,6 @@
 
 ## Scaling + cost controls (roadmap)
 
-- Separate rate limits for AI endpoints (stricter than general API).
+- Separate rate limits for AI endpoints (implemented via NestJS throttler).
 - Add timeouts, retries with backoff, and per-environment budgets.
 - At higher scale, move to async execution (queue + worker pool) for predictable latency.

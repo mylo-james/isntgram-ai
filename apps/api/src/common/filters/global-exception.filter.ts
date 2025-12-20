@@ -8,8 +8,8 @@ import {
 import { Request, Response } from 'express';
 
 interface ExceptionResponse {
-  message?: string;
-  error?: string;
+  message?: unknown;
+  error?: unknown;
 }
 
 @Catch()
@@ -23,6 +23,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
     let error = 'InternalServerError';
+    let errors: string[] | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -30,8 +31,27 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as ExceptionResponse;
-        message = responseObj.message || exception.message;
-        error = responseObj.error || exception.name;
+        const rawMessage = responseObj.message;
+        if (Array.isArray(rawMessage)) {
+          errors = rawMessage
+            .filter((entry): entry is string => typeof entry === 'string')
+            .map((entry) => entry.trim())
+            .filter(Boolean);
+          message = errors[0] || exception.message;
+        } else if (
+          typeof rawMessage === 'string' &&
+          rawMessage.trim().length > 0
+        ) {
+          message = rawMessage;
+        } else {
+          message = exception.message;
+        }
+
+        const rawError = responseObj.error;
+        error =
+          typeof rawError === 'string' && rawError.trim().length > 0
+            ? rawError
+            : exception.name;
       } else {
         message = exception.message;
         error = exception.name;
@@ -49,6 +69,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       path: request.url,
       requestId: request.requestId,
       message,
+      errors,
       error,
     };
 

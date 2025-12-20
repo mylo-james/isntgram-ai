@@ -2,7 +2,13 @@ import { BadRequestException } from '@nestjs/common';
 import { PostsService } from './posts.service';
 
 describe('PostsService cursor helpers', () => {
-  const service = new PostsService({} as any, {} as any, {} as any) as any;
+  const service = new PostsService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  ) as any;
 
   it('encodes and decodes a cursor round-trip', () => {
     const post = {

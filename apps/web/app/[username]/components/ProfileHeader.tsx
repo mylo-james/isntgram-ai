@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { PublicUserProfile } from "@/lib/api-client";
 
 interface ProfileHeaderProps {
@@ -10,11 +11,14 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
       {/* Profile Picture */}
       <div className="flex-shrink-0">
         {profile.profilePictureUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={profile.profilePictureUrl}
             alt={`${profile.username}'s profile picture`}
-            className="w-24 h-24 rounded-full object-cover border border-gray-200"
+            width={96}
+            height={96}
+            sizes="96px"
+            className="h-24 w-24 rounded-full border border-gray-200 object-cover"
+            priority
           />
         ) : (
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-2xl font-bold">

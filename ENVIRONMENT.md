@@ -13,6 +13,14 @@ PORT=3001
 # Database
 DATABASE_URL=postgresql://postgres:password@localhost:5432/isntgram
 
+# Database TLS (recommended for managed Postgres)
+# - Defaults: enabled in production, disabled otherwise
+DATABASE_SSL=false
+# Verify server certificate when TLS is enabled (recommended)
+DATABASE_SSL_REJECT_UNAUTHORIZED=true
+# Optional PEM string for custom CA bundles (managed DBs may provide one)
+DATABASE_SSL_CA=
+
 # Auth
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=7d
@@ -34,6 +42,11 @@ S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=minioadmin
 S3_ENDPOINT=http://localhost:9000
 S3_PUBLIC_BASE_URL=http://localhost:9000/isntgram-media
+MEDIA_ALLOWED_HOSTS=cdn.isntgram.ai,localhost:9000,127.0.0.1:9000
+MEDIA_MAX_UPLOAD_BYTES=5242880
+
+# Note: The web app uses `next/image`. Keep `NEXT_PUBLIC_MEDIA_HOSTS` aligned with `S3_PUBLIC_BASE_URL`
+# and any additional CDN hosts.
 
 # Logging
 REQUEST_LOGGING=true
@@ -63,8 +76,20 @@ INTERNAL_API_URL=http://localhost:3001
 # Auth.js
 AUTH_SECRET=your-auth-secret-change-this-in-production
 NEXTAUTH_URL=http://localhost:3000
+# Align Auth.js session lifetime with API JWT expiry (seconds or 7d/24h/60m)
+AUTH_SESSION_MAX_AGE=7d
+# Optional explicit origin for CSRF origin checks
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Media hosts for next/image (comma-separated host[:port] or full URLs)
+NEXT_PUBLIC_MEDIA_HOSTS=localhost:9000,127.0.0.1:9000,cdn.isntgram.ai
+# Max upload size hint for the UI (bytes)
+NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES=5242880
+
+# Note: keep MEDIA_MAX_UPLOAD_BYTES and NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES aligned.
 
 # Demo helper
+NEXT_PUBLIC_DEMO_ENABLED=true
 NEXT_PUBLIC_DEMO_EMAIL=demo@isntgram.ai
 NEXT_PUBLIC_DEMO_PASSWORD=demo
 ```

@@ -4,6 +4,17 @@ import { useRef, useState } from "react";
 import type { PostItem } from "@/lib/api-client";
 import { apiClient } from "@/lib/api-client";
 
+const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const parsedMaxUploadBytes = Number(process.env.NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES);
+const MAX_UPLOAD_BYTES =
+  Number.isFinite(parsedMaxUploadBytes) && parsedMaxUploadBytes > 0 ? parsedMaxUploadBytes : DEFAULT_MAX_UPLOAD_BYTES;
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))}MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${bytes}B`;
+}
+
 interface PostComposerProps {
   onPostCreated: (post: PostItem) => void;
   isDemoUser?: boolean;
@@ -67,9 +78,18 @@ export default function PostComposer({ onPostCreated, isDemoUser }: PostComposer
     try {
       let mediaUrl: string | undefined;
       if (file) {
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+          throw new Error("Image is too large (max 5MB)");
+        }
+
         const presign = await apiClient.createUploadUrl({
           fileName: file.name,
           contentType: file.type,
+          contentLength: file.size,
         });
 
         const upload = await fetch(presign.uploadUrl, {
@@ -125,7 +145,9 @@ export default function PostComposer({ onPostCreated, isDemoUser }: PostComposer
                 disabled={isSubmitting || isRewriting || isDemoUser}
                 className="text-xs"
               />
-              <span>{content.length}/2000</span>
+              <span>
+                {content.length}/2000 · Max image {formatBytes(MAX_UPLOAD_BYTES)}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
