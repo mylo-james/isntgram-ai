@@ -72,19 +72,19 @@
       "prettier --write",
       "bash -c 'cd apps/api && pnpm exec eslint \"src/**/*.ts\" \"test/**/*.ts\" \"ormconfig.ts\" --fix'",
       "bash -c 'cd apps/api && pnpm exec tsc -p . --noEmit'",
-      "node scripts/jest.cjs --selectProjects api --testPathIgnorePatterns=integration"
+      "node scripts/jest.cjs --selectProjects api --testPathIgnorePatterns=integration --findRelatedTests --passWithNoTests --maxWorkers=50%"
     ],
     "apps/web/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
       "bash -c 'cd apps/web && pnpm exec eslint --fix'",
       "bash -c 'cd apps/web && pnpm exec tsc -p . --noEmit'",
-      "node scripts/jest.cjs --selectProjects web"
+      "node scripts/jest.cjs --selectProjects web --findRelatedTests --passWithNoTests --maxWorkers=50%"
     ],
     "packages/shared-types/**/*.{js,jsx,ts,tsx}": [
       "prettier --write",
       "bash -c 'cd packages/shared-types && pnpm exec eslint src/**/*.ts --fix'",
       "bash -c 'cd packages/shared-types && pnpm exec tsc -p . --noEmit'",
-      "node scripts/jest.cjs --selectProjects shared-types"
+      "node scripts/jest.cjs --selectProjects shared-types --findRelatedTests --passWithNoTests --maxWorkers=50%"
     ],
     "scripts/**/*.{js,cjs}": [
       "prettier --write"
