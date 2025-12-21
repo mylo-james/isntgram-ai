@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
+import { Post } from '../../posts/entities/post.entity';
+import { Follow } from '../../follows/entities/follow.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -25,6 +28,9 @@ export class User {
 
   @Column({ type: 'varchar', length: 255 })
   hashedPassword!: string;
+
+  @Column({ type: 'integer', default: 0 })
+  tokenVersion!: number;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   profilePictureUrl?: string;
@@ -46,4 +52,13 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @OneToMany(() => Post, (post) => post.author)
+  posts?: Post[];
+
+  @OneToMany(() => Follow, (follow) => follow.follower)
+  following?: Follow[];
+
+  @OneToMany(() => Follow, (follow) => follow.following)
+  followers?: Follow[];
 }

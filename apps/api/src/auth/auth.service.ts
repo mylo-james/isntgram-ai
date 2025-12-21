@@ -1,10 +1,17 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import argon2 from 'argon2';
 import { User } from '../users/entities/user.entity';
+import { Post } from '../posts/entities/post.entity';
 import { RegisterDto } from './dto/register.dto';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { isUniqueConstraintError } from '../common/db-errors';
 
 @Injectable()
 export class AuthService {
@@ -12,12 +19,43 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {}
+
+  private normalizeEmail(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private normalizeUsername(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private normalizeFullName(value: string): string {
+    return value.trim();
+  }
+
+  private sanitizeUser(user: User): Omit<User, 'hashedPassword'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { hashedPassword, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  private async signAccessToken(user: User): Promise<string> {
+    return this.jwtService.signAsync({
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+      tokenVersion: user.tokenVersion ?? 0,
+    });
+  }
 
   async register(
     registerDto: RegisterDto,
   ): Promise<Omit<User, 'hashedPassword'>> {
-    const { email, username, fullName, password } = registerDto;
+    const email = this.normalizeEmail(registerDto.email);
+    const username = this.normalizeUsername(registerDto.username);
+    const fullName = this.normalizeFullName(registerDto.fullName);
+    const { password } = registerDto;
 
     // Check for existing user with same email
     const existingUserByEmail = await this.userRepository.findOne({
@@ -51,17 +89,20 @@ export class AuthService {
       followingCount: 0,
     });
 
-    const savedUser = await this.userRepository.save(user);
-
-    // Return user without hashed password
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _, ...userWithoutPassword } = savedUser;
-    return userWithoutPassword;
+    try {
+      const savedUser = await this.userRepository.save(user);
+      return this.sanitizeUser(savedUser);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('Email or username already exists');
+      }
+      throw error;
+    }
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
-      where: { email },
+      where: { email: this.normalizeEmail(email) },
     });
 
     if (user && (await argon2.verify(user.hashedPassword, password))) {
@@ -71,32 +112,42 @@ export class AuthService {
     return null;
   }
 
-  async findUserById(id: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { id },
-    });
+  async login(email: string, password: string) {
+    const user = await this.validateUser(this.normalizeEmail(email), password);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const accessToken = await this.signAccessToken(user);
+    return {
+      user: this.sanitizeUser(user),
+      accessToken,
+    };
   }
 
-  async findUserByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { email },
-    });
+  async revokeUserTokens(userId: string): Promise<void> {
+    await this.userRepository.increment({ id: userId }, 'tokenVersion', 1);
   }
 
   async getOrCreateDemoUser(): Promise<Omit<User, 'hashedPassword'>> {
-    const email =
-      this.configService.get<string>('DEMO_EMAIL') || 'demo@isntgram.ai';
-    const username = this.configService.get<string>('DEMO_USERNAME') || 'demo';
-    const fullName =
-      this.configService.get<string>('DEMO_FULL_NAME') || 'Demo User';
+    const email = this.normalizeEmail(
+      this.configService.get<string>('DEMO_EMAIL') || 'demo@isntgram.ai',
+    );
+    const username = this.normalizeUsername(
+      this.configService.get<string>('DEMO_USERNAME') || 'demo',
+    );
+    const fullName = this.normalizeFullName(
+      this.configService.get<string>('DEMO_FULL_NAME') || 'Demo User',
+    );
     const demoPassword =
       this.configService.get<string>('DEMO_PASSWORD') || 'demo';
 
     const existing = await this.userRepository.findOne({ where: { email } });
     if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { hashedPassword: _hp, ...userWithoutPassword } = existing;
-      return userWithoutPassword;
+      await this.ensureDemoPosts(existing.id);
+      const refreshed = await this.userRepository.findOne({
+        where: { id: existing.id },
+      });
+      return this.sanitizeUser(refreshed ?? existing);
     }
 
     const hashedPassword = await argon2.hash(demoPassword, {
@@ -108,14 +159,53 @@ export class AuthService {
       username,
       fullName,
       hashedPassword,
-      postsCount: 3,
-      followerCount: 12,
-      followingCount: 7,
+      postsCount: 0,
+      followerCount: 0,
+      followingCount: 0,
     });
 
     const saved = await this.userRepository.save(demoUser);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { hashedPassword: _hp2, ...userWithoutPassword2 } = saved;
-    return userWithoutPassword2;
+    await this.ensureDemoPosts(saved.id);
+    const refreshed = await this.userRepository.findOne({
+      where: { id: saved.id },
+    });
+    return this.sanitizeUser(refreshed ?? saved);
+  }
+
+  private async ensureDemoPosts(userId: string): Promise<void> {
+    const manager: EntityManager = this.userRepository.manager;
+
+    const postRepository = manager.getRepository(Post);
+    const userRepository = manager.getRepository(User);
+
+    const existingCount = await postRepository.count({
+      where: { authorId: userId },
+    });
+    if (existingCount > 0) {
+      await userRepository.update(
+        { id: userId },
+        { postsCount: existingCount },
+      );
+      return;
+    }
+
+    const templates = [
+      'Welcome to Isntgram — a signal-first feed for thoughtful updates.',
+      'Working on something new this week: a lightweight Next.js + NestJS stack with contract-first APIs.',
+      'Small wins compound. Today: improved observability and made the OpenAPI contract deterministic.',
+    ];
+
+    const now = Date.now();
+    const posts = templates.map((content, index) =>
+      postRepository.create({
+        authorId: userId,
+        content,
+        createdAt: new Date(now - index * 60 * 60 * 1000),
+        updatedAt: new Date(now - index * 60 * 60 * 1000),
+      }),
+    );
+
+    await postRepository.save(posts);
+    await userRepository.update({ id: userId }, { postsCount: posts.length });
   }
 }

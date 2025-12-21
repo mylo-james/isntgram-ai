@@ -1,43 +1,34 @@
 import { test, expect } from "@playwright/test";
+import { createTestUser, expectOnFeed, loginViaUi, registerViaApi, registerViaUi } from "./helpers/test-utils";
 
 test.describe("Auth E2E", () => {
-  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const user = {
-    email: `e2euser+${unique}@example.com`,
-    username: `e2euser_${unique}`,
-    fullName: "E2E User",
-    password: "Password123!",
-  };
+  test("registers via UI and logs in", async ({ page }) => {
+    const user = createTestUser("register");
 
-  test("seeds user via API and logs in successfully via UI", async ({ page }) => {
-    // Seed user via API (in-memory SQLite when NODE_ENV=test)
-    const res = await page.request.post("http://localhost:3001/api/auth/register", {
-      data: {
-        email: user.email,
-        username: user.username,
-        fullName: user.fullName,
-        password: user.password,
-      },
-    });
-    expect(res.status()).toBe(201);
+    await page.goto("/");
+    await page.getByRole("link", { name: /create account/i }).click();
+    await page.waitForURL(/\/register$/, { timeout: 5000 });
 
-    // Login via UI
-    await page.goto("/login");
-    await page.fill('input[name="email"]', user.email);
-    await page.fill('input[name="password"]', user.password);
-    await page.click('button[type="submit"]');
+    await registerViaUi(page, user, { navigate: false });
+    await expect(page.getByText(/registration successful/i)).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(/\/login\?message=/, { timeout: 15000 });
+    await expect(page.getByText(/registration successful/i)).toBeVisible();
 
-    // Expect redirect to home
-    await page.waitForURL(/\/$/, { timeout: 15000 });
-    await expect(page).toHaveURL(/\/$/);
+    await loginViaUi(page, user, { navigate: false });
+    await expectOnFeed(page);
   });
 
-  test("shows error on invalid credentials", async ({ page }) => {
-    await page.goto("/login");
-    await page.fill('input[name="email"]', user.email);
-    await page.fill('input[name="password"]', "WrongPass123!");
-    await page.click('button[type="submit"]');
+  test("shows error on invalid credentials", async ({ page, request }) => {
+    const user = await registerViaApi(request, createTestUser("bad-login"));
 
-    await expect(page.locator("text=Invalid credentials")).toBeVisible({ timeout: 5000 });
+    await page.goto("/");
+    await page.getByRole("link", { name: /sign in/i }).click();
+    await page.waitForURL(/\/login$/, { timeout: 5000 });
+
+    await page.getByLabel(/email/i).fill(user.email);
+    await page.getByLabel(/password/i).fill("WrongPass123!");
+    await page.getByRole("button", { name: /log in/i }).click();
+
+    await expect(page.getByText(/invalid credentials|login failed/i)).toBeVisible({ timeout: 5000 });
   });
 });

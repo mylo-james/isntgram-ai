@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
-import ReduxProvider from "@/components/providers/ReduxProvider";
-import AuthProvider from "@/components/auth/AuthProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -21,8 +19,13 @@ export const metadata: Metadata = {
   description: "Connect with meaningful content and conversations on Isntgram, the AI-powered social media platform.",
   keywords: ["social media", "AI", "connections", "content", "community"],
   authors: [{ name: "Isntgram Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
+  icons: { icon: "/favicon.svg" },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -33,11 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ReduxProvider>
-          <SessionProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </SessionProvider>
-        </ReduxProvider>
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

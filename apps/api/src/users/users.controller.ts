@@ -4,37 +4,44 @@ import {
   Param,
   HttpCode,
   HttpStatus,
-  Query,
   Put,
   Body,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { UsersService, UserProfileDto } from './users.service';
+import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
+import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AuthUser } from '../auth/jwt.types';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
 
+const ONE_MINUTE_MS = 60_000;
+
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 240, ttl: ONE_MINUTE_MS } })
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: PrivateUserProfileDto })
   async getCurrentUser(
-    @Query('id') id?: string,
-    @Query('email') email?: string,
-  ): Promise<UserProfileDto> {
-    if (id) {
-      const user = await this.usersService.findById(id);
-      return this.usersService.getUserProfile(user.username);
-    }
-    if (email) {
-      const user = await this.usersService.findByEmail(email);
-      return this.usersService.getUserProfile(user.username);
-    }
-    // Default fall back — not found behavior bubbles up
-    return this.usersService.getUserProfile('');
+    @Req() req: Request & { user: AuthUser },
+  ): Promise<PrivateUserProfileDto> {
+    return this.usersService.getPrivateProfileById(req.user.userId);
   }
 
   @Get('check-username/:username')
+  @Throttle({ default: { limit: 60, ttl: ONE_MINUTE_MS } })
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ schema: { example: { available: true } } })
   async checkUsername(
     @Param('username') username: string,
   ): Promise<{ available: boolean }> {
@@ -43,20 +50,28 @@ export class UsersController {
   }
 
   @Get(':username')
+  @Throttle({ default: { limit: 300, ttl: ONE_MINUTE_MS } })
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: PublicUserProfileDto })
   async getUserProfile(
     @Param('username') username: string,
-  ): Promise<UserProfileDto> {
-    return this.usersService.getUserProfile(username);
+  ): Promise<PublicUserProfileDto> {
+    return this.usersService.getPublicProfile(username);
   }
 
   @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: ONE_MINUTE_MS } })
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  async updateProfile(@Body() body: UpdateProfileDto): Promise<UserProfileDto> {
-    const updated = await this.usersService.updateProfile(body.id, {
+  @ApiOkResponse({ type: PrivateUserProfileDto })
+  async updateProfile(
+    @Req() req: Request & { user: AuthUser },
+    @Body() body: UpdateProfileDto,
+  ): Promise<PrivateUserProfileDto> {
+    return this.usersService.updateProfile(req.user.userId, {
       fullName: body.fullName,
       username: body.username,
     });
-    return updated;
   }
 }

@@ -34,8 +34,14 @@ describe("Validation Utilities", () => {
     });
 
     it("returns valid for strong password", () => {
-      const result = validatePassword("password123");
+      const result = validatePassword("Password123");
       expect(result.isValid).toBe(true);
+    });
+
+    it("returns error for missing complexity requirements", () => {
+      const result = validatePassword("password123");
+      expect(result.isValid).toBe(false);
+      expect(result.message).toContain("lowercase");
     });
   });
 
@@ -68,7 +74,7 @@ describe("Validation Utilities", () => {
     it("returns error for invalid characters", () => {
       const result = validateUsername("test@user");
       expect(result.isValid).toBe(false);
-      expect(result.message).toBe("Username can only contain letters, numbers, and underscores");
+      expect(result.message).toBe("Username can only contain lowercase letters, numbers, and underscores");
     });
 
     it("returns valid for correct username", () => {

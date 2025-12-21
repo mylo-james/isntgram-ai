@@ -23,6 +23,7 @@ function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const demoEnabled = process.env.NEXT_PUBLIC_DEMO_ENABLED === "true";
 
   const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -47,7 +48,8 @@ function LoginInner() {
   }, [status, session, router]);
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = field === "email" ? value.toLowerCase() : value;
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
@@ -57,6 +59,7 @@ function LoginInner() {
         return validateEmail(value);
       case "password":
         return validatePassword(value);
+      /* istanbul ignore next */
       default:
         return { isValid: true };
     }
@@ -89,7 +92,7 @@ function LoginInner() {
 
     try {
       const result = await signIn("credentials", {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         redirect: false,
       });
@@ -119,21 +122,19 @@ function LoginInner() {
   };
 
   const handleDemoSignIn = async () => {
+    if (!demoEnabled) return;
     setFormError("");
     setSuccessMessage("");
     setDemoLoading(true);
     try {
-      // Hit backend to ensure demo user exists and return user; NextAuth will not use this response directly,
-      // but this guarantees the account is present and DB is warmed.
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const res = await fetch(`${apiBase}/api/auth/demo`, { method: "POST" });
-      if (!res.ok) {
-        throw new Error("Demo sign-in failed");
-      }
       // Now sign in via credentials using demo email/password pair
       const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@isntgram.ai";
       const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo";
-      const result = await signIn("credentials", { email: demoEmail, password: demoPassword, redirect: false });
+      const result = await signIn("credentials", {
+        email: demoEmail.trim().toLowerCase(),
+        password: demoPassword,
+        redirect: false,
+      });
       if (result?.error) {
         setFormError("Demo sign-in failed");
       } else if (result?.ok) {
@@ -168,6 +169,8 @@ function LoginInner() {
               onBlur={() => handleBlur("email")}
               error={errors.email}
               placeholder="Enter your email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
 
@@ -193,17 +196,19 @@ function LoginInner() {
             </Button>
           </Form>
 
-          <div className="mt-4">
-            <Button
-              type="button"
-              loading={demoLoading}
-              loadingText="Starting demo..."
-              className="w-full bg-gray-100 text-gray-800 hover:bg-gray-200"
-              onClick={handleDemoSignIn}
-            >
-              Try our demo
-            </Button>
-          </div>
+          {demoEnabled ? (
+            <div className="mt-4">
+              <Button
+                type="button"
+                loading={demoLoading}
+                loadingText="Starting demo..."
+                className="w-full bg-gray-100 text-gray-800 hover:bg-gray-200"
+                onClick={handleDemoSignIn}
+              >
+                Try our demo
+              </Button>
+            </div>
+          ) : null}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

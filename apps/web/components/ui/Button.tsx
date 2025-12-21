@@ -14,6 +14,7 @@ const Button: React.FC<ButtonProps> = ({
   loadingText,
   variant = "primary",
   size = "md",
+  type,
   disabled,
   className = "",
   ...props
@@ -39,10 +40,12 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   const isDisabled = disabled || loading;
+  const buttonType = type ?? "button";
 
   return (
     <button
       {...props}
+      type={buttonType}
       disabled={isDisabled}
       className={`
         ${baseClasses}

@@ -1,0 +1,61 @@
+import dataSource from '../ormconfig';
+
+async function main() {
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  if (
+    nodeEnv === 'production' &&
+    process.env.ALLOW_PROD_MAINTENANCE !== 'true'
+  ) {
+    throw new Error(
+      'Refusing to run in production without ALLOW_PROD_MAINTENANCE=true',
+    );
+  }
+
+  await dataSource.initialize();
+
+  const queryRunner = dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    await queryRunner.query(`
+      UPDATE "users" u
+      SET "postsCount" = (
+        SELECT COUNT(*)::int
+        FROM "posts" p
+        WHERE p."authorId" = u."id"
+      );
+    `);
+
+    await queryRunner.query(`
+      UPDATE "users" u
+      SET "followingCount" = (
+        SELECT COUNT(*)::int
+        FROM "follows" f
+        WHERE f."followerId" = u."id"
+      );
+    `);
+
+    await queryRunner.query(`
+      UPDATE "users" u
+      SET "followerCount" = (
+        SELECT COUNT(*)::int
+        FROM "follows" f
+        WHERE f."followingId" = u."id"
+      );
+    `);
+
+    await queryRunner.commitTransaction();
+    // eslint-disable-next-line no-console
+    console.log('✅ Reconciled user counters (posts/followers/following)');
+  } finally {
+    await queryRunner.release();
+    await dataSource.destroy();
+  }
+}
+
+main().catch((error) => {
+  // eslint-disable-next-line no-console
+  console.error('Failed to reconcile user counters:', error);
+  process.exit(1);
+});

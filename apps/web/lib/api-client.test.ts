@@ -1,313 +1,361 @@
-// Mock axios before importing the module
-jest.mock("axios");
-
-// Import after mocking
 import { apiClient } from "./api-client";
-import { mockAxiosInstance } from "./__mocks__/axios";
 
-describe("API Client", () => {
+describe("apiClient", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    global.fetch = jest.fn();
   });
 
-  describe("registration", () => {
-    it("should call registration endpoint with correct data", async () => {
-      const mockResponse = {
-        data: {
-          user: { id: "1", email: "test@example.com", username: "testuser", fullName: "Test User" },
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  function getLastRequest(): Request {
+    const calls = (global.fetch as jest.Mock).mock.calls;
+    return calls[calls.length - 1][0] as Request;
+  }
+
+  function toResponse(body: unknown, init: ResponseInit): Response {
+    return new Response(JSON.stringify(body), {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers || {}),
+      },
+    });
+  }
+
+  async function readRequestJson(request: Request): Promise<unknown> {
+    // openapi-fetch uses the Fetch API Request; read the body to verify payload shaping.
+    return request.json();
+  }
+
+  it("registers a user", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
           message: "User registered successfully",
+          user: {
+            id: "1",
+            email: "test@example.com",
+            username: "testuser",
+            fullName: "Test User",
+            postCount: 0,
+            followerCount: 0,
+            followingCount: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
         },
-      };
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+        { status: 201 },
+      ),
+    );
 
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      const result = await apiClient.register(registerData);
-
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith("/api/auth/register", registerData);
-      expect(result).toEqual(mockResponse.data);
+    const result = await apiClient.register({
+      email: "test@example.com",
+      username: "testuser",
+      fullName: "Test User",
+      password: "Password123",
     });
 
-    it("should handle registration errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Email already exists" },
-          status: 409,
+    expect(result.user.email).toBe("test@example.com");
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/auth/register");
+  });
+
+  it("fetches public user profile", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "testuser",
+          fullName: "Test User",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
+        { status: 200 },
+      ),
+    );
 
-      const registerData = {
-        email: "existing@example.com",
-        username: "existinguser",
-        fullName: "Existing User",
-        password: "password123",
-      };
+    const result = await apiClient.getUserProfile("testuser");
+    expect(result.username).toBe("testuser");
 
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/testuser");
+  });
+
+  it("fetches current user profile", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "me",
+          fullName: "Me",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    const result = await apiClient.getMyProfile();
+    expect(result.email).toBe("me@example.com");
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/me");
+  });
+
+  it("checks username availability", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ available: true }, { status: 200 }));
+
+    const result = await apiClient.checkUsernameAvailability("availableuser");
+    expect(result.available).toBe(true);
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/check-username/availableuser");
+  });
+
+  it("updates a profile", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    const result = await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+    expect(result.username).toBe("newuser");
+
+    const req = getLastRequest();
+    expect(req.method).toBe("PUT");
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/profile");
+    await expect(readRequestJson(req)).resolves.toEqual({ fullName: "New Name", username: "newuser" });
+  });
+
+  it("adds CSRF header for state-changing requests when cookie is present", async () => {
+    document.cookie = "isntgram-csrf=token%3A123";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+
+    const req = getLastRequest();
+    expect(req.headers.get("x-csrf-token")).toBe("token:123");
+  });
+
+  it("omits CSRF header when cookie is missing", async () => {
+    document.cookie = "isntgram-csrf=";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "1",
+          username: "newuser",
+          fullName: "New Name",
+          email: "me@example.com",
+          postCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { status: 200 },
+      ),
+    );
+
+    await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+
+    const req = getLastRequest();
+    expect(req.headers.has("x-csrf-token")).toBe(false);
+  });
+
+  it("does not add CSRF header for GET requests", async () => {
+    document.cookie = "isntgram-csrf=token%3A123";
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse({ items: [], nextCursor: undefined }, { status: 200 }),
+    );
+
+    await apiClient.getFeed();
+
+    const req = getLastRequest();
+    expect(req.method).toBe("GET");
+    expect(req.headers.has("x-csrf-token")).toBe(false);
+  });
+
+  it("creates a post", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          id: "post1",
+          content: "Hello",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          author: { id: "1", username: "me", fullName: "Me" },
+        },
+        { status: 201 },
+      ),
+    );
+
+    const result = await apiClient.createPost({ content: "Hello" });
+    expect(result.content).toBe("Hello");
+  });
+
+  it("rewrites a post draft", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          content: "Rewritten content.",
+          provider: "mock",
+        },
+        { status: 200 },
+      ),
+    );
+
+    const result = await apiClient.rewritePost({ content: "hello world" });
+    expect(result.content).toBe("Rewritten content.");
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/ai/rewrite");
+  });
+
+  it("builds feed query parameters", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse({ items: [], nextCursor: undefined }, { status: 200 }),
+    );
+
+    await apiClient.getFeed({ cursor: "cursor", limit: 10 });
+
+    const req = getLastRequest();
+    const url = new URL(req.url, "http://localhost");
+    expect(url.pathname).toBe("/api/bff/posts/feed");
+    expect(url.searchParams.get("cursor")).toBe("cursor");
+    expect(url.searchParams.get("limit")).toBe("10");
+  });
+
+  it("omits feed query parameters when not provided", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse({ items: [], nextCursor: undefined }, { status: 200 }),
+    );
+
+    await apiClient.getFeed();
+
+    const req = getLastRequest();
+    const url = new URL(req.url, "http://localhost");
+    expect(url.pathname).toBe("/api/bff/posts/feed");
+    expect(url.searchParams.has("cursor")).toBe(false);
+    expect(url.searchParams.has("limit")).toBe(false);
+  });
+
+  it("fetches a user's posts with query parameters", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ items: [], nextCursor: "next" }, { status: 200 }));
+
+    await apiClient.getUserPosts("testuser", { cursor: "c1", limit: 25 });
+
+    const req = getLastRequest();
+    const url = new URL(req.url, "http://localhost");
+    expect(url.pathname).toBe("/api/bff/posts/user/testuser");
+    expect(url.searchParams.get("cursor")).toBe("c1");
+    expect(url.searchParams.get("limit")).toBe("25");
+  });
+
+  it("gets follow status", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ isFollowing: true }, { status: 200 }));
+
+    const status = await apiClient.getFollowStatus("ava");
+    expect(status.isFollowing).toBe(true);
+
+    const req = getLastRequest();
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/follows/ava/status");
+  });
+
+  it("follows and unfollows a user", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(toResponse({ isFollowing: true }, { status: 200 }))
+      .mockResolvedValueOnce(toResponse({ isFollowing: false }, { status: 200 }));
+
+    await apiClient.followUser("ava");
+
+    const followReq = getLastRequest();
+    expect(followReq.method).toBe("POST");
+    expect(new URL(followReq.url, "http://localhost").pathname).toBe("/api/bff/follows/ava");
+
+    await apiClient.unfollowUser("ava");
+
+    const unfollowReq = getLastRequest();
+    expect(unfollowReq.method).toBe("DELETE");
+    expect(new URL(unfollowReq.url, "http://localhost").pathname).toBe("/api/bff/follows/ava");
+  });
+
+  it("creates an upload url", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      toResponse(
+        {
+          uploadUrl: "https://example.com/upload",
+          publicUrl: "https://cdn.example.com/file",
+          key: "uploads/file",
+          expiresIn: 60,
+        },
+        { status: 201 },
+      ),
+    );
+
+    const result = await apiClient.createUploadUrl({
+      fileName: "hello.png",
+      contentType: "image/png",
+      contentLength: 123,
     });
+    expect(result.publicUrl).toBe("https://cdn.example.com/file");
 
-    it("should handle registration with try-catch block", async () => {
-      const mockError = new Error("Network error");
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toThrow("Network error");
+    const req = getLastRequest();
+    expect(req.method).toBe("POST");
+    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/media/presign");
+    await expect(readRequestJson(req)).resolves.toEqual({
+      fileName: "hello.png",
+      contentType: "image/png",
+      contentLength: 123,
     });
   });
 
-  describe("login", () => {
-    it("should call login endpoint and return data", async () => {
-      const mockResponse = {
-        data: {
-          user: { id: "1", email: "test@example.com", username: "testuser", fullName: "Test User" },
-          accessToken: "token123",
-        },
-      };
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+  it("throws on API errors", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(toResponse({ message: "Bad request" }, { status: 400 }));
 
-      const result = await apiClient.login({ email: "a@b.com", password: "pass12345" });
-
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith("/api/auth/signin", {
-        email: "a@b.com",
-        password: "pass12345",
-      });
-      expect(result).toEqual(mockResponse.data);
-    });
-
-    it("should handle login errors", async () => {
-      const mockError = new Error("Invalid credentials");
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      await expect(apiClient.login({ email: "a@b.com", password: "wrong" })).rejects.toThrow("Invalid credentials");
-    });
-  });
-
-  describe("getCurrentUser", () => {
-    it("should call me endpoint and return data", async () => {
-      const mockResponse = { data: { user: { id: "1", email: "a@b.com", username: "ab", fullName: "A B" } } };
-      mockAxiosInstance.get.mockResolvedValue(mockResponse);
-
-      const result = await apiClient.getCurrentUser();
-
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith("/api/auth/me");
-      expect(result).toEqual(mockResponse.data);
-    });
-
-    it("should handle getCurrentUser errors", async () => {
-      const mockError = new Error("Unauthorized");
-      mockAxiosInstance.get.mockRejectedValue(mockError);
-
-      await expect(apiClient.getCurrentUser()).rejects.toThrow("Unauthorized");
-    });
-  });
-
-  describe("logout", () => {
-    it("should call logout endpoint and return data", async () => {
-      const mockResponse = { data: { message: "ok" } };
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
-
-      const result = await apiClient.logout();
-
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith("/api/auth/signout");
-      expect(result).toEqual({ message: "ok" });
-    });
-
-    it("should handle logout errors", async () => {
-      const mockError = new Error("Logout failed");
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      await expect(apiClient.logout()).rejects.toThrow("Logout failed");
-    });
-  });
-
-  describe("token helpers", () => {
-    it("returns null for getAuthToken, and token setters are callable no-ops", () => {
-      expect(apiClient.getAuthToken()).toBeNull();
-      expect(typeof apiClient.setAuthToken).toBe("function");
-      expect(typeof apiClient.clearAuthToken).toBe("function");
-      // Call them to exercise their code paths (they are intentional no-ops)
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - methods accept no args
-      apiClient.setAuthToken();
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - methods accept no args
-      apiClient.clearAuthToken();
-    });
-  });
-
-  describe("authentication headers", () => {
-    it("should include authorization header when token is available", () => {
-      const mockInterceptor = jest.fn();
-      mockAxiosInstance.interceptors.request.use = mockInterceptor;
-
-      // Simulate setting auth token
-      if (typeof window !== "undefined") {
-        localStorage.setItem("authToken", "test-token");
-      }
-
-      // The interceptor should be set up in the constructor
-      expect(mockAxiosInstance.interceptors.request.use).toBeDefined();
-    });
-  });
-
-  describe("error handling", () => {
-    it("should handle network errors", async () => {
-      const mockError = new Error("Network Error");
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 500 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Internal server error" },
-          status: 500,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 400 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Bad request" },
-          status: 400,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 401 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Unauthorized" },
-          status: 401,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 403 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Forbidden" },
-          status: 403,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 404 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Not found" },
-          status: 404,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 422 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Validation failed" },
-          status: 422,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
-
-    it("should handle 409 server errors", async () => {
-      const mockError = {
-        response: {
-          data: { message: "Conflict" },
-          status: 409,
-        },
-      };
-      mockAxiosInstance.post.mockRejectedValue(mockError);
-
-      const registerData = {
-        email: "test@example.com",
-        username: "testuser",
-        fullName: "Test User",
-        password: "password123",
-      };
-
-      await expect(apiClient.register(registerData)).rejects.toEqual(mockError);
-    });
+    await expect(
+      apiClient.register({
+        email: "bad@example.com",
+        username: "bad",
+        fullName: "Bad",
+        password: "Password123",
+      }),
+    ).rejects.toThrow("Bad request");
   });
 });

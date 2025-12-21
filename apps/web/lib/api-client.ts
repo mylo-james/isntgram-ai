@@ -1,181 +1,200 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
+import type {
+  AiRewriteRequest,
+  AiRewriteResponse,
+  ApiPaths,
+  CreatePostRequest,
+  CreateUploadUrlRequest,
+  FeedResponse,
+  FollowStatus,
+  PostItem,
+  PrivateUserProfile,
+  PublicUserProfile,
+  RegisterRequest,
+  RegisterResponse,
+  AuthLogoutResponse,
+  UploadUrlResponse,
+} from "@isntgram-ai/shared-types";
 
-// Types for API requests and responses
-export interface RegisterRequest {
-  email: string;
-  username: string;
-  fullName: string;
-  password: string;
-}
+import createClient from "openapi-fetch";
+import { getApiErrorMessage } from "./api-error";
+import { CSRF_HEADER_NAME, getCsrfTokenFromCookie, isStateChangingMethod } from "./csrf";
 
-export interface RegisterResponse {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    fullName: string;
-  };
-  message: string;
-}
+type BffPaths = {
+  [K in keyof ApiPaths as K extends "/api" ? never : K extends `/api${infer Rest}` ? Rest : never]: ApiPaths[K];
+};
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    fullName: string;
-  };
-  accessToken: string;
-}
-
-export interface UserProfile {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ApiError {
-  message: string;
-  statusCode: number;
-  error: string;
-  timestamp: string;
-}
-
-class ApiClient {
-  private client: AxiosInstance;
-
-  constructor() {
-    this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-      timeout: 10000,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    this.setupInterceptors();
+const csrfFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const request = input instanceof Request ? (init ? new Request(input, init) : input) : new Request(input, init);
+  const method = request.method || (init?.method ?? "GET");
+  if (!isStateChangingMethod(method)) {
+    return fetch(request);
   }
 
-  private setupInterceptors(): void {
-    // Request interceptor for authentication headers
-    this.client.interceptors.request.use(
-      (config) => config,
-      (error) => {
-        console.error("Request Error:", error);
-        return Promise.reject(error);
-      },
-    );
-
-    // Response interceptor for error handling
-    this.client.interceptors.response.use(
-      (response: AxiosResponse) => response,
-      (error: AxiosError<ApiError>) => {
-        console.error("Response Error:", {
-          status: error.response?.status,
-          url: error.config?.url,
-          data: error.response?.data,
-        });
-
-        // Handle different error scenarios
-        if (error.response) {
-          // Server responded with error status
-          const errorMessage = (error.response.data as unknown as { message?: string })?.message || "An error occurred";
-          return Promise.reject(new Error(errorMessage));
-        } else if (error.request) {
-          // Network error
-          return Promise.reject(new Error("Network error. Please check your connection."));
-        } else {
-          // Other error
-          return Promise.reject(new Error("An unexpected error occurred."));
-        }
-      },
-    );
+  const csrfToken = getCsrfTokenFromCookie();
+  if (!csrfToken) {
+    return fetch(request);
   }
 
-  // Registration endpoint
+  const headers = new Headers(request.headers);
+  headers.set(CSRF_HEADER_NAME, csrfToken);
+  return fetch(new Request(request, { headers }));
+};
+
+const client = createClient<BffPaths>({
+  baseUrl: "/api/bff",
+  // Allow tests to swap `global.fetch` after module import.
+  fetch: csrfFetch as unknown as (input: Request) => Promise<Response>,
+});
+
+async function unwrap<T>(result: Promise<unknown>): Promise<T> {
+  const { data, error, response } = (await result) as {
+    data?: T;
+    error?: unknown;
+    response: Response;
+  };
+
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(error));
+  }
+
+  // openapi-fetch only provides `data` for 2xx responses.
+  return data as T;
+}
+
+export const apiClient = {
   async register(data: RegisterRequest): Promise<RegisterResponse> {
-    try {
-      const response = await this.client.post<RegisterResponse>("/api/auth/register", data);
-      return response.data;
-    } catch (error) {
-      // Re-throw the error to let the interceptor handle it
-      throw error;
-    }
-  }
-
-  // Login endpoint (for Auth.js integration)
-  async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await this.client.post<LoginResponse>("/api/auth/signin", data);
-    return response.data;
-  }
-
-  // Get current user
-  async getCurrentUser(): Promise<{ user: RegisterResponse["user"] }> {
-    const response = await this.client.get<{ user: RegisterResponse["user"] }>("/api/auth/me");
-    return response.data;
-  }
-
-  // Logout endpoint
-  async logout(): Promise<{ message: string }> {
-    const response = await this.client.post<{ message: string }>("/api/auth/signout");
-    return response.data;
-  }
-
-  // Get user profile by username
-  async getUserProfile(username: string): Promise<UserProfile> {
-    const response = await this.client.get<UserProfile>(`/api/users/${username}`);
-    return response.data;
-  }
-
-  // Get current user's profile by id or email
-  async getMyProfile(params: { id?: string; email?: string }): Promise<UserProfile> {
-    const search = params.id
-      ? `id=${encodeURIComponent(params.id)}`
-      : `email=${encodeURIComponent(params.email || "")}`;
-    const response = await this.client.get<UserProfile>(`/api/users/me?${search}`);
-    return response.data;
-  }
-
-  // Check if a username is available
-  async checkUsernameAvailability(username: string): Promise<{ available: boolean }> {
-    const response = await this.client.get<{ available: boolean }>(
-      `/api/users/check-username/${encodeURIComponent(username)}`,
+    return unwrap<RegisterResponse>(
+      client.POST("/auth/register", {
+        body: data,
+      }),
     );
-    return response.data;
-  }
+  },
 
-  // Update current user's profile
-  async updateProfile(data: { id: string; fullName: string; username: string }): Promise<UserProfile> {
-    const response = await this.client.put<UserProfile>("/api/users/profile", data);
-    return response.data;
-  }
+  async getUserProfile(username: string): Promise<PublicUserProfile> {
+    return unwrap<PublicUserProfile>(
+      client.GET("/users/{username}", {
+        params: {
+          path: { username },
+        },
+      }),
+    );
+  },
 
-  // Set auth token (for manual token management)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  setAuthToken(): void {}
+  async getMyProfile(): Promise<PrivateUserProfile> {
+    return unwrap<PrivateUserProfile>(client.GET("/users/me"));
+  },
 
-  // Clear auth token
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  clearAuthToken(): void {}
+  async checkUsernameAvailability(username: string): Promise<{ available: boolean }> {
+    return unwrap<{ available: boolean }>(
+      client.GET("/users/check-username/{username}", {
+        params: {
+          path: { username },
+        },
+      }),
+    );
+  },
 
-  // Get auth token
-  getAuthToken(): string | null {
-    return null;
-  }
-}
+  async updateProfile(data: { fullName: string; username: string }): Promise<PrivateUserProfile> {
+    return unwrap<PrivateUserProfile>(
+      client.PUT("/users/profile", {
+        body: data,
+      }),
+    );
+  },
 
-// Export singleton instance
-export const apiClient = new ApiClient();
+  async getFeed(params?: { cursor?: string; limit?: number }): Promise<FeedResponse> {
+    return unwrap<FeedResponse>(
+      client.GET("/posts/feed", {
+        params: {
+          query: {
+            cursor: params?.cursor,
+            limit: params?.limit,
+          },
+        },
+      }),
+    );
+  },
+
+  async getUserPosts(username: string, params?: { cursor?: string; limit?: number }): Promise<FeedResponse> {
+    return unwrap<FeedResponse>(
+      client.GET("/posts/user/{username}", {
+        params: {
+          path: { username },
+          query: {
+            cursor: params?.cursor,
+            limit: params?.limit,
+          },
+        },
+      }),
+    );
+  },
+
+  async createPost(data: CreatePostRequest): Promise<PostItem> {
+    return unwrap<PostItem>(
+      client.POST("/posts", {
+        body: data,
+      }),
+    );
+  },
+
+  async logout(): Promise<AuthLogoutResponse> {
+    return unwrap<AuthLogoutResponse>(client.POST("/auth/logout"));
+  },
+
+  async rewritePost(data: AiRewriteRequest): Promise<AiRewriteResponse> {
+    return unwrap<AiRewriteResponse>(
+      client.POST("/ai/rewrite", {
+        body: data,
+      }),
+    );
+  },
+
+  async getFollowStatus(username: string): Promise<FollowStatus> {
+    return unwrap<FollowStatus>(
+      client.GET("/follows/{username}/status", {
+        params: {
+          path: { username },
+        },
+      }),
+    );
+  },
+
+  async followUser(username: string): Promise<FollowStatus> {
+    return unwrap<FollowStatus>(
+      client.POST("/follows/{username}", {
+        params: {
+          path: { username },
+        },
+      }),
+    );
+  },
+
+  async unfollowUser(username: string): Promise<FollowStatus> {
+    return unwrap<FollowStatus>(
+      client.DELETE("/follows/{username}", {
+        params: {
+          path: { username },
+        },
+      }),
+    );
+  },
+
+  async createUploadUrl(data: CreateUploadUrlRequest): Promise<UploadUrlResponse> {
+    return unwrap<UploadUrlResponse>(
+      client.POST("/media/presign", {
+        body: data,
+      }),
+    );
+  },
+};
+export type {
+  AiRewriteRequest,
+  AiRewriteResponse,
+  PublicUserProfile,
+  PrivateUserProfile,
+  FeedResponse,
+  PostItem,
+  FollowStatus,
+  UploadUrlResponse,
+  AuthLogoutResponse,
+};

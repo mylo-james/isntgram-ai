@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import RegisterPage from "./page";
 
 // Mock Next.js router
@@ -83,6 +83,19 @@ describe("RegisterPage", () => {
     });
   });
 
+  it("clears a field error when the user edits the field", async () => {
+    render(<RegisterPage />);
+
+    const emailInput = screen.getByLabelText(/email/i);
+    fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+    fireEvent.blur(emailInput);
+
+    await waitFor(() => expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument());
+
+    fireEvent.change(emailInput, { target: { value: "valid@example.com" } });
+    await waitFor(() => expect(screen.queryByText(/please enter a valid email address/i)).not.toBeInTheDocument());
+  });
+
   it("validates password complexity", async () => {
     render(<RegisterPage />);
 
@@ -117,7 +130,7 @@ describe("RegisterPage", () => {
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
     fireEvent.change(usernameInput, { target: { value: "testuser" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(passwordInput, { target: { value: "Password123" } });
 
     const form = emailInput.closest("form");
     if (form) {
@@ -130,7 +143,7 @@ describe("RegisterPage", () => {
         email: "test@example.com",
         username: "testuser",
         fullName: "Test User",
-        password: "password123",
+        password: "Password123",
       });
     });
 
@@ -138,6 +151,38 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
     });
+  });
+
+  it("redirects to login after successful registration", async () => {
+    jest.useFakeTimers();
+    mockRegister.mockResolvedValue({
+      user: {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        fullName: "Test User",
+      },
+      message: "User registered successfully",
+    });
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/registration successful/i)).toBeInTheDocument());
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("/login?message=Registration successful! Please log in.");
+    jest.useRealTimers();
   });
 
   it("shows loading state during form submission", async () => {
@@ -155,7 +200,7 @@ describe("RegisterPage", () => {
     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
     fireEvent.change(usernameInput, { target: { value: "testuser" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(passwordInput, { target: { value: "Password123" } });
     fireEvent.click(submitButton);
 
     expect(submitButton).toBeDisabled();
@@ -164,12 +209,7 @@ describe("RegisterPage", () => {
 
   it("handles API errors and displays error messages", async () => {
     // Mock API error
-    mockRegister.mockRejectedValue({
-      response: {
-        data: { message: "Email already exists" },
-        status: 409,
-      },
-    });
+    mockRegister.mockRejectedValue(new Error("Email already exists"));
 
     render(<RegisterPage />);
 
@@ -181,7 +221,7 @@ describe("RegisterPage", () => {
     fireEvent.change(emailInput, { target: { value: "existing@example.com" } });
     fireEvent.change(fullNameInput, { target: { value: "Test User" } });
     fireEvent.change(usernameInput, { target: { value: "testuser" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    fireEvent.change(passwordInput, { target: { value: "Password123" } });
 
     const form = emailInput.closest("form");
     if (form) {
@@ -195,16 +235,14 @@ describe("RegisterPage", () => {
   });
 
   it("handles username-specific backend error mapping", async () => {
-    mockRegister.mockRejectedValue({
-      response: { data: { message: "Username already taken" }, status: 409 },
-    });
+    mockRegister.mockRejectedValue(new Error("Username already taken"));
 
     render(<RegisterPage />);
 
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -223,7 +261,7 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
@@ -242,13 +280,35 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Test User" } });
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
 
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText(/network down/i)).toBeInTheDocument();
+    });
+  });
+
+  it("validates username and full name on blur", async () => {
+    render(<RegisterPage />);
+
+    const username = screen.getByLabelText(/username/i);
+    fireEvent.change(username, { target: { value: "bad user" } });
+    fireEvent.blur(username);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/username can only contain (lowercase )?letters, numbers, and underscores/i),
+      ).toBeInTheDocument();
+    });
+
+    const fullName = screen.getByLabelText(/full name/i);
+    fireEvent.change(fullName, { target: { value: "   " } });
+    fireEvent.blur(fullName);
+
+    await waitFor(() => {
+      expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
     });
   });
 });

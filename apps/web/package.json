@@ -6,24 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.1",
-    "@reduxjs/toolkit": "^2.8.2",
-    "axios": "^1.11.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.536.0",
-    "next": "14.2.31",
-    "next-auth": "^5.0.0-beta.29",
+    "@isntgram-ai/shared-types": "workspace:*",
+    "next": "16.1.0",
+    "next-auth": "^5.0.0-beta.30",
+    "openapi-fetch": "^0.15.0",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.62.0",
-    "react-redux": "^9.2.0",
-    "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^4.0.15"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.0",
@@ -37,8 +30,10 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "babel-jest": "^30.0.5",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.31",
+    "cross-fetch": "^4.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.1.0",
+    "globals": "^16.5.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",

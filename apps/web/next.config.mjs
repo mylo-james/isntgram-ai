@@ -1,12 +1,48 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  webpack: (config) => {
-    if (process.env.NODE_ENV === 'production') {
-      if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
-        throw new Error('AUTH_SECRET or NEXTAUTH_SECRET must be set in production');
-      }
+const defaultMediaHosts = "localhost:9000,127.0.0.1:9000,cdn.isntgram.ai";
+const rawMediaHosts = process.env.NEXT_PUBLIC_MEDIA_HOSTS || defaultMediaHosts;
+
+const mediaPatterns = rawMediaHosts
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map((value) => {
+    try {
+      const hasProtocol = value.includes("://");
+      const url = new URL(
+        hasProtocol
+          ? value
+          : `${value.includes("localhost") || value.startsWith("127.0.0.1") ? "http" : "https"}://${value}`,
+      );
+      return {
+        protocol: url.protocol.replace(":", ""),
+        hostname: url.hostname,
+        port: url.port || undefined,
+        pathname: "/**",
+      };
+    } catch {
+      return null;
     }
-    return config;
+  })
+  .filter(Boolean);
+
+const nextConfig = {
+  turbopack: {},
+  images: {
+    remotePatterns: mediaPatterns.length > 0 ? mediaPatterns : undefined,
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
   },
 };
 

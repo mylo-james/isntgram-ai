@@ -1,5 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const apiPort = process.env.E2E_API_PORT || "4011";
+const apiBaseUrl = process.env.E2E_API_URL || `http://127.0.0.1:${apiPort}`;
+
+process.env.E2E_API_PORT = apiPort;
+process.env.E2E_API_URL = apiBaseUrl;
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -15,7 +21,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ["html"],
+    ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/results.json" }],
     ["junit", { outputFile: "playwright-report/results.xml" }],
   ],
@@ -61,7 +67,7 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: "cd apps/web && PORT=3000 npm run start",
+      command: "PORT=3000 pnpm --filter web start",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
@@ -71,15 +77,27 @@ export default defineConfig({
         NEXTAUTH_URL: "http://127.0.0.1:3000",
         NEXTAUTH_SECRET: "test_secret_for_e2e_only",
         AUTH_SECRET: "test_secret_for_e2e_only",
+        NEXT_PUBLIC_DEMO_ENABLED: "true",
+        NEXT_PUBLIC_DEMO_EMAIL: "demo@isntgram.ai",
+        NEXT_PUBLIC_DEMO_PASSWORD: "demo",
+        NEXT_PUBLIC_API_URL: apiBaseUrl,
+        INTERNAL_API_URL: apiBaseUrl,
+        E2E_API_URL: apiBaseUrl,
       },
     },
     {
-      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
-      url: "http://127.0.0.1:3001/api",
+      command: `NODE_ENV=test PORT=${apiPort} pnpm --filter api start:prod`,
+      url: `${apiBaseUrl}/api`,
       reuseExistingServer: !process.env.CI,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",
+      env: {
+        JWT_SECRET: "test_jwt_secret_for_e2e_only",
+        JWT_EXPIRES_IN: "7d",
+        DEMO_ENABLED: "true",
+        E2E_API_URL: apiBaseUrl,
+      },
     },
   ],
 });

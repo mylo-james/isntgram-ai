@@ -42,7 +42,8 @@ export default function RegisterPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = field === "email" || field === "username" ? value.toLowerCase() : value;
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
 
     // Clear error when user starts typing
     if (errors[field]) {
@@ -106,9 +107,9 @@ export default function RegisterPage() {
     try {
       // Call the registration API
       await apiClient.register({
-        email: formData.email,
-        username: formData.username,
-        fullName: formData.fullName,
+        email: formData.email.trim().toLowerCase(),
+        username: formData.username.trim().toLowerCase(),
+        fullName: formData.fullName.trim(),
         password: formData.password,
       });
 
@@ -127,28 +128,13 @@ export default function RegisterPage() {
         router.push("/login?message=Registration successful! Please log in.");
       }, 2000);
     } catch (error: unknown) {
-      // Handle different types of errors
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        (error as { response?: { data?: { message?: string } } }).response?.data?.message
-      ) {
-        // Backend validation error
-        const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data
-          ?.message as string;
-        if (errorMessage.includes("email")) {
-          setErrors({ email: errorMessage });
-        } else if (errorMessage.includes("username")) {
-          setErrors({ username: errorMessage });
-        } else {
-          setErrors({ email: errorMessage });
-        }
-      } else if (error instanceof Error && error.message) {
-        // Network or other error
-        setErrors({ email: error.message });
+      const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+      if (message.toLowerCase().includes("username")) {
+        setErrors({ username: message });
+      } else if (message.toLowerCase().includes("email")) {
+        setErrors({ email: message });
       } else {
-        setErrors({ email: "Registration failed. Please try again." });
+        setErrors({ email: message });
       }
     } finally {
       setIsLoading(false);
@@ -177,6 +163,8 @@ export default function RegisterPage() {
               onBlur={() => handleBlur("email")}
               error={errors.email}
               placeholder="Enter your email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
 
@@ -203,6 +191,8 @@ export default function RegisterPage() {
               onBlur={() => handleBlur("username")}
               error={errors.username}
               placeholder="Choose a username"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
 
