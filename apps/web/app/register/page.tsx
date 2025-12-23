@@ -3,13 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
 import { apiClient } from "@/lib/api-client";
 import {
   validateEmail,
+  validateFullName,
   validatePassword,
-  validateRequired,
   validateUsername,
   ValidationResult,
 } from "@/lib/validation";
@@ -40,9 +38,11 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [formError, setFormError] = useState("");
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = field === "email" || field === "username" ? value.toLowerCase() : value;
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
 
     // Clear error when user starts typing
     if (errors[field]) {
@@ -68,7 +68,7 @@ export default function RegisterPage() {
       case "username":
         return validateUsername(value);
       case "fullName":
-        return validateRequired(value, "Full name");
+        return validateFullName(value);
       default:
         return { isValid: true };
     }
@@ -94,6 +94,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
 
     if (!validateForm()) {
       return;
@@ -106,9 +107,9 @@ export default function RegisterPage() {
     try {
       // Call the registration API
       await apiClient.register({
-        email: formData.email,
-        username: formData.username,
-        fullName: formData.fullName,
+        email: formData.email.trim().toLowerCase(),
+        username: formData.username.trim().toLowerCase(),
+        fullName: formData.fullName.trim(),
         password: formData.password,
       });
 
@@ -127,28 +128,13 @@ export default function RegisterPage() {
         router.push("/login?message=Registration successful! Please log in.");
       }, 2000);
     } catch (error: unknown) {
-      // Handle different types of errors
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        (error as { response?: { data?: { message?: string } } }).response?.data?.message
-      ) {
-        // Backend validation error
-        const errorMessage = (error as { response?: { data?: { message?: string } } }).response?.data
-          ?.message as string;
-        if (errorMessage.includes("email")) {
-          setErrors({ email: errorMessage });
-        } else if (errorMessage.includes("username")) {
-          setErrors({ username: errorMessage });
-        } else {
-          setErrors({ email: errorMessage });
-        }
-      } else if (error instanceof Error && error.message) {
-        // Network or other error
-        setErrors({ email: error.message });
+      const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+      if (message.toLowerCase().includes("username")) {
+        setErrors({ username: message });
+      } else if (message.toLowerCase().includes("email")) {
+        setErrors({ email: message });
       } else {
-        setErrors({ email: "Registration failed. Please try again." });
+        setFormError(message);
       }
     } finally {
       setIsLoading(false);
@@ -156,87 +142,170 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold text-gray-900">Isntgram</h1>
-          <p className="mt-2 text-sm text-gray-600">Share your moments with the world</p>
+    <div className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden">
+      <div className="absolute inset-0 z-0">
+        <div className="relative w-full h-full overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="w-full h-full object-cover"
+            src="https://picsum.photos/seed/isntgram-signup/2000/3000"
+            alt=""
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20" />
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-sm border border-gray-200 sm:rounded-xl sm:px-10">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              label="Email"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              onBlur={() => handleBlur("email")}
-              error={errors.email}
-              placeholder="Enter your email"
-              required
-            />
+      <div className="relative min-h-screen w-full max-w-md bg-white border border-gray-200 shadow-xl z-10">
+        <div className="flex flex-col items-center justify-center min-h-screen px-8 py-12">
+          <div className="mb-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="w-48 h-auto object-contain" src="/assets/logo.svg" alt="Isntgram logo" />
+          </div>
 
-            <Input
-              id="fullName"
-              name="fullName"
-              type="text"
-              label="Full Name"
-              value={formData.fullName}
-              onChange={(e) => handleInputChange("fullName", e.target.value)}
-              onBlur={() => handleBlur("fullName")}
-              error={errors.fullName}
-              placeholder="Enter your full name"
-              required
-            />
+          <div className="w-full max-w-sm">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
 
-            <Input
-              id="username"
-              name="username"
-              type="text"
-              label="Username"
-              value={formData.username}
-              onChange={(e) => handleInputChange("username", e.target.value)}
-              onBlur={() => handleBlur("username")}
-              error={errors.username}
-              placeholder="Choose a username"
-              required
-            />
-
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              label="Password"
-              value={formData.password}
-              onChange={(e) => handleInputChange("password", e.target.value)}
-              onBlur={() => handleBlur("password")}
-              error={errors.password}
-              placeholder="Create a password"
-              required
-            />
-
-            {successMessage && (
-              <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
-                {successMessage}
+              <div>
+                <label className="sr-only" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="Email"
+                  name="email"
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  onBlur={() => handleBlur("email")}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                  type="email"
+                />
+                {errors.email ? <p className="mt-1 text-xs text-red-600">{errors.email}</p> : null}
               </div>
-            )}
 
-            <Button type="submit" loading={isLoading} loadingText="Signing up..." className="w-full">
-              Sign Up
-            </Button>
-          </form>
+              <div>
+                <label className="sr-only" htmlFor="fullName">
+                  Full Name
+                </label>
+                <input
+                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="Full Name"
+                  name="fullName"
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={(e) => handleInputChange("fullName", e.target.value)}
+                  onBlur={() => handleBlur("fullName")}
+                  required
+                  type="text"
+                />
+                {errors.fullName ? <p className="mt-1 text-xs text-red-600">{errors.fullName}</p> : null}
+              </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              <div>
+                <label className="sr-only" htmlFor="username">
+                  Username
+                </label>
+                <input
+                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="Username"
+                  name="username"
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => handleInputChange("username", e.target.value)}
+                  onBlur={() => handleBlur("username")}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                  type="text"
+                />
+                {errors.username ? <p className="mt-1 text-xs text-red-600">{errors.username}</p> : null}
+              </div>
+
+              <div>
+                <label className="sr-only" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="Password"
+                  name="password"
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  onBlur={() => handleBlur("password")}
+                  required
+                  type="password"
+                />
+                {errors.password ? <p className="mt-1 text-xs text-red-600">{errors.password}</p> : null}
+              </div>
+
+              {successMessage ? (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
+              ) : null}
+
+              <button
+                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? "Signing up..." : "Sign Up"}
+              </button>
+            </form>
+
+            <div className="mt-6 text-sm text-center">
+              <span className="text-gray-600">Have an account? </span>
+              <Link
+                className="text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-200"
+                href="/login"
+              >
                 Log in
               </Link>
-            </p>
+            </div>
+          </div>
+
+          <div className="absolute flex justify-between items-center h-[10vh] w-[90%] bottom-[35px] left-[5%]">
+            <a
+              href="https://github.com/jamesurobertson/"
+              className="flex justify-center w-[30%]"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/profile.jpeg"
+                alt="James Robertson"
+                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+              />
+            </a>
+            <a
+              href="https://github.com/ajpierskalla3/"
+              className="flex justify-center w-[30%]"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/aaron-profile.jpeg"
+                alt="Aaron Pierskalla"
+                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+              />
+            </a>
+            <a
+              href="https://github.com/mylo-james/"
+              className="flex justify-center w-[30%]"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/mylo-profile.jpg"
+                alt="Mylo James"
+                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+              />
+            </a>
           </div>
         </div>
       </div>

@@ -1,13 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepository: Repository<User>;
 
   const mockUser: User = {
     id: '1',
@@ -38,7 +37,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
   });
 
   afterEach(() => {
@@ -69,11 +67,40 @@ describe('UsersService', () => {
     });
   });
 
-  describe('getUserProfile', () => {
-    it('should return user profile DTO when user found', async () => {
+  describe('getPublicProfile', () => {
+    it('should return public profile DTO when user found', async () => {
       (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
 
-      const result = await service.getUserProfile('testuser');
+      const result = await service.getPublicProfile('testuser');
+
+      expect(result).toEqual({
+        id: mockUser.id,
+        username: mockUser.username,
+        fullName: mockUser.fullName,
+        profilePictureUrl: mockUser.profilePictureUrl,
+        bio: mockUser.bio,
+        postCount: mockUser.postsCount,
+        followerCount: mockUser.followerCount,
+        followingCount: mockUser.followingCount,
+        createdAt: mockUser.createdAt.toISOString(),
+        updatedAt: mockUser.updatedAt.toISOString(),
+      });
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.getPublicProfile('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('getPrivateProfileById', () => {
+    it('should return private profile DTO when user found', async () => {
+      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await service.getPrivateProfileById('1');
 
       expect(result).toEqual({
         id: mockUser.id,
@@ -85,17 +112,9 @@ describe('UsersService', () => {
         postCount: mockUser.postsCount,
         followerCount: mockUser.followerCount,
         followingCount: mockUser.followingCount,
-        createdAt: mockUser.createdAt,
-        updatedAt: mockUser.updatedAt,
+        createdAt: mockUser.createdAt.toISOString(),
+        updatedAt: mockUser.updatedAt.toISOString(),
       });
-    });
-
-    it('should throw NotFoundException when user not found', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-
-      await expect(service.getUserProfile('nonexistent')).rejects.toThrow(
-        NotFoundException,
-      );
     });
   });
 
@@ -118,24 +137,6 @@ describe('UsersService', () => {
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { id: '999' },
       });
-    });
-  });
-
-  describe('findByEmail', () => {
-    it('should return user when found by email', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(mockUser);
-      const result = await service.findByEmail('test@example.com');
-      expect(result).toEqual(mockUser);
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-      });
-    });
-
-    it('should throw NotFoundException when user not found by email', async () => {
-      (mockUserRepository.findOne as jest.Mock).mockResolvedValue(null);
-      await expect(service.findByEmail('none@example.com')).rejects.toThrow(
-        NotFoundException,
-      );
     });
   });
 
@@ -195,6 +196,24 @@ describe('UsersService', () => {
         service.updateProfile('1', {
           fullName: 'New Name',
           username: 'testuser',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when unique constraint error occurs on save', async () => {
+      (mockUserRepository.findOne as jest.Mock)
+        .mockResolvedValueOnce(mockUser) // findById
+        .mockResolvedValueOnce(null); // isUsernameTaken
+
+      const error = new QueryFailedError('query', [], {
+        code: '23505',
+      } as unknown as Error);
+      (mockUserRepository.save as jest.Mock).mockRejectedValueOnce(error);
+
+      await expect(
+        service.updateProfile('1', {
+          fullName: 'New Name',
+          username: 'newname',
         }),
       ).rejects.toThrow(ConflictException);
     });

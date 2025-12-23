@@ -6,20 +6,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-
-export interface UserProfileDto {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  postCount: number;
-  followerCount: number;
-  followingCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
+import { isUniqueConstraintError } from '../common/db-errors';
+import { UserSearchQueryDto } from './dto/user-search-query.dto';
+import { UserSearchItemDto } from './dto/user-search-item.dto';
+import { UserSearchResponseDto } from './dto/user-search-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -28,9 +20,17 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  private normalizeUsername(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private normalizeFullName(value: string): string {
+    return value.trim();
+  }
+
   async findByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { username },
+      where: { username: this.normalizeUsername(username) },
     });
 
     if (!user) {
@@ -40,43 +40,59 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new NotFoundException(`User with email "${email}" not found`);
-    }
-    return user;
-  }
-
   async isUsernameTaken(
     username: string,
     excludeUserId?: string,
   ): Promise<boolean> {
-    const existing = await this.userRepository.findOne({ where: { username } });
+    const existing = await this.userRepository.findOne({
+      where: { username: this.normalizeUsername(username) },
+    });
     if (!existing) return false;
     if (excludeUserId && existing.id === excludeUserId) return false;
     return true;
   }
 
-  async toUserProfileDto(user: User): Promise<UserProfileDto> {
+  toPublicProfileDto(user: User): PublicUserProfileDto {
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      email: user.email,
       profilePictureUrl: user.profilePictureUrl,
       bio: user.bio,
       postCount: user.postsCount,
       followerCount: user.followerCount,
       followingCount: user.followingCount,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
   }
 
-  async getUserProfile(username: string): Promise<UserProfileDto> {
-    const user = await this.findByUsername(username);
-    return this.toUserProfileDto(user);
+  toPrivateProfileDto(user: User): PrivateUserProfileDto {
+    return {
+      ...this.toPublicProfileDto(user),
+      email: user.email,
+    };
+  }
+
+  async getPublicProfile(
+    username: string,
+    viewerIsDemo = false,
+  ): Promise<PublicUserProfileDto> {
+    const normalizedUsername = this.normalizeUsername(username);
+    const user = await this.userRepository.findOne({
+      where: { username: normalizedUsername, isDemoUser: viewerIsDemo },
+    });
+    if (!user) {
+      throw new NotFoundException(
+        `User with username "${normalizedUsername}" not found`,
+      );
+    }
+    return this.toPublicProfileDto(user);
+  }
+
+  async getPrivateProfileById(id: string): Promise<PrivateUserProfileDto> {
+    const user = await this.findById(id);
+    return this.toPrivateProfileDto(user);
   }
 
   async findById(id: string): Promise<User> {
@@ -94,19 +110,67 @@ export class UsersService {
   async updateProfile(
     id: string,
     updates: { fullName: string; username: string },
-  ): Promise<UserProfileDto> {
+  ): Promise<PrivateUserProfileDto> {
     const user = await this.findById(id);
 
+    const nextUsername = this.normalizeUsername(updates.username);
+    const nextFullName = this.normalizeFullName(updates.fullName);
+
     // Username uniqueness check (exclude current user)
-    const usernameTaken = await this.isUsernameTaken(updates.username, id);
+    const usernameTaken = await this.isUsernameTaken(nextUsername, id);
     if (usernameTaken) {
       throw new ConflictException('Username already taken');
     }
 
-    user.fullName = updates.fullName;
-    user.username = updates.username;
+    user.fullName = nextFullName;
+    user.username = nextUsername;
 
-    const saved = await this.userRepository.save(user);
-    return this.toUserProfileDto(saved);
+    try {
+      const saved = await this.userRepository.save(user);
+      return this.toPrivateProfileDto(saved);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('Username already taken');
+      }
+      throw error;
+    }
+  }
+
+  async searchUsers(
+    viewerIsDemo: boolean,
+    query: UserSearchQueryDto,
+  ): Promise<UserSearchResponseDto> {
+    const raw = (query.q ?? '').trim();
+    if (raw.length === 0) return { items: [] };
+
+    const limit = query.limit ?? 10;
+    const needle = `%${raw.toLowerCase()}%`;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.username',
+        'user.fullName',
+        'user.profilePictureUrl',
+      ])
+      .where('user.isDemoUser = :viewerIsDemo', { viewerIsDemo })
+      .andWhere(
+        '(LOWER(user.username) LIKE :needle OR LOWER(user.fullName) LIKE :needle)',
+        { needle },
+      )
+      .orderBy('user.username', 'ASC')
+      .take(limit);
+
+    const results = await qb.getMany();
+
+    const items: UserSearchItemDto[] = results.map((user) => ({
+      id: user.id,
+      username: user.username,
+      fullName: user.fullName,
+      profilePictureUrl: user.profilePictureUrl,
+    }));
+
+    return { items };
   }
 }

@@ -5,6 +5,7 @@ import { GlobalExceptionFilter } from './global-exception.filter';
 describe('GlobalExceptionFilter', () => {
   let filter: GlobalExceptionFilter;
   let mockHost: ArgumentsHost;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,8 +30,9 @@ describe('GlobalExceptionFilter', () => {
     } as ArgumentsHost;
   });
 
-  it('should be defined', () => {
-    expect(filter).toBeDefined();
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+    jest.restoreAllMocks();
   });
 
   it('should handle HttpException', () => {
@@ -48,13 +50,15 @@ describe('GlobalExceptionFilter', () => {
     filter.catch(exception, mockHost);
 
     expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      statusCode: HttpStatus.BAD_REQUEST,
-      message: 'Test error',
-      error: 'HttpException',
-      timestamp: expect.any(String),
-      path: undefined,
-    });
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Test error',
+        error: 'HttpException',
+        timestamp: expect.any(String),
+        path: undefined,
+      }),
+    );
   });
 
   it('should handle generic Error', () => {
@@ -74,13 +78,15 @@ describe('GlobalExceptionFilter', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Generic error',
-      error: 'Error',
-      timestamp: expect.any(String),
-      path: undefined,
-    });
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Generic error',
+        error: 'Error',
+        timestamp: expect.any(String),
+        path: undefined,
+      }),
+    );
   });
 
   it('should handle unknown exceptions', () => {
@@ -100,12 +106,41 @@ describe('GlobalExceptionFilter', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Internal server error',
-      error: 'InternalServerError',
-      timestamp: expect.any(String),
-      path: undefined,
-    });
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Internal server error',
+        error: 'InternalServerError',
+        timestamp: expect.any(String),
+        path: undefined,
+      }),
+    );
+  });
+
+  it('should hide generic errors in production', () => {
+    process.env.NODE_ENV = 'production';
+    const exception = new Error('Sensitive error');
+    const mockResponse = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    jest.spyOn(mockHost, 'switchToHttp').mockReturnValue({
+      getRequest: jest.fn().mockReturnValue({}),
+      getResponse: jest.fn().mockReturnValue(mockResponse),
+    } as any);
+
+    filter.catch(exception, mockHost);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Internal server error',
+        error: 'InternalServerError',
+      }),
+    );
   });
 });

@@ -1,134 +1,95 @@
-import { Page, expect } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-/**
- * Helper utilities for E2E tests
- */
+const apiBaseUrl = process.env.E2E_API_URL || "http://127.0.0.1:3001";
 
-export class TestHelpers {
-  constructor(private page: Page) {}
-
-  /**
-   * Wait for the page to be fully loaded
-   */
-  async waitForPageLoad() {
-    await this.page.waitForLoadState('networkidle');
-  }
-
-  /**
-   * Take a screenshot with a descriptive name
-   */
-  async screenshot(name: string) {
-    await this.page.screenshot({ path: `e2e/screenshots/${name}.png` });
-  }
-
-  /**
-   * Verify common page elements are present
-   */
-  async verifyBasicPageStructure() {
-    // Check that essential HTML elements exist
-    await expect(this.page.locator('html')).toBeAttached();
-    await expect(this.page.locator('body')).toBeAttached();
-  }
-
-  /**
-   * Check for console errors
-   */
-  async checkForConsoleErrors() {
-    const errors: string[] = [];
-
-    this.page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
-
-    // Return a function to check errors later
-    return () => {
-      if (errors.length > 0) {
-        throw new Error(`Console errors found: ${errors.join(', ')}`);
-      }
-    };
-  }
-
-  /**
-   * Simulate user interactions with delays
-   */
-  async simulateUserClick(selector: string, delay = 100) {
-    await this.page.locator(selector).click();
-    await this.page.waitForTimeout(delay);
-  }
-
-  /**
-   * Fill form fields with realistic typing speed
-   */
-  async typeRealistic(selector: string, text: string, delay = 50) {
-    const element = this.page.locator(selector);
-    await element.clear();
-    await element.type(text, { delay });
-  }
-}
-
-/**
- * Mock data for testing
- */
-export const mockData = {
-  user: {
-    username: 'testuser',
-    email: 'test@example.com',
-    displayName: 'Test User',
-  },
-  post: {
-    content: 'This is a test post for E2E testing',
-  },
+export type TestUser = {
+  email: string;
+  username: string;
+  fullName: string;
+  password: string;
 };
 
-/**
- * Common test patterns
- */
-export const testPatterns = {
-  /**
-   * Test a basic page load
-   */
-  async testPageLoad(page: Page, url: string, expectedTitle?: string) {
-    await page.goto(url);
-    await page.waitForLoadState('networkidle');
+const uniqueId = (label: string) => `${label}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const normalizeId = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
-    if (expectedTitle) {
-      await expect(page).toHaveTitle(new RegExp(expectedTitle, 'i'));
-    }
+export const createTestUser = (label = "user"): TestUser => {
+  const id = uniqueId(label);
+  const safeId = normalizeId(id);
+  const uniqueTail = safeId.split("_").slice(-2).join("_") || safeId;
+  return {
+    email: `e2e_${safeId}@example.com`,
+    username: `e2e_${uniqueTail}`.slice(0, 30),
+    fullName: `E2E ${label} ${id}`,
+    password: "Password123!",
+  };
+};
 
-    // Verify no JavaScript errors
-    const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
+export const createPostContent = (label = "post") => `E2E ${label} ${uniqueId(label)}`;
 
-    // Basic accessibility check
-    await expect(page.locator('body')).toBeVisible();
-  },
+export const registerViaApi = async (request: APIRequestContext, user: TestUser): Promise<TestUser> => {
+  const res = await request.post(`${apiBaseUrl}/api/auth/register`, {
+    data: {
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      password: user.password,
+    },
+  });
+  expect(res.status()).toBe(201);
+  const payload = (await res.json()) as { user?: Partial<TestUser> };
+  return {
+    ...user,
+    email: payload.user?.email ?? user.email,
+    username: payload.user?.username ?? user.username,
+    fullName: payload.user?.fullName ?? user.fullName,
+  };
+};
 
-  /**
-   * Test responsive behavior
-   */
-  async testResponsive(page: Page, url: string) {
-    const viewports = [
-      { width: 1920, height: 1080, name: 'desktop' },
-      { width: 768, height: 1024, name: 'tablet' },
-      { width: 375, height: 667, name: 'mobile' },
-    ];
+export const loginViaApi = async (request: APIRequestContext, user: TestUser) => {
+  const res = await request.post(`${apiBaseUrl}/api/auth/login`, {
+    data: {
+      email: user.email,
+      password: user.password,
+    },
+  });
+  expect(res.status()).toBe(200);
+  const payload = (await res.json()) as { accessToken?: string };
+  expect(payload.accessToken).toBeTruthy();
+  return payload;
+};
 
-    for (const viewport of viewports) {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
-      await page.goto(url);
-      await page.waitForLoadState('networkidle');
+export const createPostViaApi = async (request: APIRequestContext, token: string, content: string) => {
+  const res = await request.post(`${apiBaseUrl}/api/posts`, {
+    data: { content },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  expect(res.status()).toBe(201);
+  return res.json();
+};
 
-      // Verify basic content is still visible
-      await expect(page.locator('body')).toBeVisible();
-    }
-  },
+export const registerViaUi = async (page: Page, user: TestUser, options?: { navigate?: boolean }) => {
+  if (options?.navigate !== false) {
+    await page.goto("/register");
+  }
+  await page.getByLabel(/email/i).fill(user.email);
+  await page.getByLabel(/full name/i).fill(user.fullName);
+  await page.getByLabel(/username/i).fill(user.username);
+  await page.getByLabel(/password/i).fill(user.password);
+  await page.getByRole("button", { name: /sign up/i }).click();
+};
+
+export const loginViaUi = async (page: Page, user: TestUser, options?: { navigate?: boolean }) => {
+  if (options?.navigate !== false) {
+    await page.goto("/login");
+  }
+  await page.getByLabel(/email/i).fill(user.email);
+  await page.getByLabel(/password/i).fill(user.password);
+  await page.getByRole("button", { name: /log in/i }).click();
+};
+
+export const expectOnFeed = async (page: Page) => {
+  await page.waitForURL(/\/feed$/, { timeout: 15000 });
+  await expect(page.getByRole("navigation")).toBeVisible();
 };

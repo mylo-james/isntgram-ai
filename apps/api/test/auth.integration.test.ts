@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -7,29 +7,38 @@ import request from 'supertest';
 import { Repository } from 'typeorm';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
+import { Post } from '../src/posts/entities/post.entity';
+import { Like } from '../src/posts/entities/like.entity';
+import { Comment } from '../src/posts/entities/comment.entity';
+import { Follow } from '../src/follows/entities/follow.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
+  let postRepository: Repository<Post>;
+  let followRepository: Repository<Follow>;
+  let isPostgres = false;
 
   beforeAll(async () => {
+    process.env.DEMO_ENABLED = 'true';
+    process.env.JWT_SECRET = 'test-jwt-secret';
     // Use SQLite for testing by default, PostgreSQL only when DATABASE_URL is explicitly set
-    const usePostgres =
-      process.env.DATABASE_URL && process.env.NODE_ENV !== 'test';
-    const databaseConfig = usePostgres
+    isPostgres =
+      Boolean(process.env.DATABASE_URL) && process.env.NODE_ENV !== 'test';
+    const databaseConfig = isPostgres
       ? {
           type: 'postgres' as const,
           url: process.env.DATABASE_URL,
-          entities: [User],
+          entities: [User, Post, Like, Comment, Follow],
           synchronize: true,
           logging: false,
         }
       : {
           type: 'sqlite' as const,
           database: ':memory:',
-          entities: [User],
+          entities: [User, Post, Like, Comment, Follow],
           synchronize: true,
           logging: false,
         };
@@ -38,6 +47,7 @@ describe('Auth Integration Tests', () => {
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot(databaseConfig),
+        TypeOrmModule.forFeature([User, Post, Like, Comment, Follow]),
         // Disable throttling for tests
         ThrottlerModule.forRoot([
           {
@@ -59,16 +69,36 @@ describe('Auth Integration Tests', () => {
     // Match production global prefix
     app.setGlobalPrefix('api');
     app.useGlobalFilters(new GlobalExceptionFilter());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
     await app.init();
 
     // Get repository for cleanup
     userRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
     );
+    postRepository = moduleFixture.get<Repository<Post>>(
+      getRepositoryToken(Post),
+    );
+    followRepository = moduleFixture.get<Repository<Follow>>(
+      getRepositoryToken(Follow),
+    );
   }, 30000); // Increase timeout to 30 seconds
 
   beforeEach(async () => {
     // Clean up database before each test
+    if (isPostgres) {
+      await userRepository.query('TRUNCATE TABLE "users" CASCADE');
+      return;
+    }
+    await followRepository.clear();
+    await postRepository.clear();
     await userRepository.clear();
   });
 
@@ -167,6 +197,22 @@ describe('Auth Integration Tests', () => {
       expect(message).toContain('at least 3 characters');
     });
 
+    it('should reject extra fields in the payload', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          ...validUserData,
+          role: 'admin',
+        })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('message');
+      const message = Array.isArray(response.body.message)
+        ? response.body.message[0]
+        : response.body.message;
+      expect(message).toContain('should not exist');
+    });
+
     it('should return 409 for duplicate email', async () => {
       // Register first user
       await request(app.getHttpServer())
@@ -213,7 +259,7 @@ describe('Auth Integration Tests', () => {
     });
   });
 
-  describe('POST /api/auth/signin', () => {
+  describe('POST /api/auth/login', () => {
     const userData = {
       email: 'signin@example.com',
       username: 'signinuser',
@@ -231,22 +277,22 @@ describe('Auth Integration Tests', () => {
 
     it('should sign in user successfully', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/auth/signin')
+        .post('/api/auth/login')
         .send({
           email: userData.email,
           password: userData.password,
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('message', 'Sign in successful');
+      expect(response.body).toHaveProperty('message', 'Login successful');
       expect(response.body).toHaveProperty('user');
+      expect(response.body).toHaveProperty('accessToken');
       expect(response.body.user).toHaveProperty('email', userData.email);
-      expect(response.headers['set-cookie']).toBeUndefined();
     });
 
     it('should return 401 for invalid credentials', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/auth/signin')
+        .post('/api/auth/login')
         .send({
           email: userData.email,
           password: 'wrongpassword',
@@ -258,7 +304,7 @@ describe('Auth Integration Tests', () => {
 
     it('should return 401 for non-existent user', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/auth/signin')
+        .post('/api/auth/login')
         .send({
           email: 'nonexistent@example.com',
           password: 'password123',
@@ -269,13 +315,31 @@ describe('Auth Integration Tests', () => {
     });
   });
 
-  describe('POST /api/auth/signout', () => {
-    it('should sign out user successfully', async () => {
+  describe('POST /api/auth/demo', () => {
+    it('should return demo user and access token', async () => {
       const response = await request(app.getHttpServer())
-        .post('/api/auth/signout')
+        .post('/api/auth/demo')
         .expect(200);
 
-      expect(response.body).toHaveProperty('message', 'Sign out successful');
+      expect(response.body).toHaveProperty('user');
+      expect(response.body).toHaveProperty('accessToken');
+      expect(response.body).toHaveProperty('isDemoUser', true);
+      expect(response.body).toHaveProperty('demoExpiresAt');
+      expect(new Date(response.body.demoExpiresAt).toString()).not.toBe(
+        'Invalid Date',
+      );
+    });
+
+    it('creates a fresh demo user on each request', async () => {
+      const first = await request(app.getHttpServer())
+        .post('/api/auth/demo')
+        .expect(200);
+      const second = await request(app.getHttpServer())
+        .post('/api/auth/demo')
+        .expect(200);
+
+      expect(first.body.user.email).not.toBe(second.body.user.email);
+      expect(first.body.user.username).not.toBe(second.body.user.username);
     });
   });
 });

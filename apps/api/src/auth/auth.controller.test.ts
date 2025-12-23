@@ -1,16 +1,10 @@
-import request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { INestApplication } from '@nestjs/common';
-import { AppModule } from '../app.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ForbiddenException } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { AuthModule } from '../auth/auth.module';
-import { User } from '../users/entities/user.entity';
-import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
-import { ConfigModule } from '@nestjs/config';
+import { DemoService } from './demo/demo.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -18,6 +12,12 @@ describe('AuthController', () => {
 
   const mockAuthService = {
     register: jest.fn(),
+    login: jest.fn(),
+    revokeUserTokens: jest.fn(),
+  };
+
+  const mockDemoService = {
+    createDemoSession: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -35,6 +35,10 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: DemoService,
+          useValue: mockDemoService,
         },
       ],
     }).compile();
@@ -86,50 +90,75 @@ describe('AuthController', () => {
       await expect(controller.register(registerDto)).rejects.toThrow(error);
       expect(authService.register).toHaveBeenCalledWith(registerDto);
     });
+  });
 
-    it('should validate input data', async () => {
-      // This test verifies that the ValidationPipe is applied
-      // The actual validation will be handled by the ValidationPipe
-      expect(controller.register).toBeDefined();
+  describe('login', () => {
+    it('should return access token and user', async () => {
+      const loginResult = {
+        user: {
+          id: 'test-uuid',
+          email: 'test@example.com',
+          username: 'testuser',
+          fullName: 'Test User',
+        },
+        accessToken: 'jwt-token',
+      };
+
+      mockAuthService.login.mockResolvedValue(loginResult);
+
+      const result = await controller.login({
+        email: 'test@example.com',
+        password: 'Password123',
+      });
+
+      expect(result).toEqual({
+        message: 'Login successful',
+        user: loginResult.user,
+        accessToken: loginResult.accessToken,
+      });
     });
   });
-});
 
-describe('Auth demo endpoint (integration)', () => {
-  let app: INestApplication;
+  describe('demo', () => {
+    it('throws ForbiddenException when demo mode is disabled', async () => {
+      mockDemoService.createDemoSession.mockRejectedValue(
+        new ForbiddenException('Demo mode disabled'),
+      );
 
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [User],
-          synchronize: true,
-        }),
-        ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
-        AuthModule,
-      ],
-    }).compile();
+      await expect(controller.demo()).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(mockDemoService.createDemoSession).toHaveBeenCalledTimes(1);
+    });
 
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api');
-    app.useGlobalFilters(new GlobalExceptionFilter());
-    await app.init();
-  });
+    it('signs in a demo user and returns an access token', async () => {
+      mockDemoService.createDemoSession.mockResolvedValue({
+        user: {
+          id: 'demo',
+          email: 'demo_abc123@demo.isntgram.local',
+          username: 'demo_abc123',
+          fullName: 'Demo abc123',
+        },
+        accessToken: 'jwt-token',
+        isDemoUser: true,
+        demoExpiresAt: '2025-12-23T00:00:00.000Z',
+      });
 
-  afterAll(async () => {
-    await app.close();
-  });
+      const result = await controller.demo();
 
-  it('POST /api/auth/demo returns a demo user and 200', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/api/auth/demo')
-      .send({});
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('user');
-    expect(res.body.user).toHaveProperty('email');
-    expect(res.body).toHaveProperty('isDemoUser', true);
+      expect(mockDemoService.createDemoSession).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        message: 'Demo sign in successful',
+        user: {
+          id: 'demo',
+          email: 'demo_abc123@demo.isntgram.local',
+          username: 'demo_abc123',
+          fullName: 'Demo abc123',
+        },
+        accessToken: 'jwt-token',
+        isDemoUser: true,
+        demoExpiresAt: '2025-12-23T00:00:00.000Z',
+      });
+    });
   });
 });

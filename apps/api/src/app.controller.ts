@@ -14,4 +14,9 @@ export class AppController {
   health(): { status: string } {
     return { status: 'ok' };
   }
+
+  @Get('ready')
+  async readiness(): Promise<{ status: string; database: string }> {
+    return this.appService.getReadiness();
+  }
 }

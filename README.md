@@ -1,209 +1,166 @@
 # Isntgram AI
 
-An AI-powered social media platform built with Next.js, NestJS, and PostgreSQL.
+A modern, full-stack social platform built with Next.js (App Router), NestJS, and PostgreSQL — with an optional
+AI-assisted “polish” workflow for posts.
 
-## 🚀 Quick Start
+## Highlights
+
+- **BFF auth model:** API JWT stays server-side (encrypted Auth.js cookie; never exposed to browser JS)
+- **CSRF protection:** double-submit token + origin checks on all BFF mutations
+- **Session alignment:** Auth.js session lifetime aligned with API JWT expiry
+- **OpenAPI contracts:** shared TypeScript API types generated from the NestJS OpenAPI spec (CI enforced)
+- **Typed clients:** `openapi-fetch` clients in web/server consume the generated contract (no stringly-typed endpoints)
+- **Cursor-based feeds:** stable pagination by `createdAt` + `id`
+- **S3-compatible media uploads:** works with MinIO locally
+- **AI assist (optional):** `POST /api/ai/rewrite` via `AI_PROVIDER=mock|openai`
+- **Rate limits:** auth + AI + media endpoints are throttled to prevent abuse
+- **Tests:** unit + integration + Playwright E2E
+
+## Product brief
+
+Isntgram is a signal-first social feed designed for thoughtful updates. The core product focuses on:
+
+- A fast, readable feed with stable pagination.
+- A clean posting flow with optional AI “polish.”
+- A profile experience that encourages follow-driven discovery.
+
+## Engineering brief
+
+- **Security posture:** BFF auth boundary, CSRF protection with rotation, strict origin checks, and token revocation.
+- **Operational readiness:** request IDs, structured logs, Prometheus metrics, health/readiness endpoints.
+- **Scalability path:** fan-out on read today, with an explicit roadmap for caching and hybrid timelines.
+
+## Start here
+
+- `docs/system-design/` — system design packet (15-minute read)
+- `docs/observability.md` — metrics/logs/request IDs (hands-on)
+- `docs/adr/001-auth-model.md` — auth boundary rationale
+- `docs/deployment.md` — deployment notes
+- `ENVIRONMENT.md` — full env var reference
+
+## What this demonstrates (portfolio intent)
+
+- **Modern full-stack patterns:** Next.js App Router + NestJS, with clear client/server boundaries
+- **Security-first auth:** server-side token handling (BFF), JWT guards, rate limiting, Helmet headers
+- **Contract-first API consumption:** OpenAPI → generated types → typed client calls
+- **Operational readiness:** request IDs, structured logs, Prometheus metrics, health/readiness endpoints
+- **Scaling thinking:** pragmatic feed design + explicit scaling triggers in `docs/system-design/`
+
+## Key decisions (and why)
+
+- **BFF auth boundary:** keep API JWTs server-side to reduce XSS token theft risk and simplify client code.
+- **Token revocation:** API JWTs include a `tokenVersion` so logout can invalidate existing tokens.
+- **OpenAPI as contract:** one source of truth for endpoints/types; `contracts:check` enforces determinism.
+- **Cursor pagination:** stable ordering and predictable paging under concurrent writes.
+- **Feed strategy:** fan-out-on-read to keep early-stage complexity low; scaling triggers are documented.
+
+## Tradeoffs / non-goals
+
+- No queues/event-driven architecture until there’s a measurable need (see scaling triggers).
+- No token access from client JavaScript (avoids “localStorage JWT” footguns).
+- Demo mode uses isolated demo accounts and is full-access (post/like/comment/follow/edit), so users can actually try
+  the product.
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 20+
-- Docker Desktop
-- Git
+- Node.js 20.9+
+- pnpm 9+
+- Docker Desktop (for Postgres + optional MinIO)
 
 ### Setup
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd isntgram-ai
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Start the database**
-
-   ```bash
-   npm run db:start
-   ```
-
-4. **Set up environment variables**
-
-   ```bash
-   # Copy API environment file
-   cp apps/api/env.example apps/api/.env
-
-   # Copy web environment file (if needed)
-   cp apps/web/.env.example apps/web/.env.local
-   ```
-
-5. **Run database migrations**
-
-   ```bash
-   cd apps/api
-   npm run migration:run
-   ```
-
-6. **Start development servers**
-
-   ```bash
-   # Start both frontend and backend
-   npm run dev
-
-   # Or start them separately
-   npm run dev:web  # Frontend on http://localhost:3000
-   npm run dev:api  # Backend on http://localhost:3001
-   ```
-
-## 🗄️ Database Setup
-
-### Local Development
-
-The project uses Docker Compose to run PostgreSQL locally:
-
 ```bash
-# Start database
-npm run db:start
-
-# Stop database
-npm run db:stop
-
-# View database logs
-npm run db:logs
-
-# Reset database (removes all data)
-npm run db:reset
+pnpm install
+pnpm run setup:local
+pnpm run dev:db
+pnpm run dev:all
 ```
 
-### Database Commands
+- Web: defaults to <http://localhost:3000> (auto-picks a free port if 3000 is taken)
+- API: defaults to <http://localhost:3001> (auto-picks a free port if 3001 is taken)
+- API docs (non-prod): `http://localhost:<apiPort>/api/docs`
+
+### Demo Mode
+
+Set `DEMO_ENABLED=true` in `apps/api/.env` to allow the demo sign-in flow. Each demo click creates a fresh demo user
+(default expiry: 48 hours via `DEMO_TTL_HOURS`).
+
+### Production-like local user testing
 
 ```bash
-# Run migrations
-cd apps/api && npm run migration:run
-
-# Generate new migration
-cd apps/api && npm run migration:generate -- -n MigrationName
-
-# Revert last migration
-cd apps/api && npm run migration:revert
+pnpm run usertest
 ```
 
-## 🧪 Testing
+### AI Mode (optional)
 
-### Unit Tests
+- Default: `AI_PROVIDER=mock` (no external keys; deterministic rewrite for local dev/tests)
+- Real LLM: set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in `apps/api/.env`
+
+### Production secrets
+
+Set `AUTH_SECRET` (or `NEXTAUTH_SECRET`) for production runtime. Auth will not work correctly without it. Optionally set
+`AUTH_SESSION_MAX_AGE` to align Auth.js session lifetime with `JWT_EXPIRES_IN`.
+
+## Scripts
 
 ```bash
-npm test                    # Run all tests
-npm run test:web           # Frontend tests only
-npm run test:api           # Backend tests only
+pnpm run validate
+pnpm run contracts:check
+pnpm run lint:all
+pnpm run type-check
+pnpm run test -- --watchAll=false
+pnpm run test:e2e
 ```
 
-### E2E Tests
+## Database + Migrations
+
+Migrations run automatically on API startup in **non-production** environments to keep local review flows simple. In
+production, run migrations as an explicit deploy step. If you want to run them manually:
 
 ```bash
-npm run test:e2e           # Run E2E tests
-npm run test:e2e:headed    # Run with browser visible
-npm run test:e2e:ui        # Run with Playwright UI
+pnpm --filter api migration:run
 ```
 
-### Integration Tests
+## Media Uploads (S3-compatible)
+
+Local dev uses MinIO (via `docker-compose.yml`). Configure these in `apps/api/.env`:
+
+- `S3_BUCKET`
+- `S3_REGION`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_ENDPOINT` (for MinIO)
+- `S3_PUBLIC_BASE_URL`
+
+## Production (Docker)
 
 ```bash
-npm run test:api           # Includes integration tests
+docker compose -f docker-compose.prod.yml up --build
 ```
 
-## 🔧 Development
+Services:
 
-### Code Quality
+- `web` (Next.js)
+- `api-migrate` (one-shot DB migrations)
+- `api` (NestJS)
+- `postgres`
 
-```bash
-npm run lint               # Run all linters
-npm run format             # Format all code
-npm run type-check         # TypeScript type checking
+## Project Structure
+
+```text
+apps/
+  api/        NestJS API
+  web/        Next.js App Router
+packages/
+  shared-types/
 ```
 
-### Database Management
+## Documentation
 
-```bash
-npm run db:start           # Start PostgreSQL
-npm run db:stop            # Stop PostgreSQL
-npm run db:logs            # View database logs
-npm run db:reset           # Reset database
-```
-
-## 📁 Project Structure
-
-```bash
-isntgram-ai/
-├── apps/
-│   ├── api/              # NestJS backend
-│   └── web/              # Next.js frontend
-├── packages/
-│   └── shared-types/     # Shared TypeScript types
-├── docs/                 # Documentation
-├── e2e/                  # End-to-end tests
-└── scripts/              # Development scripts
-```
-
-## 🚀 Deployment
-
-### Environment Variables
-
-Copy the example environment files and configure them:
-
-```bash
-# Backend
-cp apps/api/env.example apps/api/.env
-
-# Frontend
-cp apps/web/.env.example apps/web/.env.local
-```
-
-### Production Build
-
-```bash
-npm run build
-```
-
-## 🐛 Troubleshooting
-
-### Database Connection Issues
-
-1. **Docker not running**: Start Docker Desktop
-2. **Port already in use**: Stop other PostgreSQL instances
-3. **Permission denied**: Run `chmod +x scripts/dev-db.sh`
-
-### Test Failures
-
-1. **Integration tests failing**: Ensure database is running
-2. **E2E tests failing**: Check if both frontend and backend are running
-3. **Unit tests failing**: Check for TypeScript errors
-
-### Common Issues
-
-- **"Database connection failed"**: Run `npm run db:start`
-- **"Port 3000/3001 in use"**: Kill existing processes or change ports
-- **"TypeScript errors"**: Run `npm run type-check` to see issues
-
-## 📚 Documentation
-
-- [Architecture Documentation](./docs/architecture/)
-- [Product Requirements](./docs/prd/)
-- [User Stories](./docs/stories/)
-
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Run tests: `npm test`
-4. Run linting: `npm run lint`
-5. Commit with proper message
-6. Create a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
+- `ENVIRONMENT.md` — full env var reference
+- `docs/observability.md` — logs, metrics, request IDs
+- `docs/deployment.md` — deployment notes
+- `docs/adr/` — architecture decisions
+- `docs/system-design/` — system design docs

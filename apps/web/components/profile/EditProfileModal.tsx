@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { validateRequired, validateUsername } from "@/lib/validation";
+import { validateFullName, validateUsername } from "@/lib/validation";
+import Dialog from "@/components/ui/Dialog";
 
 export interface EditProfileInitialValues {
   fullName: string;
@@ -15,7 +16,6 @@ interface EditProfileModalProps {
   initialValues: EditProfileInitialValues;
   onSubmit?: (values: EditProfileInitialValues) => Promise<void> | void;
   checkUsername?: (username: string) => Promise<boolean> | boolean; // returns true if available
-  isDemoUser?: boolean;
 }
 
 export default function EditProfileModal({
@@ -24,7 +24,6 @@ export default function EditProfileModal({
   initialValues,
   onSubmit,
   checkUsername,
-  isDemoUser = false,
 }: EditProfileModalProps) {
   const {
     register,
@@ -35,47 +34,17 @@ export default function EditProfileModal({
     watch,
   } = useForm<EditProfileInitialValues>({ defaultValues: initialValues, mode: "onBlur" });
 
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     reset(initialValues);
   }, [initialValues, reset]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    const timer = setTimeout(() => {
-      closeButtonRef.current?.focus();
-    }, 0);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      clearTimeout(timer);
-    };
-  }, [open, onClose]);
-
   if (!open) return null;
 
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === dialogRef.current) {
-      onClose();
-    }
-  };
-
   const submitHandler = async (values: EditProfileInitialValues) => {
-    if (isDemoUser) return; // read-only
-
     // Client-side validation
-    const fullNameValidation = validateRequired(values.fullName, "Full name");
+    const fullNameValidation = validateFullName(values.fullName);
     if (!fullNameValidation.isValid) {
       setError("fullName", { type: "validate", message: fullNameValidation.message });
       return;
@@ -101,99 +70,90 @@ export default function EditProfileModal({
   const currentUsername = watch("username");
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open={open}
+      onClose={onClose}
       aria-labelledby="edit-profile-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onMouseDown={handleOverlayClick}
       data-testid="edit-profile-modal"
+      initialFocusRef={closeButtonRef}
+      contentClassName="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 id="edit-profile-title" className="text-lg font-semibold text-gray-900">
-            Edit Profile
-          </h2>
-          <button
-            ref={closeButtonRef}
-            onClick={onClose}
-            aria-label="Close edit profile"
-            className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-          >
-            ✕
-          </button>
+      <div className="flex items-center justify-between px-6 py-4 border-b">
+        <h2 id="edit-profile-title" className="text-lg font-semibold text-gray-900">
+          Edit Profile
+        </h2>
+        <button
+          ref={closeButtonRef}
+          onClick={onClose}
+          aria-label="Close edit profile"
+          className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
+        <div>
+          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+            Full Name
+          </label>
+          <input
+            id="fullName"
+            type="text"
+            {...register("fullName", { required: "Full name is required" })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="Enter your full name"
+          />
+          {errors.fullName?.message && (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.fullName.message}
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
-          {isDemoUser && (
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-              Demo mode: profile editing is disabled.
-            </div>
+        <div>
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            {...register("username", {
+              required: "Username is required",
+              minLength: { value: 3, message: "Username must be at least 3 characters" },
+            })}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="Enter your username"
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+          {errors.username?.message && (
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {errors.username.message}
+            </p>
           )}
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-              Full Name
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              {...register("fullName", { required: "Full name is required" })}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Enter your full name"
-              disabled={isDemoUser}
-            />
-            {errors.fullName?.message && (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {errors.fullName.message}
-              </p>
-            )}
-          </div>
+          {currentUsername !== initialValues.username ? (
+            <p className="mt-1 text-xs text-gray-500">Changing your username will update your profile URL.</p>
+          ) : null}
+        </div>
 
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              {...register("username", {
-                required: "Username is required",
-                minLength: { value: 3, message: "Username must be at least 3 characters" },
-              })}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Enter your username"
-              disabled={isDemoUser}
-            />
-            {errors.username?.message && (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {errors.username.message}
-              </p>
-            )}
-            {/* Subtle hint when username changes */}
-            {currentUsername !== initialValues.username && (
-              <p className="mt-1 text-xs text-gray-500">Changing your username will update your profile URL.</p>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || isDemoUser}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end space-x-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

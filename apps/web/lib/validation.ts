@@ -4,12 +4,13 @@ export interface ValidationResult {
 }
 
 export const validateEmail = (email: string): ValidationResult => {
-  if (!email) {
+  const normalized = email.trim();
+  if (!normalized) {
     return { isValid: false, message: "Email is required" };
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (!emailRegex.test(normalized)) {
     return { isValid: false, message: "Please enter a valid email address" };
   }
 
@@ -28,6 +29,44 @@ export const validatePassword = (password: string): ValidationResult => {
     };
   }
 
+  if (password.length > 128) {
+    return {
+      isValid: false,
+      message: "Password must not exceed 128 characters",
+    };
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+  if (!passwordRegex.test(password)) {
+    return {
+      isValid: false,
+      message: "Password must contain at least one lowercase letter, one uppercase letter, and one number",
+    };
+  }
+
+  return { isValid: true };
+};
+
+export const validateFullName = (fullName: string): ValidationResult => {
+  const normalized = fullName.trim();
+  if (!normalized) {
+    return { isValid: false, message: "Full name is required" };
+  }
+
+  if (normalized.length < 2) {
+    return {
+      isValid: false,
+      message: "Full name must be at least 2 characters",
+    };
+  }
+
+  if (normalized.length > 100) {
+    return {
+      isValid: false,
+      message: "Full name must not exceed 100 characters",
+    };
+  }
+
   return { isValid: true };
 };
 
@@ -40,22 +79,30 @@ export const validateRequired = (value: string, fieldName: string): ValidationRe
 };
 
 export const validateUsername = (username: string): ValidationResult => {
-  if (!username) {
+  const normalized = username.trim();
+  if (!normalized) {
     return { isValid: false, message: "Username is required" };
   }
 
-  if (username.length < 3) {
+  if (normalized.length < 3) {
     return {
       isValid: false,
       message: "Username must be at least 3 characters",
     };
   }
 
-  const usernameRegex = /^[a-zA-Z0-9_]+$/;
-  if (!usernameRegex.test(username)) {
+  if (normalized.length > 30) {
     return {
       isValid: false,
-      message: "Username can only contain letters, numbers, and underscores",
+      message: "Username must not exceed 30 characters",
+    };
+  }
+
+  const usernameRegex = /^[a-z0-9_]+$/;
+  if (!usernameRegex.test(normalized)) {
+    return {
+      isValid: false,
+      message: "Username can only contain lowercase letters, numbers, and underscores",
     };
   }
 

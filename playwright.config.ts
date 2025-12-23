@@ -1,4 +1,23 @@
-import { defineConfig, devices } from "@playwright/test";
+import fs from "node:fs";
+import { defineConfig, devices, firefox } from "@playwright/test";
+
+const webPort = process.env.E2E_WEB_PORT || "3100";
+const webBaseUrl = process.env.E2E_WEB_URL || `http://127.0.0.1:${webPort}`;
+const apiPort = process.env.E2E_API_PORT || "4011";
+const apiBaseUrl = process.env.E2E_API_URL || `http://127.0.0.1:${apiPort}`;
+const configuredWorkers = process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : undefined;
+const defaultWorkers = 1; // SQLite :memory: in the API is not safe under parallel write load.
+const workers = Number.isFinite(configuredWorkers) && (configuredWorkers as number) > 0 ? (configuredWorkers as number) : defaultWorkers;
+
+process.env.E2E_WEB_PORT = webPort;
+process.env.E2E_WEB_URL = webBaseUrl;
+process.env.E2E_API_PORT = apiPort;
+process.env.E2E_API_URL = apiBaseUrl;
+
+const hasFirefox = fs.existsSync(firefox.executablePath());
+if (!process.env.CI && !hasFirefox) {
+  console.warn("[playwright] Firefox not installed; skipping Firefox project. Run `pnpm exec playwright install firefox`.");
+}
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -11,18 +30,18 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Keep local runs deterministic by default. Opt into concurrency via PW_WORKERS. */
+  workers,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ["html"],
+    ["html", { open: "never" }],
     ["json", { outputFile: "playwright-report/results.json" }],
     ["junit", { outputFile: "playwright-report/results.xml" }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: webBaseUrl,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -47,10 +66,14 @@ export default defineConfig({
           name: "chromium",
           use: { ...devices["Desktop Chrome"] },
         },
-        {
-          name: "firefox",
-          use: { ...devices["Desktop Firefox"] },
-        },
+        ...(hasFirefox
+          ? [
+              {
+                name: "firefox",
+                use: { ...devices["Desktop Firefox"] },
+              },
+            ]
+          : []),
         /* Test against mobile viewports. */
         {
           name: "Mobile Chrome",
@@ -61,25 +84,38 @@ export default defineConfig({
   /* Run your local dev servers before starting the tests */
   webServer: [
     {
-      command: "cd apps/web && PORT=3000 npm run start",
-      url: "http://127.0.0.1:3000",
-      reuseExistingServer: !process.env.CI,
+      command: `PORT=${webPort} pnpm --filter web start`,
+      url: webBaseUrl,
+      // Default to deterministic runs. Opt into reuse with PW_REUSE_EXISTING_SERVER=true.
+      reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "true" && !process.env.CI,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",
       env: {
-        NEXTAUTH_URL: "http://127.0.0.1:3000",
+        NEXTAUTH_URL: webBaseUrl,
         NEXTAUTH_SECRET: "test_secret_for_e2e_only",
         AUTH_SECRET: "test_secret_for_e2e_only",
+        NEXT_PUBLIC_DEMO_ENABLED: "true",
+        NEXT_PUBLIC_DEMO_EMAIL: "demo@isntgram.ai",
+        NEXT_PUBLIC_DEMO_PASSWORD: "demo",
+        NEXT_PUBLIC_API_URL: apiBaseUrl,
+        INTERNAL_API_URL: apiBaseUrl,
+        E2E_API_URL: apiBaseUrl,
       },
     },
     {
-      command: "cd apps/api && NODE_ENV=test PORT=3001 npm run start:prod",
-      url: "http://127.0.0.1:3001/api",
-      reuseExistingServer: !process.env.CI,
+      command: `NODE_ENV=test PORT=${apiPort} pnpm --filter api start:prod`,
+      url: `${apiBaseUrl}/api`,
+      reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "true" && !process.env.CI,
       timeout: 300 * 1000,
       stdout: "ignore",
       stderr: "ignore",
+      env: {
+        JWT_SECRET: "test_jwt_secret_for_e2e_only",
+        JWT_EXPIRES_IN: "7d",
+        DEMO_ENABLED: "true",
+        E2E_API_URL: apiBaseUrl,
+      },
     },
   ],
 });

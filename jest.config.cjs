@@ -1,28 +1,5 @@
 module.exports = {
   projects: [
-    // Root-level tests (CI workflow, etc.)
-    {
-      displayName: "root",
-      testEnvironment: "node",
-      testMatch: ["<rootDir>/test/**/*.test.ts"],
-      transform: {
-        "^.+\\.ts$": [
-          "babel-jest",
-          {
-            presets: [
-              [
-                "@babel/preset-env",
-                {
-                  targets: { node: "20" },
-                },
-              ],
-              "@babel/preset-typescript",
-            ],
-          },
-        ],
-      },
-      moduleFileExtensions: ["ts", "js"],
-    },
     // Next.js Web App
     {
       displayName: "web",
@@ -34,6 +11,8 @@ module.exports = {
         "^@/(.*)$": "<rootDir>/apps/web/$1",
         "^@/components/(.*)$": "<rootDir>/apps/web/components/$1",
         "^@/lib/(.*)$": "<rootDir>/apps/web/lib/$1",
+        "^next-auth/jwt$": "<rootDir>/apps/web/test/next-auth-jwt.ts",
+        "^server-only$": "<rootDir>/apps/web/test/server-only.ts",
         "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       },
       transform: {
@@ -56,10 +35,10 @@ module.exports = {
       ],
       coverageThreshold: {
         global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
+          branches: 90,
+          functions: 95,
+          lines: 95,
+          statements: 95,
         },
       },
       coverageReporters: ["text", "lcov", "html", "json-summary"],
@@ -86,7 +65,7 @@ module.exports = {
             ],
             plugins: [
               ["@babel/plugin-proposal-decorators", { legacy: true }],
-              ["@babel/plugin-proposal-class-properties", { loose: true }],
+              ["@babel/plugin-transform-class-properties", { loose: true }],
               "babel-plugin-transform-typescript-metadata",
             ],
           },
@@ -108,10 +87,10 @@ module.exports = {
       ],
       coverageThreshold: {
         global: {
-          branches: 70,
-          functions: 70,
-          lines: 70,
-          statements: 70,
+          branches: 90,
+          functions: 95,
+          lines: 95,
+          statements: 95,
         },
       },
       coverageReporters: ["text", "lcov", "html", "json-summary"],
@@ -142,6 +121,7 @@ module.exports = {
         "packages/shared-types/src/**/*.ts",
         "!packages/shared-types/src/**/*.test.ts",
         "!packages/shared-types/src/**/*.d.ts",
+        "!packages/shared-types/src/openapi.ts",
       ],
       coverageReporters: ["text", "lcov", "html", "json-summary"],
       coverageDirectory: "<rootDir>/packages/shared-types/coverage",

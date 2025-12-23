@@ -1,4 +1,4 @@
-import { validateEmail, validatePassword, validateRequired, validateUsername } from "./validation";
+import { validateEmail, validateFullName, validatePassword, validateRequired, validateUsername } from "./validation";
 
 describe("Validation Utilities", () => {
   describe("validateEmail", () => {
@@ -34,7 +34,44 @@ describe("Validation Utilities", () => {
     });
 
     it("returns valid for strong password", () => {
+      const result = validatePassword("Password123");
+      expect(result.isValid).toBe(true);
+    });
+
+    it("returns error for missing complexity requirements", () => {
       const result = validatePassword("password123");
+      expect(result.isValid).toBe(false);
+      expect(result.message).toContain("lowercase");
+    });
+
+    it("returns error for overly long password", () => {
+      const result = validatePassword("Password123" + "a".repeat(200));
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe("Password must not exceed 128 characters");
+    });
+  });
+
+  describe("validateFullName", () => {
+    it("returns error for empty full name", () => {
+      const result = validateFullName("");
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe("Full name is required");
+    });
+
+    it("returns error for short full name", () => {
+      const result = validateFullName("A");
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe("Full name must be at least 2 characters");
+    });
+
+    it("returns error for overly long full name", () => {
+      const result = validateFullName("A".repeat(101));
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe("Full name must not exceed 100 characters");
+    });
+
+    it("returns valid for correct full name", () => {
+      const result = validateFullName("Test User");
       expect(result.isValid).toBe(true);
     });
   });
@@ -68,7 +105,13 @@ describe("Validation Utilities", () => {
     it("returns error for invalid characters", () => {
       const result = validateUsername("test@user");
       expect(result.isValid).toBe(false);
-      expect(result.message).toBe("Username can only contain letters, numbers, and underscores");
+      expect(result.message).toBe("Username can only contain lowercase letters, numbers, and underscores");
+    });
+
+    it("returns error for overly long username", () => {
+      const result = validateUsername("a".repeat(31));
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe("Username must not exceed 30 characters");
     });
 
     it("returns valid for correct username", () => {

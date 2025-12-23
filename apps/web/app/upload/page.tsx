@@ -1,0 +1,32 @@
+import LegacyNav from "@/components/legacy/LegacyNav";
+import { auth } from "@/lib/auth";
+import { getApiAccessToken, getRequestId, internalApi } from "@/lib/server-api";
+import { redirect } from "next/navigation";
+import UploadClient from "./UploadClient";
+
+export default async function UploadPage() {
+  const session = await auth();
+  const accessToken = await getApiAccessToken();
+  const requestId = await getRequestId();
+
+  if (!session?.user?.id || !accessToken) {
+    redirect("/login");
+  }
+
+  const { data } = await internalApi.GET("/api/users/me", {
+    headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
+    cache: "no-store",
+  });
+
+  const avatarSrc = data?.profilePictureUrl ?? "/assets/profile.jpeg";
+  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+
+  return (
+    <>
+      <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
+      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+        <UploadClient />
+      </main>
+    </>
+  );
+}

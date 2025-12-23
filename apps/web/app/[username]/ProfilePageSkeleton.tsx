@@ -1,39 +1,36 @@
+import LegacyNav from "@/components/legacy/LegacyNav";
+
 export default function ProfilePageSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Profile Header Skeleton */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center space-x-6">
-            {/* Avatar Skeleton */}
-            <div className="w-24 h-24 bg-gray-200 rounded-full animate-pulse"></div>
-
-            {/* Profile Info Skeleton */}
+    <>
+      <LegacyNav />
+      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+        <div className="mx-auto w-full max-w-[935px] px-5 pb-10 pt-6">
+          <div className="flex gap-8 pb-8 pt-4">
+            <div className="h-[96px] w-[96px] rounded-full bg-gray-200 animate-pulse sm:h-[150px] sm:w-[150px]" />
             <div className="flex-1">
-              <div className="h-8 bg-gray-200 rounded w-48 mb-2 animate-pulse"></div>
-              <div className="h-6 bg-gray-200 rounded w-32 mb-4 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
+              <div className="h-8 w-48 rounded bg-gray-200 animate-pulse" />
+              <div className="mt-5 flex gap-10">
+                <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+                <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+                <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
+              </div>
+              <div className="mt-4 space-y-2">
+                <div className="h-4 w-40 rounded bg-gray-200 animate-pulse" />
+                <div className="h-4 w-72 rounded bg-gray-200 animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 pt-5">
+            <div className="mt-5 grid grid-cols-3 gap-1 pb-14 sm:gap-6 sm:pb-0">
+              {Array.from({ length: 9 }).map((_, index) => (
+                <div key={index} className="aspect-square w-full bg-gray-200 animate-pulse" />
+              ))}
             </div>
           </div>
         </div>
-
-        {/* Stats Skeleton */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-around">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="text-center">
-                <div className="h-6 bg-gray-200 rounded w-16 mb-2 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Actions Skeleton */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-        </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }
