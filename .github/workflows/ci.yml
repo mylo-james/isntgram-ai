@@ -258,7 +258,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy API Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: isntgram-ai-api:${{ github.sha }}
           format: "table"
@@ -278,7 +278,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy Web Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: isntgram-ai-web:${{ github.sha }}
           format: "table"
