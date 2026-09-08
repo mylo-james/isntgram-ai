@@ -173,7 +173,7 @@
     @apply flex items-center gap-1;
   }
   .post-action {
-    @apply rounded-xl hover:bg-gray-100;
+    @apply min-w-11 rounded-xl px-2 hover:bg-gray-100;
   }
   .post-caption {
     @apply mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800;
@@ -199,9 +199,6 @@
   .nav-item[aria-current="page"] {
     @apply bg-blue-50 text-blue-800;
   }
-  .nav-item[aria-current="page"] > span:last-child {
-    @apply font-semibold;
-  }
   .brand-lockup {
     display: inline-flex;
     align-items: center;
@@ -221,21 +218,6 @@
   }
   .brand-motion {
     @apply relative inline-flex h-11 w-11 shrink-0 items-center justify-center;
-  }
-  .brand-motion-toggle {
-    @apply absolute inset-0 rounded-lg text-gray-700;
-  }
-  .brand-motion-toggle > svg {
-    @apply absolute bottom-0 right-0 h-3 w-3 rounded-sm bg-white opacity-0;
-  }
-  .brand-motion-toggle:hover > svg,
-  .brand-motion-toggle:focus-visible > svg,
-  .brand-motion[data-paused="true"] .brand-motion-toggle > svg {
-    opacity: 1;
-  }
-  .brand-motion[data-paused="true"] .circle-loader-arm,
-  .brand-motion[data-paused="true"] .circle-loader-dot {
-    animation-play-state: paused;
   }
   .notification-list {
     @apply overflow-hidden rounded-2xl border border-gray-200 bg-white;
@@ -326,10 +308,42 @@
     transform: translateY(200%);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .brand-motion-toggle {
-    display: none;
+.brand-mark .circle-loader-arm {
+  animation: none;
+  /* The original ease curve reaches this angle at its two-second open frame. */
+  transform: rotate(calc(var(--angle) + 144.43261deg));
+}
+.brand-mark .circle-loader-dot {
+  animation: none;
+  transform: translateY(102%);
+}
+.brand-mark .circle-loader-reverse .circle-loader-dot {
+  transform: translateY(200%);
+}
+/* Start at the original cycle's expanded, two-second frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .brand-link:focus-visible .circle-loader-arm {
+    animation: circle-turn 4s ease -2s infinite;
   }
+  .brand-link:focus-visible .circle-loader-dot {
+    animation: circle-in 2s ease -2s infinite alternate;
+  }
+  .brand-link:focus-visible .circle-loader-reverse .circle-loader-dot {
+    animation-name: circle-out;
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .brand-link:hover .circle-loader-arm {
+    animation: circle-turn 4s ease -2s infinite;
+  }
+  .brand-link:hover .circle-loader-dot {
+    animation: circle-in 2s ease -2s infinite alternate;
+  }
+  .brand-link:hover .circle-loader-reverse .circle-loader-dot {
+    animation-name: circle-out;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
   .circle-loader-arm {
     animation: none !important;
     transform: rotate(var(--angle));

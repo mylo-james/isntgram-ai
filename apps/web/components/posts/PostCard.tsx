@@ -141,6 +141,7 @@ export default function PostCard({ post }: { post: PostItem }) {
             disabled={isLiking}
             aria-pressed={likedByViewer}
             aria-label={likedByViewer ? "Unlike" : "Like"}
+            title={likedByViewer ? "Unlike" : "Like"}
             className={[
               "ui-action post-action transition-transform duration-150 active:scale-95",
               isLiking ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
@@ -153,18 +154,18 @@ export default function PostCard({ post }: { post: PostItem }) {
                 likedByViewer ? "text-[#ed4956]" : "text-[#262626]",
               ].join(" ")}
             />
-            <span className="text-sm">{likedByViewer ? "Liked" : "Like"}</span>
           </button>
 
-          <Link href={`/post/${post.id}`} aria-label="Comment" className="ui-action post-action">
+          <Link href={`/post/${post.id}`} aria-label="Comment" title="Comment" className="ui-action post-action">
             <CommentIcon className="h-6 w-6 text-[#262626]" />
-            <span className="text-sm">Comment</span>
           </Link>
         </div>
 
-        <p className="mt-2 text-sm font-semibold text-gray-900">
-          {likeCount} {likeCount === 1 ? "like" : "likes"}
-        </p>
+        {likeCount > 0 ? (
+          <p className="mt-2 text-sm font-semibold text-gray-900">
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
+          </p>
+        ) : null}
 
         {post.content ? (
           <p className="post-caption">
@@ -189,9 +190,11 @@ export default function PostCard({ post }: { post: PostItem }) {
             </ul>
           ) : null}
 
-          <Link href={`/post/${post.id}`} className="ui-action quiet-link">
-            {commentCount === 0 ? "Be the first to comment" : `View all ${commentCount} comments`}
-          </Link>
+          {commentCount > previewComments.length ? (
+            <Link href={`/post/${post.id}`} className="ui-action quiet-link">
+              View all {commentCount} comments
+            </Link>
+          ) : null}
         </div>
 
         {error ? (

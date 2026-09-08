@@ -47,8 +47,8 @@ export default function FeedClient({ initialFeed }: FeedClientProps) {
       <div className="space-y-6">
         {items.length === 0 ? (
           <div className="social-surface p-8 text-center text-sm text-gray-600">
-            <h2 className="text-lg font-semibold text-gray-900">Your feed is ready for a first post</h2>
-            <p className="my-3 text-gray-700">Follow people to see their posts here, or share something yourself.</p>
+            <h2 className="text-lg font-semibold text-gray-900">No posts yet</h2>
+            <p className="my-3 text-gray-700">Follow people to fill your feed.</p>
             <Link className="ui-action text-blue-700 underline" href="/explore">
               Find people
             </Link>

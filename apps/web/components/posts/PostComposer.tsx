@@ -226,13 +226,12 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
           required
           maxLength={2000}
           className="ui-field min-h-32"
-          placeholder="What would you like to share?"
           disabled={composerDisabled}
           aria-invalid={Boolean(error && !content.trim())}
           aria-describedby={error ? "post-content-help post-composer-error" : "post-content-help"}
         />
         <p id="post-content-help" className="mt-2 text-sm text-gray-600">
-          Text-only posts are welcome. {content.length}/2000 characters.
+          {content.length}/2000
         </p>
       </div>
       <div className="mb-5">
@@ -253,7 +252,7 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
           }}
         />
         <p id="post-image-help" className="mt-2 text-sm text-gray-600">
-          JPEG, PNG, WebP or GIF. Up to {formatBytes(MAX_UPLOAD_BYTES)}.
+          JPEG, PNG, WebP, or GIF · {formatBytes(MAX_UPLOAD_BYTES)} max.
         </p>
       </div>
       {file ? (
@@ -271,13 +270,25 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
             <Button
               variant="secondary"
               disabled={composerDisabled}
+              aria-label="Remove photo"
+              title="Remove photo"
+              className="px-3 text-lg leading-none"
               onClick={() => {
                 setFile(null);
                 setMediaAltText("");
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
             >
-              Remove photo
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="m6 6 12 12M6 18 18 6" />
+              </svg>
             </Button>
           </div>
           <label htmlFor="post-description" className="mb-2 block font-medium">
@@ -297,8 +308,7 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
             }
           />
           <p id="post-description-help" className="mt-2 text-sm text-gray-600">
-            Describe what is in the photo for someone who cannot see it. Keep this separate from your post text. Up to
-            1,000 characters.
+            Describe the photo for people who cannot see it. <span>{mediaAltText.length}/1000</span>
           </p>
         </div>
       ) : null}

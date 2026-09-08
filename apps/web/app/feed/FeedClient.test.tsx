@@ -63,6 +63,6 @@ describe("FeedClient", () => {
 
   it("renders a valid empty feed distinctly from a failed page request", () => {
     render(<FeedClient initialFeed={{ items: [], nextCursor: undefined }} />);
-    expect(screen.getByText(/your feed is ready for a first post/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No posts yet" })).toBeInTheDocument();
   });
 });

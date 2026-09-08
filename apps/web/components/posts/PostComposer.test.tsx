@@ -106,7 +106,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    const textarea = screen.getByPlaceholderText(/what would you like to share/i);
+    const textarea = screen.getByLabelText("Post text (required)");
     fireEvent.change(textarea, { target: { value: "Hello world" } });
     if (
       screen.queryByLabelText("Photo description (required with a photo)") &&
@@ -148,7 +148,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    const textarea = screen.getByPlaceholderText(/what would you like to share/i);
+    const textarea = screen.getByLabelText("Post text (required)");
     fireEvent.change(textarea, { target: { value: "Hello world" } });
 
     const fileInput = screen.getByLabelText("Photo (optional)");
@@ -183,7 +183,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Hello" } });
     fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["nope"], "fail.png", { type: "image/png" })] },
     });
@@ -252,7 +252,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Hello" } });
     fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["nope"], "fail.png", { type: "image/png" })] },
     });
@@ -280,7 +280,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Hello" } });
 
     const fileInput = screen.getByLabelText("Photo (optional)") as HTMLInputElement;
     const bigBuffer = new Uint8Array(5 * 1024 * 1024 + 1);
@@ -311,7 +311,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Hello" } });
     if (
       screen.queryByLabelText("Photo description (required with a photo)") &&
       !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
@@ -335,7 +335,7 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Hello" } });
     if (
       screen.queryByLabelText("Photo description (required with a photo)") &&
       !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled

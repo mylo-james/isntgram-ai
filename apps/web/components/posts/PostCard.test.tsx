@@ -112,7 +112,7 @@ describe("PostCard", () => {
     render(<PostCard post={{ ...basePost, likedByViewer: true, likeCount: 1 }} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Unlike" }));
-    expect(screen.getByText("0 likes")).toBeInTheDocument();
+    expect(screen.queryByText("0 likes")).not.toBeInTheDocument();
     await screen.findByText("Your like wasn’t changed. Try again.");
     expect(screen.getByRole("button", { name: "Unlike" })).toBeEnabled();
     expect(screen.getByText("1 like")).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe("PostCard", () => {
     const newest = screen.getByText("newest");
     expect(oldest.compareDocumentPosition(newest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("link", { name: "old-user" })).toHaveAttribute("href", "/old-user");
-    expect(screen.getByRole("link", { name: /view all 2 comments/i })).toHaveAttribute("href", "/post/post-1");
+    expect(screen.getByRole("link", { name: "Comment" })).toHaveAttribute("href", "/post/post-1");
   });
 
   it("dismisses the menu and provides temporary clipboard feedback", async () => {

@@ -69,12 +69,16 @@ export default function LegacyNav({
                     aria-label="Profile unavailable"
                     className="flex min-h-16 min-w-11 items-center justify-center px-1 py-2 text-xs text-gray-600 sm:min-h-11 sm:px-3 sm:text-sm"
                   >
-                    Profile
+                    <span className="h-6 w-6 overflow-hidden rounded-full" aria-hidden="true">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                    </span>
                   </button>
                 ) : (
                   <Link
                     href={href}
                     aria-label={label}
+                    title={label}
                     aria-current={pathname === href && (label !== "Profile" || href !== "/feed") ? "page" : undefined}
                     className="nav-item flex min-h-16 min-w-11 flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm"
                   >
@@ -86,7 +90,6 @@ export default function LegacyNav({
                         <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
                       </span>
                     )}
-                    <span>{label}</span>
                   </Link>
                 )}
               </li>

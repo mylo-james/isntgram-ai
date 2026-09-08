@@ -120,12 +120,40 @@ test.describe("Accessibility (axe-core)", () => {
           return { x, y };
         }),
       );
-    await page.getByRole("button", { name: "Pause logo animation" }).click();
-    const pausedPositions = await positions();
+    const logo = page.getByRole("link", { name: "Isntgram home", exact: true });
+    const openPositions = await positions();
     await page.waitForTimeout(350);
-    expect(await positions()).toEqual(pausedPositions);
-    await page.getByRole("button", { name: "Play logo animation" }).click();
-    await expect.poll(positions).not.toEqual(pausedPositions);
+    expect(await positions()).toEqual(openPositions);
+    expect(new Set(openPositions.map(({ x, y }) => `${x},${y}`)).size).toBe(8);
+    await logo.hover();
+    await logo.evaluate((node) => {
+      for (const animation of node.getAnimations({ subtree: true })) {
+        animation.pause();
+        animation.currentTime = 0;
+      }
+    });
+    const entryPositions = await positions();
+    entryPositions.forEach((position, index) => {
+      expect(position.x).toBeCloseTo(openPositions[index].x, 2);
+      expect(position.y).toBeCloseTo(openPositions[index].y, 2);
+    });
+    await logo.evaluate((node) => node.getAnimations({ subtree: true }).forEach((animation) => animation.play()));
+    await expect.poll(positions).not.toEqual(openPositions);
+    await page.getByRole("heading", { name: "Log in", exact: true }).hover();
+    expect(await positions()).toEqual(openPositions);
+    await logo.focus();
+    await expect.poll(positions).not.toEqual(openPositions);
+    await page.getByLabel("Email", { exact: true }).focus();
+    expect(await positions()).toEqual(openPositions);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await logo.hover();
+    expect(
+      await logo
+        .locator(".circle-loader-arm, .circle-loader-dot")
+        .evaluateAll((nodes) => nodes.every((node) => getComputedStyle(node).animationName === "none")),
+    ).toBe(true);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.getByRole("heading", { name: "Log in", exact: true }).hover();
     await expectNoA11yViolations(page, "/login");
     await page.screenshot({ path: testInfo.outputPath("login.png"), fullPage: true });
   });
@@ -187,8 +215,8 @@ test.describe("Accessibility (axe-core)", () => {
       await page.goto(path);
       await expect(page.locator("h1")).toHaveCount(1);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      await expect(page.locator(".brand-mark")).toBeVisible();
-      await expect(page.locator(".brand-mark .circle-loader-dot")).toHaveCount(8);
+      await expect(page.getByRole("banner").locator(".brand-mark")).toBeVisible();
+      await expect(page.getByRole("banner").locator(".brand-mark .circle-loader-dot")).toHaveCount(8);
       await expectNoA11yViolations(page, `${path} 320px`);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const nav = page.getByRole("navigation");
@@ -200,6 +228,7 @@ test.describe("Accessibility (axe-core)", () => {
         })),
       );
       expect(targets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
+      expect(await nav.getByRole("link").allTextContents()).toEqual(["", "", "", "", ""]);
       if (path === "/feed" || path.startsWith("/post/")) {
         const action = page.locator(".post-actions button").first();
         await action.focus();
@@ -256,6 +285,7 @@ test.describe("Accessibility (axe-core)", () => {
         : route.continue(),
     );
     const draft = page.getByLabel("Add a comment", { exact: true });
+    await expect(page.locator("#comment-help")).toHaveText("0/1000");
     await draft.fill("Keep this comment through the outage");
     await page.getByRole("button", { name: "Post comment", exact: true }).click();
     await expect(page.getByRole("main").getByRole("alert")).toContainText("Your comment wasn’t added");

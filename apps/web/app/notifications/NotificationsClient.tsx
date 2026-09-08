@@ -111,7 +111,7 @@ export default function NotificationsClient({
       </p>
       {items.length === 0 ? (
         <div className="social-surface p-6 text-gray-700">
-          <p>No notifications yet. Likes, comments and new followers will appear here.</p>
+          <p>No activity yet.</p>
           <Link href="/feed" className="ui-quiet mt-3">
             Home
           </Link>

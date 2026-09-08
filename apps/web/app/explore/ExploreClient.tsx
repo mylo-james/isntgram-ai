@@ -126,7 +126,6 @@ export default function ExploreClient({
           <input
             id="search-users"
             name="search"
-            placeholder="Search"
             value={query}
             onChange={(event) => {
               if (!isClientReady) return;
@@ -143,12 +142,27 @@ export default function ExploreClient({
             Search
           </button>
           {query ? (
-            <button className="ui-quiet" type="button" onClick={() => setQuery("")}>
-              Clear search
+            <button
+              className="ui-quiet px-3 text-lg leading-none"
+              type="button"
+              aria-label="Clear search"
+              title="Clear search"
+              onClick={() => setQuery("")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="m6 6 12 12M6 18 18 6" />
+              </svg>
             </button>
           ) : null}
         </form>
-        <p className="mt-2 text-sm text-gray-700" role="status" aria-live="polite">
+        <p className="sr-only" role="status" aria-live="polite">
           {searchStatus}
         </p>
 

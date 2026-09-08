@@ -257,6 +257,7 @@ export default function PostDetailClient({
             disabled={isLiking}
             aria-pressed={likedByViewer}
             aria-label={likedByViewer ? "Unlike" : "Like"}
+            title={likedByViewer ? "Unlike" : "Like"}
             className={[
               "ui-action post-action transition-transform duration-150 active:scale-95",
               isLiking ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
@@ -269,18 +270,24 @@ export default function PostDetailClient({
                 likedByViewer ? "text-[#ed4956]" : "text-[#262626]",
               ].join(" ")}
             />
-            <span className="text-sm">{likedByViewer ? "Liked" : "Like"}</span>
           </button>
 
-          <button type="button" aria-label="Comment" onClick={handleFocusComment} className="ui-action post-action">
+          <button
+            type="button"
+            aria-label="Comment"
+            title="Comment"
+            onClick={handleFocusComment}
+            className="ui-action post-action"
+          >
             <CommentIcon className="h-6 w-6 text-[#262626]" />
-            <span className="text-sm">Comment</span>
           </button>
         </div>
 
-        <p className="mt-2 text-sm font-semibold text-gray-900">
-          {likeCount} {likeCount === 1 ? "like" : "likes"}
-        </p>
+        {likeCount > 0 ? (
+          <p className="mt-2 text-sm font-semibold text-gray-900">
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
+          </p>
+        ) : null}
 
         {post.content ? (
           <p className="post-caption">
@@ -300,70 +307,77 @@ export default function PostDetailClient({
             retryLabel="Retry like"
           />
         ) : null}
-        <section className="mt-6 space-y-4 border-t border-gray-200 pt-5" aria-label="Comments">
-          <h2 className="text-lg font-semibold">Comments ({commentCount})</h2>
-          {commentsChronological.length === 0 && !commentsLoading && !commentsLoadError ? (
-            <p className="text-sm text-gray-500">No comments yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {commentsChronological.map((comment) => (
-                <li key={comment.id} className="flex items-start justify-between gap-3 text-sm text-gray-800">
-                  <div className="min-w-0">
-                    <Link href={`/${comment.author.username}`} className="font-semibold text-gray-900">
-                      {comment.author.username}
-                    </Link>{" "}
-                    {comment.content}
-                    {error && failedReaction === comment.id ? (
-                      <ErrorNotice
-                        key={error}
-                        message={error}
-                        onRetry={() => void handleToggleCommentLike(comment.id)}
-                        pending={Boolean(pendingCommentLikes[comment.id])}
-                        retryLabel="Retry comment like"
+        {commentsChronological.length > 0 || commentsLoading || commentsLoadError ? (
+          <section className="mt-4 space-y-4 border-t border-gray-200 pt-4" aria-labelledby="comments-heading">
+            <h2 id="comments-heading" className="sr-only">
+              Comments ({commentCount})
+            </h2>
+            {commentsChronological.length > 0 ? (
+              <ul className="space-y-2">
+                {commentsChronological.map((comment) => (
+                  <li key={comment.id} className="flex items-start justify-between gap-3 text-sm text-gray-800">
+                    <div className="min-w-0">
+                      <Link href={`/${comment.author.username}`} className="font-semibold text-gray-900">
+                        {comment.author.username}
+                      </Link>{" "}
+                      {comment.content}
+                      {error && failedReaction === comment.id ? (
+                        <ErrorNotice
+                          key={error}
+                          message={error}
+                          onRetry={() => void handleToggleCommentLike(comment.id)}
+                          pending={Boolean(pendingCommentLikes[comment.id])}
+                          retryLabel="Retry comment like"
+                        />
+                      ) : null}
+                      {comment.likeCount ? (
+                        <div className="mt-1 text-xs text-gray-500">{comment.likeCount} likes</div>
+                      ) : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCommentLike(comment.id)}
+                      disabled={Boolean(pendingCommentLikes[comment.id])}
+                      aria-pressed={Boolean(comment.likedByViewer)}
+                      aria-label={comment.likedByViewer ? "Unlike comment" : "Like comment"}
+                      className={[
+                        "ui-action shrink-0 transition-transform duration-150 active:scale-95",
+                        pendingCommentLikes[comment.id] ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
+                      ].join(" ")}
+                    >
+                      <HeartIcon
+                        filled={Boolean(comment.likedByViewer)}
+                        className={comment.likedByViewer ? "h-4 w-4 text-[#ed4956]" : "h-4 w-4 text-[#262626]"}
                       />
-                    ) : null}
-                    {comment.likeCount ? (
-                      <div className="mt-1 text-xs text-gray-500">{comment.likeCount} likes</div>
-                    ) : null}
-                  </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCommentLike(comment.id)}
-                    disabled={Boolean(pendingCommentLikes[comment.id])}
-                    aria-pressed={Boolean(comment.likedByViewer)}
-                    aria-label={comment.likedByViewer ? "Unlike comment" : "Like comment"}
-                    className={[
-                      "ui-action shrink-0 transition-transform duration-150 active:scale-95",
-                      pendingCommentLikes[comment.id] ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
-                    ].join(" ")}
-                  >
-                    <HeartIcon
-                      filled={Boolean(comment.likedByViewer)}
-                      className={comment.likedByViewer ? "h-4 w-4 text-[#ed4956]" : "h-4 w-4 text-[#262626]"}
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+            {commentsLoading ? <p className="text-sm text-gray-500">Loading...</p> : null}
 
-          {commentsLoading ? <p className="text-sm text-gray-500">Loading...</p> : null}
-
-          {commentsLoadError ? (
-            <ErrorNotice
-              message="Comments couldn’t load. Earlier comments are still here. Try again."
-              onRetry={() => void handleLoadMoreComments()}
-              pending={commentsLoading}
-              retryLabel="Retry comments"
-            />
-          ) : null}
-          {commentsCursor && !commentsLoadError ? (
-            <button type="button" onClick={handleLoadMoreComments} disabled={commentsLoading} className="ui-secondary">
-              {commentsLoading ? "Loading..." : "Load more comments"}
-            </button>
-          ) : null}
-        </section>
+            {commentsLoadError ? (
+              <ErrorNotice
+                message="Comments couldn’t load. Earlier comments are still here. Try again."
+                onRetry={() => void handleLoadMoreComments()}
+                pending={commentsLoading}
+                retryLabel="Retry comments"
+              />
+            ) : null}
+            {commentsCursor && !commentsLoadError ? (
+              <button
+                type="button"
+                onClick={handleLoadMoreComments}
+                disabled={commentsLoading}
+                className="ui-secondary"
+              >
+                {commentsLoading ? "Loading..." : "Load more comments"}
+              </button>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="mt-4 border-t border-gray-200 pt-3">
           <form
@@ -373,7 +387,7 @@ export default function PostDetailClient({
             }}
             className="space-y-3"
           >
-            <label htmlFor="comment-draft" className="block font-medium">
+            <label htmlFor="comment-draft" className="sr-only">
               Add a comment
             </label>
             <textarea
@@ -390,14 +404,15 @@ export default function PostDetailClient({
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p id="comment-help" className="text-xs text-gray-600">
-                Up to 1,000 characters. {commentDraft.length}/1000.
+                {commentDraft.length}/1000
               </p>
               <button
                 type="submit"
                 disabled={isSubmittingComment || commentDraft.trim().length === 0}
                 className="ui-primary"
+                aria-label={isSubmittingComment ? "Posting comment" : "Post comment"}
               >
-                {isSubmittingComment ? "Posting..." : "Post comment"}
+                {isSubmittingComment ? "Posting..." : "Post"}
               </button>
             </div>
           </form>
