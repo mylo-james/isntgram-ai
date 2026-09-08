@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
@@ -27,6 +28,7 @@ function LoginInner() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
   const [isClientReady, setIsClientReady] = useState(false);
@@ -129,11 +131,11 @@ function LoginInner() {
       if (!mountedRef.current) return;
 
       if (result?.error) {
-        let message = result.error;
-        if (message === "CredentialsSignin") {
-          message = "Invalid credentials";
-        } else if (message === "Configuration") {
-          message = "Authentication configuration error";
+        let message = "Log in couldn’t complete. Your details are still here. Try again.";
+        if (result.error === "CredentialsSignin" || result.error === "Invalid credentials") {
+          message = "The email or password doesn’t match. Check both fields and try again.";
+        } else if (result.error === "Configuration") {
+          message = "Log in is temporarily unavailable. Your details are still here. Try again shortly.";
         }
         setFormError(message);
       } else if (result?.ok) {
@@ -143,9 +145,9 @@ function LoginInner() {
       } else {
         setFormError("We couldn't complete sign in. Please try again.");
       }
-    } catch (error: unknown) {
+    } catch {
       if (!mountedRef.current) return;
-      const message = error instanceof Error ? error.message : "Login failed. Please try again.";
+      const message = "Log in couldn’t connect. Check your connection and try again. Your details are still here.";
       setFormError(message);
     } finally {
       if (mountedRef.current) setIsLoading(false);
@@ -186,6 +188,8 @@ function LoginInner() {
 
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       aria-label="Log in"
       className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden"
     >
@@ -195,7 +199,7 @@ function LoginInner() {
           <img
             className="w-full h-full object-cover"
             src="https://picsum.photos/seed/isntgram-login/2000/3000"
-            alt="Isntgram splash background"
+            alt=""
           />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20" />
         </div>
@@ -209,6 +213,7 @@ function LoginInner() {
           </div>
 
           <div className="w-full max-w-sm">
+            <h1 className="page-heading mb-6">Log in</h1>
             <div className="w-full space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!isClientReady ? (
@@ -216,20 +221,17 @@ function LoginInner() {
                     Preparing login…
                   </p>
                 ) : null}
-                {formError ? (
-                  <p id="login-form-error" className="text-sm text-red-600" role="alert">
-                    {formError}
-                  </p>
-                ) : null}
+                {formError ? <ErrorNotice key={formError} message={formError} /> : null}
 
                 <div>
-                  <label className="sr-only" htmlFor="email">
+                  <label className="mb-2 block text-sm font-medium" htmlFor="email">
                     Email
                   </label>
                   <input
                     className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                     placeholder="Email"
                     name="email"
+                    autoComplete="email"
                     id="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
@@ -250,14 +252,15 @@ function LoginInner() {
                 </div>
 
                 <div>
-                  <label className="sr-only" htmlFor="password">
+                  <label className="mb-2 block text-sm font-medium" htmlFor="password">
                     Password
                   </label>
                   <input
                     className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     name="password"
+                    autoComplete="current-password"
                     id="password"
                     value={formData.password}
                     onChange={(e) => handleInputChange("password", e.target.value)}
@@ -267,6 +270,15 @@ function LoginInner() {
                     aria-describedby={errors.password ? "login-password-error" : undefined}
                     disabled={controlsDisabled}
                   />
+                  <button
+                    type="button"
+                    className="ui-action mt-1 text-blue-700 underline"
+                    aria-controls="password"
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((value) => !value)}
+                  >
+                    {showPassword ? "Hide password" : "Show password"}
+                  </button>
                   {errors.password ? (
                     <p id="login-password-error" className="mt-1 text-xs text-red-600" role="alert">
                       {errors.password}
@@ -281,7 +293,7 @@ function LoginInner() {
                 ) : null}
 
                 <button
-                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="min-h-11 w-full bg-blue-700 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   type="submit"
                   disabled={controlsDisabled}
                 >
@@ -321,7 +333,7 @@ function LoginInner() {
             </div>
           </div>
 
-          <div className="absolute flex justify-between items-center h-[10vh] w-[90%] bottom-[35px] left-[5%]">
+          <div className="mt-10 flex w-full max-w-sm items-center justify-around gap-4">
             <a
               href="https://github.com/jamesurobertson/"
               className="flex justify-center w-[30%]"
@@ -332,7 +344,7 @@ function LoginInner() {
               <img
                 src="/assets/profile.jpeg"
                 alt="James Robertson"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -345,7 +357,7 @@ function LoginInner() {
               <img
                 src="/assets/aaron-profile.jpeg"
                 alt="Aaron Pierskalla"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -358,7 +370,7 @@ function LoginInner() {
               <img
                 src="/assets/mylo-profile.jpg"
                 alt="Mylo James"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
           </div>

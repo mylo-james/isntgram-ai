@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { validateFullName, validateUsername } from "@/lib/validation";
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Dialog from "@/components/ui/Dialog";
 
 export interface EditProfileInitialValues {
@@ -31,6 +32,7 @@ export default function EditProfileModal({
     reset,
     formState: { errors, isSubmitting },
     setError,
+    clearErrors,
     setFocus,
     watch,
   } = useForm<EditProfileInitialValues>({ defaultValues: initialValues, mode: "onBlur" });
@@ -48,6 +50,7 @@ export default function EditProfileModal({
   if (!open) return null;
 
   const submitHandler = async (values: EditProfileInitialValues) => {
+    clearErrors("root");
     // Client-side validation
     const fullNameValidation = validateFullName(values.fullName);
     if (!fullNameValidation.isValid) {
@@ -88,7 +91,9 @@ export default function EditProfileModal({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!isSubmitting) onClose();
+      }}
       aria-labelledby="edit-profile-title"
       data-testid="edit-profile-modal"
       initialFocusRef={closeButtonRef}
@@ -102,7 +107,8 @@ export default function EditProfileModal({
           ref={closeButtonRef}
           onClick={onClose}
           aria-label="Close edit profile"
-          className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+          disabled={isSubmitting}
+          className="ui-action text-gray-700 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         >
           ✕
         </button>
@@ -110,9 +116,13 @@ export default function EditProfileModal({
 
       <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
         {errors.root?.message ? (
-          <p className="text-sm text-red-600" role="alert">
-            {errors.root.message}
-          </p>
+          <ErrorNotice
+            key={errors.root.message}
+            message={errors.root.message}
+            onRetry={() => void handleSubmit(submitHandler)()}
+            pending={isSubmitting}
+            retryLabel="Try saving again"
+          />
         ) : null}
         <div>
           <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
@@ -120,6 +130,9 @@ export default function EditProfileModal({
           </label>
           <input
             id="fullName"
+            autoComplete="name"
+            disabled={isSubmitting}
+            maxLength={100}
             type="text"
             {...register("fullName", { required: "Full name is required" })}
             aria-invalid={errors.fullName ? true : undefined}
@@ -140,18 +153,26 @@ export default function EditProfileModal({
           </label>
           <input
             id="username"
+            autoComplete="username"
+            disabled={isSubmitting}
+            maxLength={30}
             type="text"
             {...register("username", {
               required: "Username is required",
               minLength: { value: 3, message: "Username must be at least 3 characters" },
             })}
             aria-invalid={errors.username ? true : undefined}
-            aria-describedby={errors.username?.message ? "edit-profile-username-error" : undefined}
+            aria-describedby={
+              errors.username?.message ? "edit-username-help edit-profile-username-error" : "edit-username-help"
+            }
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Enter your username"
             autoCapitalize="none"
             autoCorrect="off"
           />
+          <p id="edit-username-help" className="text-sm text-gray-700">
+            3–30 lowercase letters, numbers or underscores. Changing it updates your profile link.
+          </p>
           {errors.username?.message && (
             <p id="edit-profile-username-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.username.message}
@@ -166,14 +187,15 @@ export default function EditProfileModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            disabled={isSubmitting}
+            className="ui-action px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+            className="ui-action px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Saving..." : "Save"}
           </button>

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FeedResponse } from "@/lib/api-client";
 
 let observerCallback: ((entries: Array<{ isIntersecting: boolean }>) => void) | undefined;
@@ -38,13 +38,13 @@ describe("FeedClient", () => {
     Reflect.deleteProperty(window, "IntersectionObserver");
   });
 
-  it("fetches only for an intersecting sentinel, appends the page, and reaches the terminal state", async () => {
+  it("fetches only after Load more is selected, appends the page, and reaches the terminal state", async () => {
     getFeed.mockResolvedValue({ items: [{ id: "second" }], nextCursor: undefined });
     render(<FeedClient initialFeed={feedWith("first", "cursor-1")} />);
 
     await act(async () => observerCallback?.([{ isIntersecting: false }]));
     expect(getFeed).not.toHaveBeenCalled();
-    await act(async () => observerCallback?.([{ isIntersecting: true }]));
+    fireEvent.click(screen.getByRole("button", { name: "Load more posts" }));
     await waitFor(() => expect(getFeed).toHaveBeenCalledWith({ cursor: "cursor-1" }));
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
@@ -55,14 +55,14 @@ describe("FeedClient", () => {
     getFeed.mockRejectedValue(new Error("offline"));
     render(<FeedClient initialFeed={feedWith("first", "cursor-1")} />);
 
-    await act(async () => observerCallback?.([{ isIntersecting: true }]));
-    await waitFor(() => expect(screen.getByText("offline")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Load more posts" }));
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
   });
 
   it("renders a valid empty feed distinctly from a failed page request", () => {
     render(<FeedClient initialFeed={{ items: [], nextCursor: undefined }} />);
-    expect(screen.getByText(/your feed is empty/i)).toBeInTheDocument();
+    expect(screen.getByText(/your feed is ready for a first post/i)).toBeInTheDocument();
   });
 });

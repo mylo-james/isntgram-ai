@@ -269,43 +269,6 @@ describe("apiClient", () => {
     },
   );
 
-  it("rewrites a post draft", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      toResponse(
-        {
-          content: "Rewritten content.",
-          provider: "mock",
-        },
-        { status: 200 },
-      ),
-    );
-
-    const result = await apiClient.rewritePost({ content: "hello world" });
-    expect(result.content).toBe("Rewritten content.");
-
-    const req = getLastRequest();
-    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/ai/rewrite");
-  });
-
-  it("cancels the actual rewrite request when its caller aborts", async () => {
-    const controller = new AbortController();
-    (global.fetch as jest.Mock).mockImplementation(
-      (request: Request) =>
-        new Promise((_resolve, reject) => {
-          request.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
-            once: true,
-          });
-        }),
-    );
-    const pending = apiClient.rewritePost({ content: "Retain this draft" }, { signal: controller.signal });
-    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    const request = getLastRequest();
-    expect(await readRequestJson(request.clone())).toEqual({ content: "Retain this draft" });
-    controller.abort();
-    expect(request.signal.aborted).toBe(true);
-    await rejected;
-  });
-
   it("builds feed query parameters", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(
       toResponse({ items: [], nextCursor: undefined }, { status: 200 }),

@@ -16,7 +16,10 @@ import { FixturePost, fixturePosts, loadCuratedCorpus } from './curated-corpus';
 
 jest.mock('argon2');
 
-type StoredPost = Pick<Post, 'id' | 'authorId' | 'content' | 'mediaUrl'>;
+type StoredPost = Pick<
+  Post,
+  'id' | 'authorId' | 'content' | 'mediaUrl' | 'mediaAltText'
+>;
 type StoredUpload = Pick<
   MediaUpload,
   | 'id'
@@ -93,6 +96,7 @@ function storedPhotoPost(post: FixturePost): StoredPost {
     id: post.id,
     authorId: post.authorId,
     content: post.content,
+    mediaAltText: post.photo?.altText,
     mediaUrl: post.photo ? publishedUrl(post) : undefined,
   };
 }

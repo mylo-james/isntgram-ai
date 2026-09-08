@@ -33,7 +33,6 @@ function validEnvironment() {
     NEXT_PUBLIC_API_URL: 'http://127.0.0.1:4311',
     DEMO_ENABLED: 'false',
     NEXT_PUBLIC_DEMO_ENABLED: 'false',
-    AI_PROVIDER: 'mock',
   };
 }
 
@@ -76,16 +75,25 @@ test('accepts a private environment file and refuses unsafe filesystem topology'
     assert.doesNotThrow(() => assertPrivateEnvironmentFile(file));
 
     fs.chmodSync(temporary, 0o755);
-    assert.throws(() => assertPrivateEnvironmentFile(file), /directory must be mode 0700/);
+    assert.throws(
+      () => assertPrivateEnvironmentFile(file),
+      /directory must be mode 0700/,
+    );
     fs.chmodSync(temporary, 0o700);
 
     fs.chmodSync(file, 0o644);
-    assert.throws(() => assertPrivateEnvironmentFile(file), /file must be mode 0600/);
+    assert.throws(
+      () => assertPrivateEnvironmentFile(file),
+      /file must be mode 0600/,
+    );
     fs.chmodSync(file, 0o600);
 
     const link = path.join(temporary, 'env-link.sh');
     fs.symlinkSync(file, link);
-    assert.throws(() => assertPrivateEnvironmentFile(link), /must not be a symlink/);
+    assert.throws(
+      () => assertPrivateEnvironmentFile(link),
+      /must not be a symlink/,
+    );
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true });
   }

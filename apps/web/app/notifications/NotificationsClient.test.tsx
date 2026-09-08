@@ -37,7 +37,7 @@ describe("NotificationsClient", () => {
     });
     render(<NotificationsClient initialNotifications={{ items: [], nextCursor: undefined }} initialLoadError />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/couldn't load your notifications/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/couldn’t load your notifications/i);
     expect(screen.queryByText(/no notifications yet/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /retry notifications/i }));

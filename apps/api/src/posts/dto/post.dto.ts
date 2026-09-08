@@ -3,6 +3,12 @@ import { CommentDto } from './comment.dto';
 import { PostAuthorDto } from './post-author.dto';
 
 export class PostDto {
+  @ApiPropertyOptional({
+    maxLength: 1000,
+    description: 'Author-written photo description.',
+  })
+  mediaAltText?: string;
+
   @ApiProperty({ example: '7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a' })
   id!: string;
 

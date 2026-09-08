@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
 import { signOut } from "next-auth/react";
-import { RiLogoutBoxRLine } from "react-icons/ri";
+import Button from "@/components/ui/Button";
+import Dialog from "@/components/ui/Dialog";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import { apiClient, type PublicUserProfile } from "@/lib/api-client";
 
@@ -31,6 +34,7 @@ export default function ProfileActions({
 }: ProfileActionsProps) {
   const [hydrated, setHydrated] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
@@ -57,6 +61,7 @@ export default function ProfileActions({
   };
 
   const handleFollowToggle = async () => {
+    if (isFollowLoading) return;
     if (!currentUser) {
       router.push("/login");
       return;
@@ -79,7 +84,7 @@ export default function ProfileActions({
         onFollowChange?.(response.isFollowing);
       }
     } catch (error) {
-      setFollowError("We couldn't update this follow. Please try again.");
+      setFollowError(userError(error, "Your follow status wasn’t changed. Try again."));
       if (process.env.NODE_ENV !== "production") {
         console.error("Error following user:", error);
       }
@@ -113,7 +118,7 @@ export default function ProfileActions({
       <button
         type="button"
         onClick={() => router.push("/login")}
-        className="h-[30px] rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50"
+        className="min-h-11 rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50"
       >
         Log In
       </button>
@@ -141,28 +146,49 @@ export default function ProfileActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {isOwnProfile ? (
         <>
           <button
             type="button"
             onClick={handleEditProfile}
             disabled={!hydrated || isSigningOut}
-            className="h-[30px] rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Edit Profile
           </button>
 
           <button
             type="button"
-            onClick={handleSignOut}
+            onClick={() => setConfirmSignOut(true)}
             disabled={!hydrated || isSigningOut}
             aria-label="Log out"
-            className="rounded-sm p-1 text-[#262626] hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-action rounded-sm text-[#262626] hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RiLogoutBoxRLine className="h-5 w-5" aria-hidden="true" focusable="false" />
+            Log out
           </button>
 
+          <Dialog
+            open={confirmSignOut}
+            onClose={() => {
+              if (!isSigningOut) setConfirmSignOut(false);
+            }}
+            aria-labelledby="logout-title"
+            contentClassName="w-full max-w-sm rounded-md bg-white p-6"
+          >
+            <h2 id="logout-title" className="text-lg font-semibold">
+              Log out?
+            </h2>
+            <p className="my-4">You can log in again to return to your account.</p>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" disabled={isSigningOut} onClick={() => setConfirmSignOut(false)}>
+                Stay logged in
+              </Button>
+              <Button loading={isSigningOut} onClick={() => void handleSignOut()}>
+                Log out
+              </Button>
+            </div>
+          </Dialog>
           <EditProfileModal
             open={isEditOpen}
             onClose={() => setIsEditOpen(false)}
@@ -179,10 +205,10 @@ export default function ProfileActions({
             disabled={!hydrated || isFollowLoading || (followStatus !== "known" && followStatus !== "error")}
             aria-describedby={followError ? "follow-error" : undefined}
             className={[
-              "h-[30px] rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+              "min-h-11 rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
               isFollowing
                 ? "border border-[#dbdbdb] bg-white text-[#262626] hover:bg-gray-50"
-                : "bg-[#0095f6] text-white hover:bg-[#1877f2]",
+                : "bg-blue-700 text-white hover:bg-[#1877f2]",
             ].join(" ")}
           >
             {isFollowLoading
@@ -198,9 +224,15 @@ export default function ProfileActions({
                       : "Follow"}
           </button>
           {followError ? (
-            <p id="follow-error" className="mt-1 text-xs text-red-600" role="alert">
-              {followError}
-            </p>
+            <div id="follow-error">
+              <ErrorNotice
+                key={followError}
+                message={followError}
+                onRetry={() => void handleFollowToggle()}
+                pending={isFollowLoading}
+                retryLabel="Retry follow"
+              />
+            </div>
           ) : null}
         </div>
       )}

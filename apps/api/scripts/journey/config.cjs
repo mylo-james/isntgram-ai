@@ -54,7 +54,6 @@ const REQUIRED_ENVIRONMENT = Object.freeze([
   'NEXT_PUBLIC_API_URL',
   'DEMO_ENABLED',
   'NEXT_PUBLIC_DEMO_ENABLED',
-  'AI_PROVIDER',
 ]);
 const FORBIDDEN_ENVIRONMENT = Object.freeze([
   'SKIP_DB',
@@ -141,7 +140,6 @@ function validatePrivateEnvironment(environment) {
     NEXT_PUBLIC_API_URL: 'http://127.0.0.1:4311',
     DEMO_ENABLED: 'false',
     NEXT_PUBLIC_DEMO_ENABLED: 'false',
-    AI_PROVIDER: 'mock',
   };
   for (const [key, value] of Object.entries(expected)) {
     if (environment[key] !== value)
@@ -306,7 +304,6 @@ function createPrivateEnvironment(filesystem = fs) {
     NEXT_PUBLIC_API_URL: 'http://127.0.0.1:4311',
     DEMO_ENABLED: 'false',
     NEXT_PUBLIC_DEMO_ENABLED: 'false',
-    AI_PROVIDER: 'mock',
   };
   validatePrivateEnvironment(values);
   filesystem.writeFileSync(

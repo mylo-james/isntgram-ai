@@ -3,8 +3,13 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const config = require('./config.cjs');
 const { environment, start } = require('./app.cjs');
-const c = { ...config.FIXED, demoReady: true,
-  secrets: Object.fromEntries(config.SECRET_KEYS.map(key => [key, 'private-test-value'])) };
+const c = {
+  ...config.FIXED,
+  demoReady: true,
+  secrets: Object.fromEntries(
+    config.SECRET_KEYS.map((key) => [key, 'private-test-value']),
+  ),
+};
 
 test('web receives session configuration but no database, signing or storage credentials', () => {
   const env = environment(c, 'web', 310);
@@ -15,7 +20,8 @@ test('web receives session configuration but no database, signing or storage cre
   assert.equal(env.ISNTGRAM_LOCAL_MEDIA, 'true');
   for (const key of Object.keys(env)) {
     assert.ok(!/^(DATABASE_|JWT_|S3_|ISNTGRAM_V1_)/.test(key), key);
-    if (key.startsWith('NEXT_PUBLIC_')) assert.notEqual(env[key], 'private-test-value', key);
+    if (key.startsWith('NEXT_PUBLIC_'))
+      assert.notEqual(env[key], 'private-test-value', key);
   }
 });
 
@@ -24,7 +30,7 @@ test('API retains production safety and subtracts retained test rows from demo c
   assert.equal(env.NODE_ENV, 'production');
   assert.equal(env.DEMO_RECORD_LIMIT, '690');
   assert.equal(env.DEMO_CONTENT_SOURCE, 'curated');
-  assert.equal(env.AI_PROVIDER, 'mock');
+  assert.equal(env.AI_PROVIDER, undefined);
   assert.equal(env.METRICS_ENABLED, 'false');
   assert.equal(env.AUTH_SECRET, undefined);
   assert.equal(env.NEXTAUTH_SECRET, undefined);
@@ -35,7 +41,10 @@ test('API retains production safety and subtracts retained test rows from demo c
   assert.equal(Object.hasOwn(env, 'S3_PRESIGN_ENDPOINT'), false);
   assert.equal(Object.hasOwn(env, 'S3_DISPLAY_BASE_URL'), false);
   assert.ok(Object.values(env).every((value) => typeof value === 'string'));
-  assert.equal(environment({ ...c, demoReady: false }, 'api', 310).DEMO_ENABLED, 'false');
+  assert.equal(
+    environment({ ...c, demoReady: false }, 'api', 310).DEMO_ENABLED,
+    'false',
+  );
 });
 
 test('phone view reaches only the named API and web environment fields', () => {
@@ -57,7 +66,8 @@ test('phone view reaches only the named API and web environment fields', () => {
     web.NEXT_PUBLIC_MEDIA_HOSTS,
     '127.0.0.1:48333,isntgram-phone.example.ts.net:8446',
   );
-  for (const key of Object.keys(web)) assert.equal(key.startsWith('S3_'), false, key);
+  for (const key of Object.keys(web))
+    assert.equal(key.startsWith('S3_'), false, key);
 });
 
 test('invalid retained counts and service selectors are refused before launch', async () => {

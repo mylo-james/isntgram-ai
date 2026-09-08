@@ -74,10 +74,9 @@ readiness, select Retry, and re-read the retained post. Stop foreground applicat
 the same retained record and cluster identity; and unrelated processes remain unchanged. Do not repeat the outage
 automatically or use a kill-by-port, broad process signal, reset, migration, or cleanup.
 
-## Optional PB-05 and private phone demonstration
+## Private phone demonstration
 
-PB-05 is optional. The AI control must describe its real mock or unavailable state and preserve the author's draft
-through accept, reject, undo, timeout, and unmount. It does not demonstrate image inference.
+The former AI exercise (PB-05) was retired when AI assistance was removed.
 
 A private phone demonstration must not become a public remote-access claim and must preserve the local operational
 storage boundary. It remains distinct from a physical-phone observation.

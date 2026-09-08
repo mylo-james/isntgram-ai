@@ -128,7 +128,7 @@ export default function DemoBanner() {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+              className="ui-action rounded-md bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
             >
               Sign in again
             </button>
@@ -136,7 +136,7 @@ export default function DemoBanner() {
           <button
             type="button"
             onClick={handleDismiss}
-            className="rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition hover:border-amber-300 hover:bg-amber-50"
+            className="ui-action rounded-md border border-amber-200 bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition hover:border-amber-300 hover:bg-amber-50"
           >
             Dismiss
           </button>

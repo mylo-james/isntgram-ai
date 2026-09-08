@@ -1,7 +1,6 @@
-# Isntgram AI
+# Isntgram
 
-A modern, full-stack social platform built with Next.js (App Router), NestJS, and PostgreSQL — with an optional
-AI-assisted “polish” workflow for posts.
+A social platform for photos and text posts, built with Next.js (App Router), NestJS and PostgreSQL.
 
 ## Highlights
 
@@ -12,8 +11,7 @@ AI-assisted “polish” workflow for posts.
 - **Typed clients:** `openapi-fetch` clients in web/server consume the generated contract (no stringly-typed endpoints)
 - **Cursor-based feeds:** stable pagination by `createdAt` + `id`
 - **S3-compatible media uploads:** works with MinIO locally
-- **AI assist (optional):** `POST /api/ai/rewrite` via `AI_PROVIDER=mock|openai`
-- **Rate limits:** auth + AI + media endpoints are throttled to prevent abuse
+- **Rate limits:** auth + media endpoints are throttled to prevent abuse
 - **Tests:** unit + integration + Playwright E2E
 
 ## Product brief
@@ -21,7 +19,7 @@ AI-assisted “polish” workflow for posts.
 Isntgram is a signal-first social feed designed for thoughtful updates. The core product focuses on:
 
 - A fast, readable feed with stable pagination.
-- A clean posting flow with optional AI “polish.”
+- A posting flow with photo descriptions and recoverable errors.
 - A profile experience that encourages follow-driven discovery.
 
 ## Engineering brief
@@ -95,11 +93,6 @@ Set `DEMO_ENABLED=true` in `apps/api/.env` to allow the demo sign-in flow. Each 
 ```bash
 pnpm run usertest
 ```
-
-### AI Mode (optional)
-
-- Default: `AI_PROVIDER=mock` (no external keys; deterministic rewrite for local dev/tests)
-- Real LLM: set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in `apps/api/.env`
 
 ### Production secrets
 

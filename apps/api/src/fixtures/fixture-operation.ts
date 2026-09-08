@@ -117,6 +117,8 @@ export async function verifyFixturePost(
   if (
     object.postId !== expected.id ||
     post.mediaUrl !== object.url ||
+    (post.mediaAltText != null &&
+      post.mediaAltText !== expected.photo.altText) ||
     object.checksum !== expected.photo.validated.sha256 ||
     object.bytes !== expected.photo.validated.bytes ||
     object.contentType !== expected.photo.validated.contentType
@@ -157,6 +159,7 @@ export async function runFixtureOperation(
     await validateOrReject(
       plainToInstance(CreatePostDto, {
         content: post.content,
+        mediaAltText: post.photo?.altText,
         mediaUploadId: post.uploadId,
       }),
     );
@@ -259,6 +262,7 @@ export async function runFixtureOperation(
           post.authorId,
           {
             content: post.content,
+            mediaAltText: post.photo?.altText,
             mediaUploadId: post.uploadId,
           },
           post.id,

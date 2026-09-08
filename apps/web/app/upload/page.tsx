@@ -25,7 +25,12 @@ export default async function UploadPage() {
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <UploadClient />
       </main>
     </>

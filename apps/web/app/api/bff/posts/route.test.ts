@@ -15,7 +15,11 @@ describe("post BFF with the actual CSRF and auth guards", () => {
   const originalOrigin = process.env.NEXTAUTH_URL;
   const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
   let token: string;
-  const body = { content: "A retained photo draft", mediaUploadId: "faf70e02-433a-4fe4-a537-46374b972ec8" };
+  const body = {
+    mediaAltText: "A red boat on a lake",
+    content: "A retained photo draft",
+    mediaUploadId: "faf70e02-433a-4fe4-a537-46374b972ec8",
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -44,6 +48,15 @@ describe("post BFF with the actual CSRF and auth guards", () => {
       },
       body: requestBody,
     });
+
+  it.each([null, [], { mediaAltText: 1 }, { mediaAltText: "x".repeat(1001) }])(
+    "rejects invalid post description payloads before forwarding %#",
+    async (payload) => {
+      const response = await POST(request({}, JSON.stringify(payload)));
+      expect(response.status).toBe(400);
+      expect(internalApi.POST).not.toHaveBeenCalled();
+    },
+  );
 
   it.each<Record<string, string>>([{ origin: "http://127.0.0.1:4322" }, { "x-csrf-token": "mismatch" }])(
     "refuses foreign or mismatched CSRF before authentication and writes: %j",

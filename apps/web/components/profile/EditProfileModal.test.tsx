@@ -91,7 +91,10 @@ describe("EditProfileModal", () => {
     });
     await waitFor(() => expect(screen.getByLabelText(/username/i)).toHaveFocus());
     expect(screen.getByLabelText(/username/i)).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText(/username/i)).toHaveAttribute("aria-describedby", "edit-profile-username-error");
+    expect(screen.getByLabelText(/username/i)).toHaveAttribute(
+      "aria-describedby",
+      "edit-username-help edit-profile-username-error",
+    );
     expect(onSubmit).toHaveBeenCalledTimes(0);
   });
 

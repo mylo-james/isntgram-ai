@@ -1472,102 +1472,6 @@
           }
         ]
       }
-    },
-    "/api/ai/capabilities": {
-      "get": {
-        "operationId": "AiController_capabilities",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AiCapabilitiesDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["ai"],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/ai/rewrite": {
-      "post": {
-        "operationId": "AiController_rewrite",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AiRewriteRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Rewrite post content using an AI provider",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/AiRewriteResponseDto"
-                    }
-                  ],
-                  "example": {
-                    "content": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share.",
-                    "provider": "mock"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["ai"],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
     }
   },
   "info": {
@@ -1977,6 +1881,11 @@
       "PostDto": {
         "type": "object",
         "properties": {
+          "mediaAltText": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Author-written photo description."
+          },
           "id": {
             "type": "string",
             "example": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a"
@@ -2115,6 +2024,11 @@
       "CreatePostDto": {
         "type": "object",
         "properties": {
+          "mediaAltText": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Author-written photo description, separate from the caption."
+          },
           "content": {
             "type": "string",
             "minLength": 1,
@@ -2239,64 +2153,6 @@
           }
         },
         "required": ["isFollowing"]
-      },
-      "AiRewriteResponseDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "example": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share."
-          },
-          "provider": {
-            "type": "string",
-            "enum": ["mock", "openai"]
-          },
-          "model": {
-            "type": "string",
-            "example": "gpt-4o-mini"
-          }
-        },
-        "required": ["content", "provider"]
-      },
-      "AiCapabilitiesDto": {
-        "type": "object",
-        "properties": {
-          "mode": {
-            "type": "string",
-            "enum": ["disabled", "mock", "openai"]
-          },
-          "available": {
-            "type": "boolean"
-          },
-          "label": {
-            "type": "string"
-          }
-        },
-        "required": ["mode", "available", "label"]
-      },
-      "AiRewriteRequestDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000,
-            "example": "Shipping a fresh batch of ideas after today's research sprint."
-          },
-          "tone": {
-            "type": "string",
-            "enum": ["professional", "friendly", "concise"],
-            "default": "professional"
-          },
-          "maxLength": {
-            "type": "number",
-            "description": "Maximum character length for the rewritten content",
-            "default": 2000,
-            "minimum": 1,
-            "maximum": 2000
-          }
-        },
-        "required": ["content"]
       }
     }
   }

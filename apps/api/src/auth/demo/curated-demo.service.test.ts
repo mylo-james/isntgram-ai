@@ -202,6 +202,7 @@ function buildHarness(
         id: seedPost.id,
         authorId: seed.id,
         content: photo.caption,
+        mediaAltText: photo.altText,
         mediaUrl: `https://media.example/${key}`,
       } as Post);
       boundUploads.set(seedPost.uploadId, {

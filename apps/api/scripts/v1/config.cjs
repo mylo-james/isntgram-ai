@@ -141,19 +141,34 @@ function phoneOrigin(value, name) {
     url.hostname.includes('*')
   )
     reject(`invalid phone ${name}`);
-  return { origin: url.origin, hostname: url.hostname, port: Number(url.port || 443) };
+  return {
+    origin: url.origin,
+    hostname: url.hostname,
+    port: Number(url.port || 443),
+  };
 }
 function validatePhoneView(phoneView) {
   if (phoneView === undefined) return undefined;
   if (!phoneView || typeof phoneView !== 'object' || Array.isArray(phoneView))
     reject('invalid phone view');
   const keys = ['webOrigin', 's3Origin', 'serveWebPort', 'serveS3Port'];
-  if (Object.keys(phoneView).some(key => !keys.includes(key)) || keys.some(key => !Object.hasOwn(phoneView, key)))
+  if (
+    Object.keys(phoneView).some((key) => !keys.includes(key)) ||
+    keys.some((key) => !Object.hasOwn(phoneView, key))
+  )
     reject('invalid phone view fields');
   const web = phoneOrigin(phoneView.webOrigin, 'web origin');
   const s3 = phoneOrigin(phoneView.s3Origin, 'S3 origin');
-  for (const [name, value] of Object.entries({ serveWebPort: phoneView.serveWebPort, serveS3Port: phoneView.serveS3Port }))
-    if (!Number.isSafeInteger(value) || value < 1 || value > 65535 || value === 8443)
+  for (const [name, value] of Object.entries({
+    serveWebPort: phoneView.serveWebPort,
+    serveS3Port: phoneView.serveS3Port,
+  }))
+    if (
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      value > 65535 ||
+      value === 8443
+    )
       reject(`invalid phone ${name}`);
   if (
     web.hostname !== s3.hostname ||
@@ -172,7 +187,9 @@ function validatePhoneView(phoneView) {
 }
 function browserOrigins(c) {
   const phoneView = validatePhoneView(c?.phoneView);
-  return Object.freeze(phoneView ? [c.webOrigin, phoneView.webOrigin] : [c.webOrigin]);
+  return Object.freeze(
+    phoneView ? [c.webOrigin, phoneView.webOrigin] : [c.webOrigin],
+  );
 }
 function validate(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -187,7 +204,9 @@ function validate(value) {
   ];
   if (
     Object.keys(value).some((k) => !allowed.includes(k)) ||
-    allowed.filter((k) => k !== 'phoneView').some((k) => !Object.hasOwn(value, k))
+    allowed
+      .filter((k) => k !== 'phoneView')
+      .some((k) => !Object.hasOwn(value, k))
   )
     reject('unexpected fields');
   for (const [k, v] of Object.entries(FIXED))
@@ -330,13 +349,14 @@ function appEnvironment(c, target = 'app') {
     DEMO_TTL_HOURS: '1',
     DEMO_CONTENT_SOURCE: 'curated',
     NEXT_PUBLIC_DEMO_CONTENT_SOURCE: 'curated',
-    AI_PROVIDER: 'mock',
     S3_ENDPOINT: c.storageEndpoint,
     S3_PUBLIC_BASE_URL: `${c.storageEndpoint}/${c.bucket}`,
-    ...(phoneView ? {
-      S3_PRESIGN_ENDPOINT: phoneView.s3Origin,
-      S3_DISPLAY_BASE_URL: `${phoneView.s3Origin}/${c.bucket}`,
-    } : {}),
+    ...(phoneView
+      ? {
+          S3_PRESIGN_ENDPOINT: phoneView.s3Origin,
+          S3_DISPLAY_BASE_URL: `${phoneView.s3Origin}/${c.bucket}`,
+        }
+      : {}),
     S3_BUCKET: c.bucket,
     S3_REGION: 'us-east-1',
     S3_ACCESS_KEY_ID: c.secrets.S3_ACCESS_KEY_ID,

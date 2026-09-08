@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import UserProfilePage, { generateMetadata } from "./page";
 
 jest.mock("next/navigation", () => ({
+  usePathname: () => "/testuser",
   notFound: jest.fn(),
   redirect: jest.fn(),
 }));
@@ -93,7 +94,7 @@ describe("UserProfilePage", () => {
       if (path === "/api/follows/{username}/status") {
         return Promise.resolve({ data: { isFollowing: true }, response: { ok: true } });
       }
-      return Promise.resolve({ data: null, response: { ok: false } });
+      return Promise.resolve({ data: null, response: { ok: false, status: 404 } });
     });
   });
 
@@ -123,12 +124,12 @@ describe("UserProfilePage", () => {
   it("calls notFound when profile fetch fails", async () => {
     serverApi.internalApi.GET.mockImplementation((path: string) => {
       if (path === "/api/users/{username}") {
-        return Promise.resolve({ data: null, response: { ok: false } });
+        return Promise.resolve({ data: null, response: { ok: false, status: 404 } });
       }
       if (path === "/api/posts/user/{username}") {
         return Promise.resolve({ data: mockFeed, response: { ok: true } });
       }
-      return Promise.resolve({ data: null, response: { ok: false } });
+      return Promise.resolve({ data: null, response: { ok: false, status: 404 } });
     });
 
     await expect(UserProfilePage({ params: { username: "testuser" } })).rejects.toThrow("not found");
@@ -185,7 +186,7 @@ describe("UserProfilePage", () => {
       if (path === "/api/follows/{username}/status") {
         return Promise.resolve({ data: { isFollowing: "yes" }, response: { ok: true } });
       }
-      return Promise.resolve({ data: null, response: { ok: false } });
+      return Promise.resolve({ data: null, response: { ok: false, status: 404 } });
     });
 
     render(await UserProfilePage({ params: { username: "testuser" } }));

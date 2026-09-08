@@ -91,7 +91,7 @@ describe("FeedPage", () => {
       return Promise.resolve({ data: { profilePictureUrl: null }, response: { ok: true, status: 200 } });
     });
     render(await FeedPage());
-    expect(screen.getByRole("alert")).toHaveTextContent("We couldn't load your feed");
+    expect(screen.getByRole("alert")).toHaveTextContent("We couldn’t load your feed");
     expect(screen.getByRole("link", { name: "Retry feed" })).toHaveAttribute("href", "/feed");
     expect(serverApi.internalApi.GET).toHaveBeenCalledTimes(1);
   });
@@ -106,7 +106,7 @@ describe("FeedPage", () => {
       const page = FeedPage();
       await jest.advanceTimersByTimeAsync(5_000);
       render(await page);
-      expect(screen.getByRole("alert")).toHaveTextContent("We couldn't load your feed");
+      expect(screen.getByRole("alert")).toHaveTextContent("We couldn’t load your feed");
       expect(screen.getByRole("link", { name: "Retry feed" })).toHaveAttribute("href", "/feed");
     } finally {
       jest.useRealTimers();

@@ -168,11 +168,11 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(screen.getByText("testuser")).toBeInTheDocument());
     expect(screen.getByText("Test User")).toBeInTheDocument();
-    expect(screen.getByText(/posts/i)).toHaveTextContent("10");
+    expect(screen.getByText(/^posts$/i, { selector: "span" })).toHaveTextContent("10");
     expect(screen.getByText(/followers/i)).toHaveTextContent("100");
     expect(screen.getByText(/following/i)).toHaveTextContent("50");
     expect(screen.getByTestId("is-following")).toHaveTextContent("true");
-    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
 
     expect(mockApiClient.getFollowStatus).not.toHaveBeenCalled();
   });
@@ -239,7 +239,9 @@ describe("ProfilePage", () => {
     await waitFor(() =>
       expect(mockApiClient.getUserPosts).toHaveBeenLastCalledWith("testuser", { cursor: "cursor-1" }),
     );
-    await waitFor(() => expect(screen.getByRole("link", { name: "View post 2" })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /View post by testuser: Second post/ })).toBeInTheDocument(),
+    );
     expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
   });
 
@@ -269,8 +271,8 @@ describe("ProfilePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
 
-    await waitFor(() => expect(screen.getByText(/more posts failed/i)).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
   });
 
   it("falls back to a generic error when loading more posts throws a non-Error", async () => {
@@ -280,7 +282,7 @@ describe("ProfilePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
 
-    await waitFor(() => expect(screen.getByText(/failed to load posts/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
   });
 
   it("updates profile state when ProfileActions triggers onProfileUpdated", async () => {
@@ -303,10 +305,10 @@ describe("ProfilePage", () => {
     await waitFor(() => expect(screen.getByText(/followers/i)).toHaveTextContent("1"));
   });
 
-  it("offers an empty-bio prompt only to the profile owner", async () => {
+  it("omits a bio invitation when bio editing is unavailable", async () => {
     const { rerender } = render(<ProfilePage {...baseProps} initialProfile={{ ...mockProfile, bio: "" }} />);
 
-    expect(screen.getByText("Add a bio to tell people about yourself.")).toBeInTheDocument();
+    expect(screen.queryByText("Add a bio to tell people about yourself.")).not.toBeInTheDocument();
 
     rerender(
       <ProfilePage
@@ -325,7 +327,7 @@ describe("ProfilePage", () => {
       <ProfilePage {...baseProps} initialPosts={[{ ...createPost("text-post", longContent), mediaUrl: undefined }]} />,
     );
 
-    const destination = screen.getByRole("link", { name: "View post 1" });
+    const destination = screen.getByRole("link", { name: /View post by testuser:/ });
     expect(destination).toHaveAttribute("href", "/post/text-post");
     expect(screen.getByText("Text post")).toBeInTheDocument();
     expect(screen.getByText(`${longContent.trim().slice(0, 90)}…`)).toBeInTheDocument();
@@ -351,7 +353,7 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(screen.getByText("newuser")).toBeInTheDocument());
     expect(screen.getByText("New Name")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
     expect(screen.getByTestId("is-following")).toHaveTextContent("false");
   });
 

@@ -13,7 +13,7 @@ For concrete “when to do what” thresholds, see `docs/system-design/07-scalin
 - Single Postgres instance
 - Stateless API + Web containers
 - Cursor pagination on feed queries
-- Basic rate limits (auth + AI + media)
+- Basic rate limits (auth + media)
 
 ## 10×
 
@@ -21,7 +21,6 @@ For concrete “when to do what” thresholds, see `docs/system-design/07-scalin
 - Introduce basic caching for hot feeds (first page, short TTL)
 - Add CDN for media URLs
 - Move to object storage with lifecycle policies
-- Add AI cost controls (rate limits, budgets, provider timeouts)
 - Add connection pooling and slow query alerts
 
 ## 100×
@@ -30,7 +29,6 @@ For concrete “when to do what” thresholds, see `docs/system-design/07-scalin
 - Add background jobs for media processing
 - Use a dedicated queue (e.g., SQS, RabbitMQ)
 - Service-level rate limits and abuse detection
-- Split AI into a dedicated service (queue + worker pool, per-tenant budgets)
 - Add per-user and per-IP abuse detection with adaptive throttling
 
 ## Beyond 100× (only if product demands)

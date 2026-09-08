@@ -1,5 +1,6 @@
 "use client";
 
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { NotificationItem, NotificationsResponse } from "@isntgram-ai/shared-types";
@@ -83,24 +84,27 @@ export default function NotificationsClient({
 
   if (loadError === "initial" && items.length === 0) {
     return (
-      <div className="mt-4 rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
-        <p>We couldn&apos;t load your notifications. Please try again.</p>
-        <button
-          type="button"
-          onClick={() => void loadNotifications()}
-          disabled={isLoading}
-          className="mt-3 rounded-sm border border-red-300 bg-white px-3 py-1.5 font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isLoading ? "Retrying..." : "Retry notifications"}
-        </button>
-      </div>
+      <ErrorNotice
+        message="We couldn’t load your notifications. Please try again."
+        onRetry={() => void loadNotifications()}
+        pending={isLoading}
+        retryLabel="Retry notifications"
+      />
     );
   }
 
   return (
-    <section className="mt-4" aria-live="polite">
+    <section className="mt-4">
+      <p role="status" className="sr-only">
+        {isLoading ? "Loading notifications…" : ""}
+      </p>
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">No notifications yet.</p>
+        <div className="text-gray-700">
+          <p>No notifications yet. Likes, comments and new followers will appear here.</p>
+          <Link href="/feed" className="ui-action mt-3 text-blue-700 underline">
+            Back to Home
+          </Link>
+        </div>
       ) : (
         <ul className="space-y-3" aria-label="Notifications">
           {items.map((notification) => {
@@ -116,13 +120,22 @@ export default function NotificationsClient({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={actor.profilePictureUrl ?? "/assets/default-avatar.svg"}
-                    alt={actor.username}
+                    alt=""
                     className="h-10 w-10 rounded-full object-cover"
                   />
                   <div className="min-w-0 flex-1 text-sm text-gray-800">
                     <span className="font-semibold text-gray-900">{actor.username}</span>{" "}
                     <span>{notificationAction(notification)}</span>{" "}
-                    {time ? <span className="text-gray-500">{time}</span> : null}
+                    {time ? (
+                      <time
+                        className="text-gray-600"
+                        dateTime={notification.createdAt}
+                        title={new Date(notification.createdAt).toLocaleString()}
+                      >
+                        <span aria-hidden="true">{time}</span>
+                        <span className="sr-only">{new Date(notification.createdAt).toLocaleString()}</span>
+                      </time>
+                    ) : null}
                   </div>
                   {notification.type !== "follow" && notification.postMediaUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -136,19 +149,20 @@ export default function NotificationsClient({
       )}
 
       {loadError === "more" ? (
-        <div className="mt-4" role="alert">
-          <p className="text-sm text-red-600">
-            We couldn&apos;t load more notifications. Your earlier notifications are still here.
-          </p>
-        </div>
+        <ErrorNotice
+          message="We couldn’t load more notifications. Your earlier notifications are still here."
+          onRetry={() => void loadNotifications()}
+          pending={isLoading}
+          retryLabel="Retry load more"
+        />
       ) : null}
 
-      {nextCursor ? (
+      {nextCursor && !loadError ? (
         <button
           type="button"
           onClick={() => void loadNotifications()}
           disabled={isLoading}
-          className="mt-4 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="ui-action mt-4 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
         </button>

@@ -300,7 +300,7 @@ describe("LoginPage", () => {
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
 
-    await waitFor(() => expect(screen.getByText(/network down/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/log in couldn’t connect/i)).toBeInTheDocument());
   });
 
   it("shows a generic error when signIn throws a non-Error", async () => {
@@ -314,7 +314,7 @@ describe("LoginPage", () => {
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
 
-    await waitFor(() => expect(screen.getByText(/login failed/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/log in couldn’t connect/i)).toBeInTheDocument());
   });
 
   it("renders success message from search params", async () => {
@@ -353,9 +353,9 @@ describe("LoginPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+      expect(screen.getByText(/email or password doesn’t match/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/invalid credentials/i)).toHaveAttribute("role", "alert");
+    expect(screen.getByText(/email or password doesn’t match/i)).toHaveAttribute("role", "alert");
   });
 
   it("shows an unmapped sign-in error message", async () => {
@@ -370,7 +370,7 @@ describe("LoginPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/account locked/i)).toBeInTheDocument();
+      expect(screen.getByText(/log in couldn’t complete/i)).toBeInTheDocument();
     });
   });
 
@@ -386,7 +386,7 @@ describe("LoginPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
+      expect(screen.getByText(/email or password doesn’t match/i)).toBeInTheDocument();
     });
   });
 
@@ -402,7 +402,7 @@ describe("LoginPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/authentication configuration error/i)).toBeInTheDocument();
+      expect(screen.getByText(/log in is temporarily unavailable/i)).toBeInTheDocument();
     });
   });
 

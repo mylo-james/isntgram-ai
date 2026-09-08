@@ -129,7 +129,7 @@ describe("ProfileActions follow state", () => {
     render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile={false} isFollowing={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Follow" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update this follow/i));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/follow status wasn’t changed/i));
     expect(screen.getByRole("button", { name: "Follow" })).toBeEnabled();
   });
 
@@ -174,6 +174,8 @@ describe("ProfileActions follow state", () => {
     render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
+    expect(mockApiClient.logout).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "Log out" }).at(-1)!);
 
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ redirect: false, callbackUrl: "/login" }));
     expect(mockApiClient.logout).toHaveBeenCalledTimes(1);
@@ -196,6 +198,8 @@ describe("ProfileActions follow state", () => {
     render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
+    expect(mockApiClient.logout).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "Log out" }).at(-1)!);
     await waitFor(() => expect(mockApiClient.logout).toHaveBeenCalledTimes(1));
     expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalledWith("/login");
@@ -217,6 +221,8 @@ describe("ProfileActions follow state", () => {
     render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
+    expect(mockApiClient.logout).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "Log out" }).at(-1)!);
 
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ redirect: false, callbackUrl: "/login" }));
     expect(mockApiClient.logout).toHaveBeenCalledTimes(1);

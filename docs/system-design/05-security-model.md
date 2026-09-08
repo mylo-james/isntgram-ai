@@ -25,7 +25,6 @@
 - Web security headers (nosniff, frame-ancestors, referrer policy)
 - Structured error responses without stack traces
 - Postgres TLS is supported and certificate verification is enabled by default in production
-- AI requests are authenticated and sent server-side (no API keys or provider calls from the browser)
 - Media uploads are presigned with short TTLs and validated content type + size
 
 ## Next steps (if needed)
@@ -33,5 +32,4 @@
 - Add audit logs for sensitive operations
 - Add email verification / password reset
 - Implement account lockouts on failed logins
-- Add AI abuse controls (prompt/response logging redaction, cost caps, global budgets)
 - Add malware scanning for uploads if supporting public file sharing at scale

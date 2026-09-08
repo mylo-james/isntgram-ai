@@ -72,3 +72,131 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Shared social UI: persistent labels, comfortable targets and visible recovery. */
+@layer base {
+  body {
+    font-family: var(--font-geist-sans), Arial, sans-serif;
+  }
+  :where(button, a, input, textarea, select):focus-visible {
+    outline: 3px solid #185abd !important;
+    outline-offset: 3px;
+  }
+  :where(input, textarea, select) {
+    font-size: 16px !important;
+  }
+  :where(button, a, input, textarea) {
+    scroll-margin-block: 10rem;
+  }
+  :where(p, h1, h2, a) {
+    overflow-wrap: anywhere;
+  }
+  ::selection {
+    background: #dbeafe;
+    color: #172554;
+  }
+}
+@layer components {
+  .ui-action {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium;
+  }
+  .ui-field {
+    @apply w-full rounded-md border border-gray-500 bg-white px-3 py-3 text-base text-gray-900;
+  }
+  .error-notice {
+    @apply my-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900;
+  }
+  .error-notice > p {
+    @apply mb-3;
+  }
+  .page-heading {
+    @apply mb-6 text-2xl font-semibold text-gray-900;
+  }
+}
+.circle-loader {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.circle-loader-arm {
+  position: absolute;
+  left: 37.5%;
+  top: 0;
+  width: 25%;
+  height: 100%;
+  animation: circle-turn 4s ease infinite;
+}
+.circle-loader-arm-0 {
+  --angle: 0deg;
+  --dot: #ef4444;
+}
+.circle-loader-arm-1 {
+  --angle: 45deg;
+  --dot: #eab308;
+}
+.circle-loader-arm-2 {
+  --angle: 90deg;
+  --dot: #22c55e;
+}
+.circle-loader-arm-3 {
+  --angle: 135deg;
+  --dot: #3b82f6;
+}
+.circle-loader-dot {
+  display: block;
+  width: 100%;
+  height: 25%;
+  border-radius: 50%;
+  opacity: 0.5;
+  background: var(--dot);
+  animation: circle-in 2s ease infinite alternate;
+}
+.circle-loader-reverse .circle-loader-dot {
+  animation-name: circle-out;
+}
+@keyframes circle-turn {
+  from {
+    transform: rotate(var(--angle));
+  }
+  to {
+    transform: rotate(calc(var(--angle) + 180deg));
+  }
+}
+@keyframes circle-in {
+  from {
+    transform: translateY(150%);
+  }
+  to {
+    transform: translateY(102%);
+  }
+}
+@keyframes circle-out {
+  from {
+    transform: translateY(150%);
+  }
+  to {
+    transform: translateY(200%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circle-loader-arm {
+    animation: none !important;
+    transform: rotate(var(--angle));
+  }
+  .circle-loader-dot {
+    animation: none !important;
+    transform: translateY(102%);
+  }
+  .circle-loader-reverse .circle-loader-dot {
+    transform: translateY(200%);
+  }
+  .animate-spin,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+@media (max-width: 639px) {
+  .social-page {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import React, { useEffect, useMemo, useRef } from "react";
 
 type DialogProps = {
@@ -44,11 +45,18 @@ export default function Dialog({
   closeOnOverlayClick = true,
   ...ariaProps
 }: DialogProps) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   const overlayClasses = useMemo(
-    () => overlayClassName ?? "fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4",
+    () =>
+      overlayClassName ??
+      "fixed inset-0 z-[300] m-0 flex h-dvh max-h-none w-screen max-w-none items-center justify-center border-0 bg-black/50 p-4",
     [overlayClassName],
   );
 
@@ -58,6 +66,11 @@ export default function Dialog({
     if (!open) return;
 
     restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }
 
     const focusTimer = window.setTimeout(() => {
       const fallback = getFocusableElements(contentRef.current)[0] ?? contentRef.current;
@@ -69,7 +82,7 @@ export default function Dialog({
 
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -108,12 +121,17 @@ export default function Dialog({
       restoreFocusRef.current?.focus?.();
       restoreFocusRef.current = null;
     };
-  }, [initialFocusRef, onClose, open]);
+  }, [initialFocusRef, open]);
 
   if (!open) return null;
 
-  return (
-    <div
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      onCancel={(event) => {
+        event.preventDefault();
+        onCloseRef.current();
+      }}
       role="dialog"
       aria-modal="true"
       className={overlayClasses}
@@ -123,9 +141,15 @@ export default function Dialog({
       }}
       {...ariaProps}
     >
-      <div ref={contentRef} tabIndex={-1} className={contentClasses} onMouseDown={(event) => event.stopPropagation()}>
+      <div
+        ref={contentRef}
+        tabIndex={-1}
+        className={`${contentClasses} max-h-full overflow-y-auto`}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         {children}
       </div>
-    </div>
+    </dialog>,
+    document.body,
   );
 }

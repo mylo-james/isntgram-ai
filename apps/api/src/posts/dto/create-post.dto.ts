@@ -9,6 +9,15 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePostDto {
+  @ApiPropertyOptional({
+    maxLength: 1000,
+    description: 'Author-written photo description, separate from the caption.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  mediaAltText?: string;
+
   @ApiProperty({
     minLength: 1,
     maxLength: 2000,

@@ -1,8 +1,12 @@
 "use client";
 
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
+
+import { postDescription, postLinkLabel } from "@/lib/post-description";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
 
@@ -17,6 +21,7 @@ interface ProfilePageProps {
   initialProfile: PublicUserProfile;
   initialPosts: PostItem[];
   initialCursor?: string;
+  initialPostsError?: boolean;
   initialIsFollowing?: boolean | null;
 }
 
@@ -26,20 +31,21 @@ export default function ProfilePage({
   initialProfile,
   initialPosts,
   initialCursor,
+  initialPostsError = false,
   initialIsFollowing,
 }: ProfilePageProps) {
   const [profile, setProfile] = useState<PublicUserProfile>(initialProfile);
   const [posts, setPosts] = useState<PostItem[]>(initialPosts);
   const [postsCursor, setPostsCursor] = useState<string | undefined>(initialCursor);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [postsError, setPostsError] = useState<string | null>(null);
+  const [postsError, setPostsError] = useState<string | null>(
+    initialPostsError ? "Posts couldn’t load. Try again." : null,
+  );
   const [isFollowing, setIsFollowing] = useState<boolean | null>(initialIsFollowing ?? null);
   const [followStatus, setFollowStatus] = useState<"unresolved" | "known" | "error">(
     typeof initialIsFollowing === "boolean" ? "known" : "unresolved",
   );
   const router = useRouter();
-  const postsSentinelRef = useRef<HTMLDivElement | null>(null);
-  const supportsIntersectionObserver = typeof IntersectionObserver !== "undefined";
 
   const isOwnProfile = currentUser?.id ? currentUser.id === profile.id : currentUser?.username === username;
 
@@ -61,8 +67,8 @@ export default function ProfilePage({
     setPosts(initialPosts);
     setPostsCursor(initialCursor);
     setPostsLoading(false);
-    setPostsError(null);
-  }, [initialPosts, initialCursor]);
+    setPostsError(initialPostsError ? "Posts couldn’t load. Try again." : null);
+  }, [initialPosts, initialCursor, initialPostsError]);
 
   useEffect(() => {
     setIsFollowing(initialIsFollowing ?? null);
@@ -109,7 +115,7 @@ export default function ProfilePage({
   };
 
   const loadMorePosts = useCallback(async () => {
-    if (!postsCursor || postsLoading) return;
+    if ((!postsCursor && !postsError) || postsLoading) return;
     try {
       setPostsLoading(true);
       setPostsError(null);
@@ -117,31 +123,11 @@ export default function ProfilePage({
       setPosts((prev) => [...prev, ...response.items]);
       setPostsCursor(response.nextCursor);
     } catch (err) {
-      setPostsError(err instanceof Error ? err.message : "Failed to load posts");
+      setPostsError(userError(err, "More posts couldn’t load. The posts already shown are still here. Try again."));
     } finally {
       setPostsLoading(false);
     }
-  }, [postsCursor, postsLoading, username]);
-
-  useEffect(() => {
-    if (!postsCursor) return;
-    const el = postsSentinelRef.current;
-    if (!el) return;
-
-    if (!supportsIntersectionObserver) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        loadMorePosts();
-      },
-      { rootMargin: "600px 0px" },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMorePosts, postsCursor, supportsIntersectionObserver]);
+  }, [postsCursor, postsLoading, postsError, username]);
 
   if (!profile) {
     return (
@@ -160,8 +146,8 @@ export default function ProfilePage({
   return (
     <ErrorBoundary>
       <div className="mx-auto w-full max-w-[935px] px-5 pb-10 pt-6">
-        <header className="flex gap-8 pb-8 pt-4">
-          <div className="flex shrink-0 items-center justify-center">
+        <header className="flex flex-col gap-5 pb-8 pt-4 sm:flex-row sm:gap-8">
+          <div className="flex shrink-0 items-center sm:justify-center">
             <div className="h-[96px] w-[96px] overflow-hidden rounded-full sm:h-[150px] sm:w-[150px]">
               {profile.profilePictureUrl ? (
                 <Image
@@ -183,7 +169,7 @@ export default function ProfilePage({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-[28px] font-normal text-[#262626]">{profile.username}</h1>
+              <h1 className="break-all text-[28px] font-normal text-[#262626]">{profile.username}</h1>
               <ProfileActions
                 profile={profile}
                 currentUser={currentUser}
@@ -196,7 +182,7 @@ export default function ProfilePage({
               />
             </div>
 
-            <div className="mt-5 flex gap-6 text-sm text-[#262626] sm:gap-10">
+            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#262626] sm:gap-10">
               <span>
                 <span className="font-semibold">{profile.postCount}</span> posts
               </span>
@@ -210,35 +196,46 @@ export default function ProfilePage({
 
             <div className="mt-4 space-y-1 text-sm text-[#262626]">
               <div className="font-semibold">{profile.fullName}</div>
-              {profile.bio ? (
-                <div className="whitespace-pre-wrap">{profile.bio}</div>
-              ) : isOwnProfile ? (
-                <div className="text-gray-500">Add a bio to tell people about yourself.</div>
-              ) : null}
+              {profile.bio ? <div className="whitespace-pre-wrap">{profile.bio}</div> : null}
             </div>
           </div>
         </header>
 
         <div className="border-t border-gray-300 pt-5">
-          {postsError ? <p className="text-sm text-red-600">{postsError}</p> : null}
+          <h2 className="text-lg font-semibold">Posts</h2>
+          {postsError ? (
+            <ErrorNotice
+              key={postsError}
+              message={postsError}
+              onRetry={() => void loadMorePosts()}
+              pending={postsLoading}
+            />
+          ) : null}
 
           {postsLoading && posts.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray-500">Loading posts...</p>
-          ) : posts.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray-500">No posts yet.</p>
+          ) : posts.length === 0 && !postsError ? (
+            <div className="py-10 text-center text-gray-700">
+              <p>No posts yet.</p>
+              {isOwnProfile ? (
+                <Link href="/upload" className="ui-action mt-3 text-blue-700 underline">
+                  Create your first post
+                </Link>
+              ) : null}
+            </div>
           ) : (
             <div className="mt-5 grid grid-cols-3 gap-1 pb-14 sm:gap-6 sm:pb-0">
-              {posts.map((post, index) => (
+              {posts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/post/${post.id}`}
                   className="relative aspect-square w-full overflow-hidden bg-gray-100"
-                  aria-label={`View post ${index + 1}`}
+                  aria-label={postLinkLabel(post)}
                 >
                   {post.mediaUrl ? (
                     <Image
                       src={post.mediaUrl}
-                      alt=""
+                      alt={postDescription(post)}
                       fill
                       sizes="(max-width: 640px) 33vw, 293px"
                       className="object-cover"
@@ -265,18 +262,16 @@ export default function ProfilePage({
             </div>
           )}
 
-          <div ref={postsSentinelRef} aria-hidden="true" className="h-1" />
-
           {postsLoading && posts.length > 0 ? (
             <p className="py-6 text-center text-sm text-gray-500">Loading...</p>
           ) : null}
 
-          {!supportsIntersectionObserver && postsCursor ? (
+          {postsCursor && !postsError ? (
             <button
               type="button"
               onClick={loadMorePosts}
               disabled={postsLoading}
-              className="mx-auto block w-full max-w-[300px] rounded-sm border border-gray-300 bg-white py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-600 transition hover:border-gray-400 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+              className="ui-action mx-auto mt-5 border border-gray-400"
             >
               {postsLoading ? "Loading..." : "Load more"}
             </button>

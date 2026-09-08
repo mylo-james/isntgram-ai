@@ -9,8 +9,6 @@ jest.mock("@/lib/api-client", () => ({
   apiClient: {
     createUploadUrl: jest.fn(),
     createPost: jest.fn(),
-    getAiCapabilities: jest.fn(),
-    rewritePost: jest.fn(),
   },
 }));
 
@@ -18,14 +16,6 @@ describe("PostComposer", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     global.fetch = jest.fn();
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { getAiCapabilities: jest.Mock };
-    };
-    apiClient.getAiCapabilities.mockResolvedValue({
-      mode: "mock",
-      available: true,
-      label: "Demo text formatter",
-    });
   });
 
   it("keeps every mutation control disabled in server markup until hydration", async () => {
@@ -34,113 +24,8 @@ describe("PostComposer", () => {
 
     expect(markup).toMatch(/id="post-content"[^>]*disabled/);
     expect(markup).toMatch(/id="post-image"[^>]*disabled/);
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>AI polish<\/button>/);
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Post<\/button>/);
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Publish post<\/button>/);
     expect(markup).toContain("Preparing composer…");
-  });
-
-  it("enables ordinary posting after mount without waiting for AI capabilities", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { getAiCapabilities: jest.Mock };
-    };
-    apiClient.getAiCapabilities.mockReturnValue(new Promise(() => {}));
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    await waitFor(() => expect(screen.getByLabelText("Post content")).toBeEnabled());
-    expect(screen.getByLabelText("Upload image")).toBeEnabled();
-    expect(screen.getByRole("button", { name: /^post$/i })).toBeEnabled();
-    expect(screen.queryByRole("status", { name: /preparing composer/i })).not.toBeInTheDocument();
-  });
-
-  it("shows an error when AI polish is used with empty content", async () => {
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-
-    expect(screen.getByText(/write something before rewriting/i)).toBeInTheDocument();
-  });
-
-  it("rewrites content via apiClient and updates the textarea", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { rewritePost: jest.Mock };
-    };
-
-    apiClient.rewritePost.mockResolvedValue({
-      content: "Rewritten content.",
-      provider: "mock",
-    });
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    const textarea = screen.getByPlaceholderText(/share your latest idea/i);
-    fireEvent.change(textarea, { target: { value: "hello world" } });
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-
-    await waitFor(() => expect(apiClient.rewritePost).toHaveBeenCalledTimes(1));
-    expect(textarea).toHaveValue("hello world");
-    expect(screen.getByText("Suggested draft")).toBeInTheDocument();
-    expect(screen.getByText("Rewritten content.")).toBeInTheDocument();
-    expect(screen.getByText("Demo text formatter")).toBeInTheDocument();
-  });
-
-  it("accepts, rejects, and undoes an AI suggestion without publishing it", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { rewritePost: jest.Mock; createPost: jest.Mock };
-    };
-    apiClient.rewritePost.mockResolvedValue({ content: "Suggested text", provider: "mock" });
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    const textarea = screen.getByLabelText("Post content");
-    fireEvent.change(textarea, { target: { value: "Original text" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-
-    await waitFor(() => expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument());
-    expect(apiClient.createPost).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
-    expect(textarea).toHaveValue("Original text");
-    expect(screen.queryByText("Suggested text")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
-    expect(textarea).toHaveValue("Suggested text");
-
-    fireEvent.click(screen.getByRole("button", { name: /undo accepted suggestion/i }));
-    expect(textarea).toHaveValue("Original text");
-    expect(screen.getByText("Suggested text")).toBeInTheDocument();
-  });
-
-  it("disables rewriting after a capability failure while normal posting remains available", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { getAiCapabilities: jest.Mock; createPost: jest.Mock };
-    };
-    apiClient.getAiCapabilities.mockRejectedValueOnce(new Error("Capabilities unavailable"));
-    apiClient.createPost.mockResolvedValue({
-      id: "post-1",
-      content: "Still posting",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      author: { id: "user-1", username: "me", fullName: "Me" },
-    });
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    await waitFor(() => expect(screen.getByText(/ai rewriting is unavailable/i)).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /ai polish/i })).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText("Post content"), {
-      target: { value: "Still posting" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
-
-    await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(1));
   });
 
   it("associates submit errors with the draft and clears that association after a valid post", async () => {
@@ -156,64 +41,51 @@ describe("PostComposer", () => {
     });
     render(<PostComposer onPostCreated={jest.fn()} />);
 
-    const textarea = screen.getByLabelText("Post content");
-    expect(screen.getByLabelText("Upload image")).toBeInTheDocument();
-    expect(screen.getByText("Choose photo")).toHaveClass("peer-focus-visible:ring-2");
+    const textarea = screen.getByLabelText("Post text (required)");
+    expect(screen.getByLabelText("Photo (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Photo (optional)")).toHaveAttribute("type", "file");
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /^post$/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^publish post$/i })).toBeEnabled());
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Write something before posting.");
     expect(alert).toHaveAttribute("id", "post-composer-error");
-    expect(textarea).toHaveAttribute("aria-describedby", "post-composer-error");
+    expect(textarea).toHaveAttribute("aria-describedby", "post-content-help post-composer-error");
 
     fireEvent.change(textarea, { target: { value: "A valid draft" } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).not.toHaveAttribute("aria-describedby");
-  });
-
-  it("shows a friendly error when AI rewrite fails", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { rewritePost: jest.Mock };
-    };
-    apiClient.rewritePost.mockRejectedValueOnce(new Error("Provider down"));
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    const textarea = screen.getByPlaceholderText(/share your latest idea/i);
-    fireEvent.change(textarea, { target: { value: "hello world" } });
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-
-    await waitFor(() => expect(screen.getByText(/provider down/i)).toBeInTheDocument());
-  });
-
-  it("falls back to a generic message when AI rewrite fails with a non-Error", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as {
-      apiClient: { rewritePost: jest.Mock };
-    };
-    apiClient.rewritePost.mockRejectedValueOnce("boom");
-
-    render(<PostComposer onPostCreated={jest.fn()} />);
-
-    const textarea = screen.getByPlaceholderText(/share your latest idea/i);
-    fireEvent.change(textarea, { target: { value: "hello world" } });
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-
-    await waitFor(() => expect(screen.getByText(/ai rewrite failed/i)).toBeInTheDocument());
+    expect(screen.getByLabelText("Post text (required)")).toHaveAttribute("aria-describedby", "post-content-help");
   });
 
   it("shows an error when posting with empty content", async () => {
     render(<PostComposer onPostCreated={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     expect(screen.getByText(/write something before posting/i)).toBeInTheDocument();
   });
@@ -234,9 +106,16 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    const textarea = screen.getByPlaceholderText(/share your latest idea/i);
+    const textarea = screen.getByPlaceholderText(/what would you like to share/i);
     fireEvent.change(textarea, { target: { value: "Hello world" } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(1));
     expect(onPostCreated).toHaveBeenCalledTimes(1);
@@ -269,20 +148,27 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    const textarea = screen.getByPlaceholderText(/share your latest idea/i);
+    const textarea = screen.getByPlaceholderText(/what would you like to share/i);
     fireEvent.change(textarea, { target: { value: "Hello world" } });
 
-    const fileInput = screen.getByLabelText("Upload image");
+    const fileInput = screen.getByLabelText("Photo (optional)");
     const file = new File(["hello"], "hello.png", { type: "image/png" });
     fireEvent.change(fileInput, { target: { files: [file] } });
 
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     await waitFor(() => expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(1));
 
     expect(apiClient.createPost).toHaveBeenCalledWith(
-      { content: "Hello world", mediaUploadId: "upload-1" },
+      { content: "Hello world", mediaUploadId: "upload-1", mediaAltText: "A test photograph" },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
@@ -297,15 +183,22 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/share your latest idea/i), { target: { value: "Hello" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["nope"], "fail.png", { type: "image/png" })] },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     await waitFor(() => expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText(/s3 down/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/wasn’t published/i)).toBeInTheDocument());
     expect(apiClient.createPost).not.toHaveBeenCalled();
     expect(onPostCreated).not.toHaveBeenCalled();
   });
@@ -320,14 +213,21 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByLabelText("Post content"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), {
       target: { value: "Keep this draft" },
     });
-    fireEvent.change(screen.getByLabelText("Upload image"), { target: { files: [photo] } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), { target: { files: [photo] } });
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
-    expect(await screen.findByText(/missing upload id/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toHaveValue("Keep this draft");
+    expect(await screen.findByText(/wasn’t published/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Post text (required)")).toHaveValue("Keep this draft");
     expect(screen.getByText("identity.png")).toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(apiClient.createPost).not.toHaveBeenCalled();
@@ -352,15 +252,22 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/share your latest idea/i), { target: { value: "Hello" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["nope"], "fail.png", { type: "image/png" })] },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     await waitFor(() => expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText(/upload failed/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/wasn’t published/i)).toBeInTheDocument());
     expect(apiClient.createPost).not.toHaveBeenCalled();
     expect(onPostCreated).not.toHaveBeenCalled();
   });
@@ -373,16 +280,23 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/share your latest idea/i), { target: { value: "Hello" } });
+    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
 
-    const fileInput = screen.getByLabelText("Upload image") as HTMLInputElement;
+    const fileInput = screen.getByLabelText("Photo (optional)") as HTMLInputElement;
     const bigBuffer = new Uint8Array(5 * 1024 * 1024 + 1);
     const bigFile = new File([bigBuffer], "big.png", { type: "image/png" });
     fireEvent.change(fileInput, { target: { files: [bigFile] } });
 
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
-    await waitFor(() => expect(screen.getByText(/image is too large/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/photo is too large/i)).toBeInTheDocument());
     expect(apiClient.createUploadUrl).not.toHaveBeenCalled();
     expect(fileInput.value).toBe("");
   });
@@ -397,10 +311,17 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/share your latest idea/i), { target: { value: "Hello" } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
-    await waitFor(() => expect(screen.getByText(/failed to create post/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/wasn’t published/i)).toBeInTheDocument());
     expect(onPostCreated).not.toHaveBeenCalled();
   });
 
@@ -414,10 +335,17 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={onPostCreated} />);
 
-    fireEvent.change(screen.getByPlaceholderText(/share your latest idea/i), { target: { value: "Hello" } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/what would you like to share/i), { target: { value: "Hello" } });
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
-    await waitFor(() => expect(screen.getByText(/api down/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/wasn’t published/i)).toBeInTheDocument());
     expect(onPostCreated).not.toHaveBeenCalled();
   });
   it("keeps the original upload ID and draft for a deliberate retry after publication timeout", async () => {
@@ -445,11 +373,18 @@ describe("PostComposer", () => {
       });
 
     render(<PostComposer onPostCreated={onPostCreated} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Keep me" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Keep me" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "keep.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await act(async () => {
       await Promise.resolve();
     });
@@ -457,14 +392,14 @@ describe("PostComposer", () => {
       jest.advanceTimersByTime(30_000);
     });
     expect(await screen.findByText(/could not confirm publication/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toHaveValue("Keep me");
+    expect(screen.getByLabelText("Post text (required)")).toHaveValue("Keep me");
     expect(screen.getByText("keep.png")).toBeInTheDocument();
     expect(onPostCreated).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /retry original photo post/i }));
     await waitFor(() =>
       expect(apiClient.createPost).toHaveBeenLastCalledWith(
-        { content: "Keep me", mediaUploadId: "upload-timeout" },
+        { content: "Keep me", mediaUploadId: "upload-timeout", mediaAltText: "A test photograph" },
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       ),
     );
@@ -483,15 +418,29 @@ describe("PostComposer", () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
     apiClient.createPost.mockRejectedValueOnce(new TypeError("network lost"));
     render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Network draft" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Network draft" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "network.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     expect(await screen.findByRole("button", { name: /retry original photo post/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toBeDisabled();
-    expect(screen.getByLabelText("Upload image")).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    expect(screen.getByLabelText("Post text (required)")).toBeDisabled();
+    expect(screen.getByLabelText("Photo (optional)")).toBeDisabled();
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1);
   });
 
@@ -510,13 +459,20 @@ describe("PostComposer", () => {
 
     render(<PostComposer onPostCreated={jest.fn()} />);
 
-    fireEvent.change(screen.getByLabelText("Post content"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), {
       target: { value: "Retry the same attempt" },
     });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "retry.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
 
     const retry = await screen.findByRole("button", { name: /retry original photo post/i });
     fireEvent.click(retry);
@@ -524,13 +480,13 @@ describe("PostComposer", () => {
     await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(2));
     expect(apiClient.createPost).toHaveBeenNthCalledWith(
       2,
-      { content: "Retry the same attempt", mediaUploadId: "retry-original-id" },
+      { content: "Retry the same attempt", mediaUploadId: "retry-original-id", mediaAltText: "A test photograph" },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: /retry original photo post/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toBeDisabled();
-    expect(screen.getByLabelText("Upload image")).toBeDisabled();
+    expect(screen.getByLabelText("Post text (required)")).toBeDisabled();
+    expect(screen.getByLabelText("Photo (optional)")).toBeDisabled();
   });
 
   it("allows correction after a definitive typed media rejection", async () => {
@@ -542,17 +498,28 @@ describe("PostComposer", () => {
       uploadUrl: "https://example.com/upload",
     });
     (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
-    apiClient.createPost.mockRejectedValueOnce(new ApiRequestError("Upload expired", 400));
+    apiClient.createPost.mockRejectedValueOnce(
+      new ApiRequestError("Your post wasn’t published. Your draft and selected photo are still here. Try again.", 400),
+    );
     render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Correct me" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Correct me" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "expired.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
-    expect(await screen.findByText("Upload expired")).toBeInTheDocument();
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
+    expect(
+      await screen.findByText("Your post wasn’t published. Your draft and selected photo are still here. Try again."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry original photo post/i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toBeEnabled();
-    expect(screen.getByLabelText("Upload image")).toBeEnabled();
+    expect(screen.getByLabelText("Post text (required)")).toBeEnabled();
+    expect(screen.getByLabelText("Photo (optional)")).toBeEnabled();
   });
 
   it("locks all mutation controls after a typed 503 media publication failure", async () => {
@@ -566,16 +533,22 @@ describe("PostComposer", () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
     apiClient.createPost.mockRejectedValueOnce(new ApiRequestError("Service unavailable", 503));
     render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Service draft" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Service draft" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "service.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await screen.findByRole("button", { name: /retry original photo post/i });
-    expect(screen.getByLabelText("Post content")).toBeDisabled();
-    expect(screen.getByLabelText("Upload image")).toBeDisabled();
-    expect(screen.getByRole("button", { name: /ai polish/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /^post$/i })).toBeDisabled();
+    expect(screen.getByLabelText("Post text (required)")).toBeDisabled();
+    expect(screen.getByLabelText("Photo (optional)")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^publish post$/i })).toBeDisabled();
   });
 
   it("keeps draft and photo after the 15-second direct PUT deadline without publishing", async () => {
@@ -591,19 +564,26 @@ describe("PostComposer", () => {
         }),
     );
     render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "PUT draft" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "PUT draft" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "put.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await act(async () => {
       await Promise.resolve();
     });
     await act(async () => {
       jest.advanceTimersByTime(15_000);
     });
-    expect(await screen.findByText(/upload timed out/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toHaveValue("PUT draft");
+    expect(await screen.findByText(/wasn’t published/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Post text (required)")).toHaveValue("PUT draft");
     expect(screen.getByText("put.png")).toBeInTheDocument();
     expect(apiClient.createPost).not.toHaveBeenCalled();
     jest.useRealTimers();
@@ -621,8 +601,15 @@ describe("PostComposer", () => {
       });
     });
     const view = render(<PostComposer onPostCreated={onPostCreated} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Unmounted" } });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Unmounted" } });
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await waitFor(() => expect(apiClient.createPost).toHaveBeenCalled());
     view.unmount();
     expect(signal?.aborted).toBe(true);
@@ -640,21 +627,35 @@ describe("PostComposer", () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
     apiClient.createPost
       .mockRejectedValueOnce(new TypeError("lost"))
-      .mockRejectedValueOnce(new ApiRequestError("Upload expired", 400));
+      .mockRejectedValueOnce(
+        new ApiRequestError(
+          "Your post wasn’t published. Your draft and selected photo are still here. Try again.",
+          400,
+        ),
+      );
     render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Original draft" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Original draft" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "original.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await screen.findByRole("button", { name: /retry original photo post/i });
     fireEvent.click(screen.getByRole("button", { name: /retry original photo post/i }));
-    expect(await screen.findByText("Upload expired")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Your post wasn’t published. Your draft and selected photo are still here. Try again."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry original photo post/i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Post content")).toBeEnabled();
-    expect(screen.getByLabelText("Upload image")).toBeEnabled();
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Corrected draft" } });
-    expect(screen.getByLabelText("Post content")).toHaveValue("Corrected draft");
+    expect(screen.getByLabelText("Post text (required)")).toBeEnabled();
+    expect(screen.getByLabelText("Photo (optional)")).toBeEnabled();
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Corrected draft" } });
+    expect(screen.getByLabelText("Post text (required)")).toHaveValue("Corrected draft");
   });
 
   it("does not publish after unmount while presigning", async () => {
@@ -669,11 +670,18 @@ describe("PostComposer", () => {
         }),
     );
     const view = render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Presign" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Presign" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "presign.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await waitFor(() => expect(apiClient.createUploadUrl).toHaveBeenCalled());
     view.unmount();
     await act(async () => {
@@ -696,11 +704,18 @@ describe("PostComposer", () => {
         }),
     );
     const view = render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "PUT late" } });
-    fireEvent.change(screen.getByLabelText("Upload image"), {
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "PUT late" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
       target: { files: [new File(["x"], "late.png", { type: "image/png" })] },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^post$/i }));
+    if (
+      screen.queryByLabelText("Photo description (required with a photo)") &&
+      !(screen.getByLabelText("Photo description (required with a photo)") as HTMLTextAreaElement).disabled
+    )
+      fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+        target: { value: "A test photograph" },
+      });
+    fireEvent.click(screen.getByRole("button", { name: /^publish post$/i }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     view.unmount();
     await act(async () => {
@@ -708,31 +723,72 @@ describe("PostComposer", () => {
     });
     expect(apiClient.createPost).not.toHaveBeenCalled();
   });
-
-  it("aborts AI rewrite on unmount and ignores a late rejection", async () => {
-    const { apiClient } = jest.requireMock("@/lib/api-client") as { apiClient: { rewritePost: jest.Mock } };
-    let signal: AbortSignal | undefined;
-    let rejectRewrite: (error: unknown) => void = () => {};
-    apiClient.rewritePost.mockImplementationOnce((_data: unknown, options: { signal: AbortSignal }) => {
-      signal = options.signal;
-      return new Promise((_resolve, reject) => {
-        rejectRewrite = reject;
-      });
-    });
+  it("requires an associated description, previews the selected photo, and removes it without losing text", async () => {
+    const createObjectURL = jest.fn(() => "blob:preview");
+    const revokeObjectURL = jest.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
     const view = render(<PostComposer onPostCreated={jest.fn()} />);
-    fireEvent.change(screen.getByLabelText("Post content"), { target: { value: "Rewrite me" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: /ai polish/i })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: /ai polish/i }));
-    await waitFor(() =>
-      expect(apiClient.rewritePost).toHaveBeenCalledWith(
-        expect.objectContaining({ content: "Rewrite me" }),
-        expect.objectContaining({ signal: expect.any(AbortSignal) }),
-      ),
-    );
-    view.unmount();
-    expect(signal?.aborted).toBe(true);
-    await act(async () => {
-      rejectRewrite(new Error("late rewrite failure"));
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Keep caption" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
+      target: { files: [new File(["x"], "photo.png", { type: "image/png" })] },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Publish post" }));
+    const description = screen.getByLabelText("Photo description (required with a photo)");
+    expect(description).toHaveFocus();
+    expect(description).toHaveAttribute("aria-invalid", "true");
+    expect(description).toHaveAttribute("aria-describedby", "post-description-help post-composer-error");
+    fireEvent.change(description, { target: { value: "A boat" } });
+    expect(screen.getByAltText("A boat")).toHaveAttribute("src", "blob:preview");
+    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
+    expect(screen.queryByLabelText("Photo description (required with a photo)")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Post text (required)")).toHaveValue("Keep caption");
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+    view.unmount();
+    Reflect.deleteProperty(URL, "createObjectURL");
+    Reflect.deleteProperty(URL, "revokeObjectURL");
+  });
+
+  it("keeps a draft on Cancel until discard is explicitly chosen", async () => {
+    const onCancel = jest.fn();
+    render(<PostComposer onPostCreated={jest.fn()} onCancel={onCancel} />);
+    const draft = screen.getByLabelText("Post text (required)");
+    fireEvent.change(draft, { target: { value: "Not yet shared" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(draft).toHaveValue("Not yet shared");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(draft).toHaveValue("Not yet shared");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(draft).toHaveValue("");
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("can dismiss an unconfirmed-publication message without releasing the original payload", async () => {
+    const { apiClient } = jest.requireMock("@/lib/api-client") as {
+      apiClient: { createUploadUrl: jest.Mock; createPost: jest.Mock };
+    };
+    apiClient.createUploadUrl.mockResolvedValue({ uploadUrl: "https://example.test/upload", uploadId: "retained" });
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+    apiClient.createPost.mockRejectedValue(new TypeError("Lost response"));
+    render(<PostComposer onPostCreated={jest.fn()} />);
+    fireEvent.change(screen.getByLabelText("Post text (required)"), { target: { value: "Original caption" } });
+    fireEvent.change(screen.getByLabelText("Photo (optional)"), {
+      target: { files: [new File(["x"], "photo.png", { type: "image/png" })] },
+    });
+    fireEvent.change(screen.getByLabelText("Photo description (required with a photo)"), {
+      target: { value: "Original description" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Publish post" }));
+    await screen.findByRole("button", { name: "Retry original photo post" });
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss message" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Photo description (required with a photo)")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry original photo post" }));
+    await waitFor(() => expect(apiClient.createPost).toHaveBeenCalledTimes(2));
+    expect(apiClient.createPost.mock.calls[0][0]).toEqual(apiClient.createPost.mock.calls[1][0]);
+    expect(apiClient.createUploadUrl).toHaveBeenCalledTimes(1);
   });
 });

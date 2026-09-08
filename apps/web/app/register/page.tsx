@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
@@ -38,6 +39,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState("");
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -96,6 +98,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setFormError("");
 
+    if (isLoading) return;
     if (!validateForm()) {
       return;
     }
@@ -128,7 +131,12 @@ export default function RegisterPage() {
         router.push("/login?message=Registration successful! Please log in.");
       }, 2000);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Registration failed. Please try again.";
+      const rawMessage = error instanceof Error ? error.message.toLowerCase() : "";
+      const message = rawMessage.includes("username")
+        ? "That username is unavailable. Choose another username."
+        : rawMessage.includes("email")
+          ? "That email cannot be used. Try another email or log in to your existing account."
+          : "Your account couldn’t be created. Your details are still here. Try again.";
       if (message.toLowerCase().includes("username")) {
         setErrors({ username: message });
       } else if (message.toLowerCase().includes("email")) {
@@ -143,6 +151,8 @@ export default function RegisterPage() {
 
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       aria-label="Create an account"
       className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden"
     >
@@ -166,21 +176,19 @@ export default function RegisterPage() {
           </div>
 
           <div className="w-full max-w-sm">
+            <h1 className="page-heading mb-6">Create an account</h1>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {formError ? (
-                <p id="register-form-error" className="text-sm text-red-600" role="alert">
-                  {formError}
-                </p>
-              ) : null}
+              {formError ? <ErrorNotice key={formError} message={formError} /> : null}
 
               <div>
-                <label className="sr-only" htmlFor="email">
+                <label className="mb-2 block text-sm font-medium" htmlFor="email">
                   Email
                 </label>
                 <input
                   className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Email"
                   name="email"
+                  autoComplete="email"
                   id="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
@@ -200,13 +208,14 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="sr-only" htmlFor="fullName">
+                <label className="mb-2 block text-sm font-medium" htmlFor="fullName">
                   Full Name
                 </label>
                 <input
                   className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Full Name"
                   name="fullName"
+                  autoComplete="name"
                   id="fullName"
                   value={formData.fullName}
                   onChange={(e) => handleInputChange("fullName", e.target.value)}
@@ -224,13 +233,14 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="sr-only" htmlFor="username">
+                <label className="mb-2 block text-sm font-medium" htmlFor="username">
                   Username
                 </label>
                 <input
                   className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Username"
                   name="username"
+                  autoComplete="username"
                   id="username"
                   value={formData.username}
                   onChange={(e) => handleInputChange("username", e.target.value)}
@@ -240,8 +250,11 @@ export default function RegisterPage() {
                   required
                   type="text"
                   aria-invalid={errors.username ? true : undefined}
-                  aria-describedby={errors.username ? "register-username-error" : undefined}
+                  aria-describedby={errors.username ? "username-help register-username-error" : "username-help"}
                 />
+                <p id="username-help" className="mt-2 text-sm text-gray-700">
+                  3–30 lowercase letters, numbers or underscores.
+                </p>
                 {errors.username ? (
                   <p id="register-username-error" className="mt-1 text-xs text-red-600" role="alert">
                     {errors.username}
@@ -250,22 +263,35 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="sr-only" htmlFor="password">
+                <label className="mb-2 block text-sm font-medium" htmlFor="password">
                   Password
                 </label>
                 <input
                   className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                   placeholder="Password"
                   name="password"
+                  autoComplete="new-password"
                   id="password"
                   value={formData.password}
                   onChange={(e) => handleInputChange("password", e.target.value)}
                   onBlur={() => handleBlur("password")}
                   required
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   aria-invalid={errors.password ? true : undefined}
-                  aria-describedby={errors.password ? "register-password-error" : undefined}
+                  aria-describedby={errors.password ? "password-help register-password-error" : "password-help"}
                 />
+                <p id="password-help" className="mt-2 text-sm text-gray-700">
+                  Use 8–128 characters, with an uppercase letter, a lowercase letter and a number.
+                </p>
+                <button
+                  type="button"
+                  className="ui-action mt-1 text-blue-700 underline"
+                  aria-controls="password"
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((value) => !value)}
+                >
+                  {showPassword ? "Hide password" : "Show password"}
+                </button>
                 {errors.password ? (
                   <p id="register-password-error" className="mt-1 text-xs text-red-600" role="alert">
                     {errors.password}
@@ -280,7 +306,7 @@ export default function RegisterPage() {
               ) : null}
 
               <button
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="min-h-11 w-full bg-blue-700 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
                 disabled={isLoading}
               >
@@ -299,7 +325,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="absolute flex justify-between items-center h-[10vh] w-[90%] bottom-[35px] left-[5%]">
+          <div className="mt-10 flex w-full max-w-sm items-center justify-around gap-4">
             <a
               href="https://github.com/jamesurobertson/"
               className="flex justify-center w-[30%]"
@@ -310,7 +336,7 @@ export default function RegisterPage() {
               <img
                 src="/assets/profile.jpeg"
                 alt="James Robertson"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -323,7 +349,7 @@ export default function RegisterPage() {
               <img
                 src="/assets/aaron-profile.jpeg"
                 alt="Aaron Pierskalla"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -336,7 +362,7 @@ export default function RegisterPage() {
               <img
                 src="/assets/mylo-profile.jpg"
                 alt="Mylo James"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
           </div>

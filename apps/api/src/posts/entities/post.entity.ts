@@ -33,6 +33,9 @@ export class Post {
   @Column({ type: 'varchar', length: 1000, nullable: true })
   mediaUrl?: string;
 
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  mediaAltText?: string;
+
   @Column({ type: 'integer', default: 0 })
   likeCount!: number;
 

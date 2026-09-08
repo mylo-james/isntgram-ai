@@ -1,6 +1,10 @@
 "use client";
 
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { postDescription, postLinkLabel } from "@/lib/post-description";
 import Link from "next/link";
 import { apiClient, type PostItem, type UserSearchItem } from "@/lib/api-client";
 
@@ -23,8 +27,8 @@ export default function ExploreClient({
   const [nextCursor, setNextCursor] = useState<string | undefined>(initialCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const [searchRetry, setSearchRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
   const [results, setResults] = useState<UserSearchItem[]>([]);
@@ -65,7 +69,7 @@ export default function ExploreClient({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, searchRetry]);
 
   const searchStatus = !isClientReady
     ? "Preparing search…"
@@ -99,66 +103,68 @@ export default function ExploreClient({
       setItems((prev) => [...prev, ...(response.items ?? [])]);
       setNextCursor(response.nextCursor);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load more posts");
+      setError(userError(err, "More photos couldn’t load. Your earlier results are still here. Try again."));
     } finally {
       setIsLoadingMore(false);
     }
   }, [isLoadingMore, nextCursor]);
 
-  useEffect(() => {
-    if (!nextCursor) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-
-    if (typeof IntersectionObserver === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        handleLoadMore();
-      },
-      { rootMargin: "600px 0px" },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [handleLoadMore, nextCursor]);
-
   return (
-    <div className="pt-2.5">
-      <div className="relative mx-auto mb-2.5 w-[95vw] max-w-[614px] max-[614px]:flex max-[614px]:justify-center">
-        <input
-          name="search"
-          placeholder="Search"
-          value={query}
-          onChange={(event) => {
-            if (!isClientReady) return;
-            setQuery(event.target.value);
+    <div className="px-4 py-6">
+      <h1 className="page-heading mx-auto mb-5 max-w-[614px]">Explore</h1>
+      <div className="mx-auto mb-8 w-full max-w-[614px]">
+        <label htmlFor="search-users" className="mb-2 block font-medium">
+          Search people
+        </label>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSearchRetry((n) => n + 1);
           }}
-          disabled={!isClientReady}
-          className="w-[200px] rounded-sm border border-gray-300 px-2 py-1 transition-colors focus:border-gray-400 focus:outline-none"
-          aria-label="Search users"
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-        />
-        <p className="sr-only" role="status" aria-live="polite">
+          className="flex flex-wrap gap-2"
+        >
+          <input
+            id="search-users"
+            name="search"
+            placeholder="Search"
+            value={query}
+            onChange={(event) => {
+              if (!isClientReady) return;
+              setQuery(event.target.value);
+            }}
+            disabled={!isClientReady}
+            className="ui-field min-w-0 flex-1"
+            aria-label="Search users"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+          <button className="ui-action border border-gray-400" disabled={!isClientReady || !query.trim()} type="submit">
+            Search
+          </button>
+          {query ? (
+            <button className="ui-action" type="button" onClick={() => setQuery("")}>
+              Clear search
+            </button>
+          ) : null}
+        </form>
+        <p className="mt-2 text-sm text-gray-700" role="status" aria-live="polite">
           {searchStatus}
         </p>
 
         {query.trim().length > 0 ? (
-          <div className="absolute left-1/2 top-full z-20 mt-2 w-[200px] -translate-x-1/2 overflow-hidden rounded-sm border border-gray-200 bg-white shadow">
+          <div className="mt-3 w-full rounded-md border border-gray-300 bg-white">
             {searchState === "loading" ? (
               <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
             ) : searchState === "error" ? (
-              <div className="px-3 py-2 text-sm text-red-600" role="alert">
-                Search failed. Please try again.
-              </div>
+              <ErrorNotice
+                message="People couldn’t load. Your search is still here. Try again."
+                onRetry={() => setSearchRetry((n) => n + 1)}
+              />
             ) : searchState === "empty" ? (
               <div className="px-3 py-2 text-sm text-gray-500">No results.</div>
             ) : (
-              <ul className="max-h-[260px] overflow-auto py-1">
+              <ul className="py-1">
                 {results.map((user) => (
                   <li key={user.id}>
                     <Link href={`/${user.username}`} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">
@@ -181,30 +187,32 @@ export default function ExploreClient({
         ) : null}
       </div>
 
-      <div className="mx-auto mb-[10vh] w-[95vw] max-w-[614px]">
+      <div className="mx-auto mb-8 w-full max-w-[614px]">
         {rows.length === 0 ? (
-          <p className="py-16 text-center text-sm text-gray-500">Nothing to explore yet.</p>
+          <p className="py-16 text-center text-sm text-gray-500">
+            No photos yet. Search for people above or create the first photo post.
+          </p>
         ) : (
           <div className="space-y-[1vw]">
             {rows.map((row, rowIndex) => (
               <div
                 // Matches legacy Explore/Layout1 row geometry.
                 key={`row-${rowIndex}`}
-                className="grid h-[calc(100vw/3)] max-h-[204px] grid-cols-[1fr_0.97fr_1fr] gap-[1vw] overflow-hidden"
+                className="grid grid-cols-3 gap-1"
               >
                 {row.map((post, colIndex) => (
                   <Link
                     key={`img-${rowIndex}-${colIndex}`}
                     href={`/post/${post.id}`}
-                    aria-label={`View post ${rowIndex * 3 + colIndex + 1}`}
-                    className="block h-full w-full"
+                    aria-label={postLinkLabel(post)}
+                    className="block aspect-square w-full"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       className="h-full w-full object-cover"
                       draggable={false}
                       src={post.mediaUrl ?? ""}
-                      alt={post.content ?? ""}
+                      alt={postDescription(post)}
                     />
                   </Link>
                 ))}
@@ -213,14 +221,23 @@ export default function ExploreClient({
           </div>
         )}
 
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-
-        <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+        {error ? (
+          <ErrorNotice key={error} message={error} onRetry={() => void handleLoadMore()} pending={isLoadingMore} />
+        ) : null}
+        {nextCursor && !error ? (
+          <button
+            className="ui-action mt-5 border border-gray-400"
+            onClick={() => void handleLoadMore()}
+            disabled={isLoadingMore}
+          >
+            Load more photos
+          </button>
+        ) : null}
 
         {isLoadingMore ? <p className="mt-6 text-center text-sm text-gray-500">Loading...</p> : null}
 
         {!nextCursor && rows.length > 0 ? (
-          <p className="mt-6 text-center text-sm text-gray-600">Yay! You have seen it all</p>
+          <p className="mt-6 text-center text-sm text-gray-600">You’ve seen all available photos.</p>
         ) : null}
       </div>
     </div>

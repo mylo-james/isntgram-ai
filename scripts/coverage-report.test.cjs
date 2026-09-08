@@ -45,8 +45,8 @@ test("discovery classifies the current 153-path baseline and all current runtime
     "the established runtime baseline must not disappear",
   );
   assert.ok(report.INCLUDED_COVERAGE_PATHS.includes("apps/web/proxy.ts"));
-  assert.ok(report.INCLUDED_COVERAGE_PATHS.includes("apps/api/src/ai/dto/ai-capabilities.dto.ts"));
-  assert.ok(report.INCLUDED_COVERAGE_PATHS.includes("apps/web/app/api/bff/ai/capabilities/route.ts"));
+  assert.ok(report.INCLUDED_COVERAGE_PATHS.includes("apps/api/src/posts/dto/create-post.dto.ts"));
+  assert.ok(report.INCLUDED_COVERAGE_PATHS.includes("apps/web/components/ui/ErrorNotice.tsx"));
   assert.ok(inventory.filter((entry) => !entry.included).every((entry) => entry.reason));
 });
 
@@ -102,11 +102,11 @@ test("changed paths use argv-safe Git calls and include committed, dirty and unt
     "rev-parse --verify main": "base\n",
     "diff --name-only --diff-filter=ACMR origin/main...HEAD": "apps/api/src/auth/auth.service.ts\n",
     "diff --name-only --diff-filter=ACMR HEAD": "apps/web/proxy.ts\n",
-    "ls-files --others --exclude-standard": "apps/web/app/api/bff/ai/capabilities/route.ts\nnotes.txt\n",
+    "ls-files --others --exclude-standard": "apps/web/components/ui/ErrorNotice.tsx\nnotes.txt\n",
   });
   assert.deepEqual(report.getChangedFiles({ env: {}, runGit }), [
     "apps/api/src/auth/auth.service.ts",
-    "apps/web/app/api/bff/ai/capabilities/route.ts",
+    "apps/web/components/ui/ErrorNotice.tsx",
     "apps/web/proxy.ts",
     "notes.txt",
   ]);

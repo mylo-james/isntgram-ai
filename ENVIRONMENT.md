@@ -1,6 +1,6 @@
 # Environment Configuration
 
-This document describes the environment variables needed for the Isntgram AI application.
+This document describes the environment variables needed for the Isntgram application.
 
 ## Backend Environment Variables (apps/api/.env)
 
@@ -63,11 +63,6 @@ METRICS_ENABLED=true
 THROTTLER_TTL=60000
 THROTTLER_LIMIT=10
 
-# AI (optional)
-# Options: mock | openai
-AI_PROVIDER=mock
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## Frontend Environment Variables (apps/web/.env.local)

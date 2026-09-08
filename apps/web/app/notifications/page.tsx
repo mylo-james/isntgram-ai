@@ -58,7 +58,12 @@ export default async function NotificationsPage() {
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
           <h1 className="text-sm font-semibold text-gray-800">Notifications</h1>
           <NotificationsClient initialNotifications={initialNotifications} initialLoadError={initialLoadError} />
