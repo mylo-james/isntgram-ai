@@ -10,8 +10,12 @@ import { CommentIcon, HeartIcon } from "@/components/posts/PostIcons";
 
 function formatDateLabel(date: string) {
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (Number.isNaN(parsed.getTime())) return null;
+  return {
+    dateTime: parsed.toISOString(),
+    visibleLabel: parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    accessibleLabel: parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+  };
 }
 
 export default function PostDetailClient({
@@ -35,6 +39,7 @@ export default function PostDetailClient({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [pendingCommentLikes, setPendingCommentLikes] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const commentsSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -193,14 +198,14 @@ export default function PostDetailClient({
     if (!content || isSubmittingComment) return;
 
     setIsSubmittingComment(true);
-    setError(null);
+    setCommentError(null);
     try {
       const created = await apiClient.createComment(post.id, { content });
       setComments((prev) => [created, ...prev]);
       setCommentDraft("");
       setCommentCount((prev) => prev + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add comment");
+      setCommentError(err instanceof Error ? err.message : "Failed to add comment");
     } finally {
       setIsSubmittingComment(false);
     }
@@ -227,9 +232,14 @@ export default function PostDetailClient({
         </Link>
 
         <div className="flex items-center gap-3">
-          <span aria-label="Post date" className="text-xs text-gray-500">
-            {createdAtLabel}
-          </span>
+          {createdAtLabel ? (
+            <time dateTime={createdAtLabel.dateTime} className="text-xs text-gray-500">
+              <span aria-hidden="true">{createdAtLabel.visibleLabel}</span>
+              <span className="sr-only">Posted {createdAtLabel.accessibleLabel}</span>
+            </time>
+          ) : (
+            <span className="text-xs text-gray-500" />
+          )}
           <button
             type="button"
             aria-label="More options"
@@ -355,11 +365,17 @@ export default function PostDetailClient({
 
         <div className="mt-4 border-t border-gray-200 pt-3">
           <div className="flex items-center gap-2">
+            <label htmlFor="comment-draft" className="sr-only">
+              Add a comment
+            </label>
             <input
+              id="comment-draft"
               ref={commentInputRef}
               value={commentDraft}
               onChange={(event) => setCommentDraft(event.target.value)}
               placeholder="Add a comment..."
+              aria-invalid={Boolean(commentError)}
+              aria-describedby={commentError ? "comment-error" : undefined}
               className="flex-1 rounded-sm border border-gray-300 px-3 py-2 text-sm text-gray-800 outline-none focus:border-gray-400"
               maxLength={1000}
               disabled={isSubmittingComment}
@@ -373,6 +389,12 @@ export default function PostDetailClient({
               {isSubmittingComment ? "Posting..." : "Post"}
             </button>
           </div>
+
+          {commentError ? (
+            <p id="comment-error" role="alert" className="mt-2 text-sm text-red-600">
+              {commentError}
+            </p>
+          ) : null}
 
           <p className="mt-2 text-xs text-gray-500">Comments: {commentCount}</p>
         </div>

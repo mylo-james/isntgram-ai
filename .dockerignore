@@ -29,6 +29,8 @@ playwright-report
 test-results
 
 # Env & local config
+.local
+**/.local
 .env
 .env.*
 !.env.example

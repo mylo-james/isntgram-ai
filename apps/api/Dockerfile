@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24.20.0-alpine AS builder
 
 WORKDIR /app
 ENV HUSKY=0
@@ -18,12 +18,12 @@ COPY packages/shared-types ./packages/shared-types
 RUN pnpm --filter @isntgram-ai/shared-types build
 RUN pnpm --filter api build
 
-FROM node:20-alpine AS runtime
+FROM node:24.20.0-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache curl
+RUN apk upgrade --no-cache && apk add --no-cache curl
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/

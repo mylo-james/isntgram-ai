@@ -19,10 +19,12 @@ import { ApiErrorDto } from '../common/dto/api-error.dto';
 import { Throttle } from '@nestjs/throttler';
 
 const UPLOAD_URL_EXAMPLE = {
+  uploadId: 'faf70e02-433a-4fe4-a537-46374b972ec8',
   uploadUrl:
-    'https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...',
-  publicUrl: 'https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg',
-  key: 'uploads/ava/1702990000-uuid-photo.jpg',
+    'https://s3.us-east-1.amazonaws.com/isntgram-media/pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...',
+  publicUrl:
+    'https://cdn.isntgram.ai/pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8',
+  key: 'pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8',
   expiresIn: 900,
 };
 const ONE_MINUTE_MS = 60_000;

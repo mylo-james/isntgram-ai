@@ -6,6 +6,7 @@ import { Comment } from './src/posts/entities/comment.entity';
 import { CommentLike } from './src/posts/entities/comment-like.entity';
 import { Follow } from './src/follows/entities/follow.entity';
 import { Notification } from './src/notifications/entities/notification.entity';
+import { MediaUpload } from './src/media/entities/media-upload.entity';
 import { getPostgresSslOptions } from './src/config/postgres-ssl';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
@@ -22,7 +23,16 @@ if (!databaseUrl) {
 export default new DataSource({
   type: 'postgres',
   url: databaseUrl,
-  entities: [User, Post, Like, Comment, CommentLike, Follow, Notification],
+  entities: [
+    User,
+    Post,
+    Like,
+    Comment,
+    CommentLike,
+    Follow,
+    Notification,
+    MediaUpload,
+  ],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
   logging: nodeEnv === 'development',

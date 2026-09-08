@@ -10,7 +10,12 @@ export async function POST(request: Request) {
   const accessToken = await requireApiAuth();
   if (accessToken instanceof Response) return attachRequestId(accessToken, requestId);
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return attachRequestId(NextResponse.json({ message: "Invalid JSON body" }, { status: 400 }), requestId);
+  }
 
   const { data, error, response } = await internalApi.POST("/api/ai/rewrite", {
     body,

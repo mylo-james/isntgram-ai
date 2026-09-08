@@ -5,6 +5,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AiCapabilitiesDto } from './dto/ai-capabilities.dto';
 import {
   AiRewriteRequestDto,
   AiRewriteResponseDto,
@@ -28,6 +29,32 @@ function clampMaxLength(value: string, maxLength: number): string {
 @Injectable()
 export class AiService {
   constructor(@Optional() private readonly configService?: ConfigService) {}
+
+  capabilities(): AiCapabilitiesDto {
+    const provider = (
+      this.configService?.get<string>('AI_PROVIDER') ??
+      process.env.AI_PROVIDER ??
+      'mock'
+    ).toLowerCase();
+    if (provider === 'mock') {
+      return { mode: 'mock', available: true, label: 'Demo text formatter' };
+    }
+    if (provider === 'openai') {
+      const configured =
+        this.configService?.get<string>('OPENAI_API_KEY') ??
+        process.env.OPENAI_API_KEY;
+      return {
+        mode: 'openai',
+        available: Boolean(configured?.trim()),
+        label: 'AI writing suggestion',
+      };
+    }
+    return {
+      mode: 'disabled',
+      available: false,
+      label: 'Writing suggestions unavailable',
+    };
+  }
 
   async rewrite(
     _userId: string,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
@@ -29,6 +29,37 @@ function LoginInner() {
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
+  const [isClientReady, setIsClientReady] = useState(false);
+  const mountedRef = useRef(false);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    setIsClientReady(true);
+    return () => {
+      mountedRef.current = false;
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const navigateToFeed = (delayMs = 0) => {
+    if (!mountedRef.current) return;
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+    if (delayMs === 0) {
+      router.push("/");
+      return;
+    }
+    redirectTimerRef.current = window.setTimeout(() => {
+      redirectTimerRef.current = null;
+      if (mountedRef.current) router.push("/");
+    }, delayMs);
+  };
 
   // Check for success message from registration
   useEffect(() => {
@@ -81,6 +112,7 @@ function LoginInner() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isClientReady || isLoading || demoLoading) return;
     setFormError("");
     setSuccessMessage("");
 
@@ -94,6 +126,7 @@ function LoginInner() {
         password: formData.password,
         redirect: false,
       });
+      if (!mountedRef.current) return;
 
       if (result?.error) {
         let message = result.error;
@@ -106,21 +139,21 @@ function LoginInner() {
       } else if (result?.ok) {
         setSuccessMessage("Login successful! Redirecting...");
         setFormData({ email: "", password: "" });
-        // Redirect to main feed after successful login
-        setTimeout(() => {
-          router.push("/");
-        }, 1000);
+        navigateToFeed(1000);
+      } else {
+        setFormError("We couldn't complete sign in. Please try again.");
       }
     } catch (error: unknown) {
+      if (!mountedRef.current) return;
       const message = error instanceof Error ? error.message : "Login failed. Please try again.";
       setFormError(message);
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   };
 
   const handleDemoSignIn = async () => {
-    if (!demoEnabled) return;
+    if (!isClientReady || isLoading || demoLoading || !demoEnabled) return;
     setFormError("");
     setSuccessMessage("");
     setDemoLoading(true);
@@ -133,20 +166,29 @@ function LoginInner() {
         password: demoPassword,
         redirect: false,
       });
+      if (!mountedRef.current) return;
       if (result?.error) {
         setFormError("Demo sign-in failed");
       } else if (result?.ok) {
-        router.push("/");
+        navigateToFeed();
+      } else {
+        setFormError("We couldn't complete sign in. Please try again.");
       }
     } catch {
+      if (!mountedRef.current) return;
       setFormError("Demo sign-in failed");
     } finally {
-      setDemoLoading(false);
+      if (mountedRef.current) setDemoLoading(false);
     }
   };
 
+  const controlsDisabled = !isClientReady || isLoading || demoLoading;
+
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden">
+    <main
+      aria-label="Log in"
+      className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden"
+    >
       <div className="absolute inset-0 z-0">
         <div className="relative w-full h-full overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -169,7 +211,16 @@ function LoginInner() {
           <div className="w-full max-w-sm">
             <div className="w-full space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+                {!isClientReady ? (
+                  <p className="sr-only" role="status">
+                    Preparing login…
+                  </p>
+                ) : null}
+                {formError ? (
+                  <p id="login-form-error" className="text-sm text-red-600" role="alert">
+                    {formError}
+                  </p>
+                ) : null}
 
                 <div>
                   <label className="sr-only" htmlFor="email">
@@ -177,7 +228,7 @@ function LoginInner() {
                   </label>
                   <input
                     className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                    placeholder="Phone number, username, or email"
+                    placeholder="Email"
                     name="email"
                     id="email"
                     value={formData.email}
@@ -187,8 +238,15 @@ function LoginInner() {
                     autoCorrect="off"
                     required
                     type="email"
+                    aria-invalid={errors.email ? true : undefined}
+                    aria-describedby={errors.email ? "login-email-error" : undefined}
+                    disabled={controlsDisabled}
                   />
-                  {errors.email ? <p className="mt-1 text-xs text-red-600">{errors.email}</p> : null}
+                  {errors.email ? (
+                    <p id="login-email-error" className="mt-1 text-xs text-red-600" role="alert">
+                      {errors.email}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
@@ -205,18 +263,27 @@ function LoginInner() {
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     onBlur={() => handleBlur("password")}
                     required
+                    aria-invalid={errors.password ? true : undefined}
+                    aria-describedby={errors.password ? "login-password-error" : undefined}
+                    disabled={controlsDisabled}
                   />
-                  {errors.password ? <p className="mt-1 text-xs text-red-600">{errors.password}</p> : null}
+                  {errors.password ? (
+                    <p id="login-password-error" className="mt-1 text-xs text-red-600" role="alert">
+                      {errors.password}
+                    </p>
+                  ) : null}
                 </div>
 
                 {successMessage ? (
-                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
+                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md" role="status">
+                    {successMessage}
+                  </div>
                 ) : null}
 
                 <button
                   className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   type="submit"
-                  disabled={isLoading}
+                  disabled={controlsDisabled}
                 >
                   {isLoading ? "Logging in..." : "Log In"}
                 </button>
@@ -235,7 +302,7 @@ function LoginInner() {
                     className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleDemoSignIn}
                     type="button"
-                    disabled={demoLoading}
+                    disabled={controlsDisabled}
                   >
                     {demoLoading ? "Starting demo..." : "Try Our Demo"}
                   </button>
@@ -297,7 +364,7 @@ function LoginInner() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

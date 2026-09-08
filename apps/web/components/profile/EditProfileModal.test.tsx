@@ -74,6 +74,10 @@ describe("EditProfileModal", () => {
     await waitFor(() => {
       expect(screen.getByText(/full name is required/i)).toBeInTheDocument();
     });
+    await waitFor(() => expect(screen.getByLabelText(/full name/i)).toHaveFocus());
+    expect(screen.getByLabelText(/full name/i)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/full name/i)).toHaveAttribute("aria-describedby", "edit-profile-full-name-error");
+    expect(screen.getByText(/full name is required/i)).toHaveAttribute("role", "alert");
     expect(onSubmit).toHaveBeenCalledTimes(0);
 
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Valid Name" } });
@@ -85,6 +89,9 @@ describe("EditProfileModal", () => {
         screen.getByText(/username can only contain (lowercase )?letters, numbers, and underscores/i),
       ).toBeInTheDocument();
     });
+    await waitFor(() => expect(screen.getByLabelText(/username/i)).toHaveFocus());
+    expect(screen.getByLabelText(/username/i)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/username/i)).toHaveAttribute("aria-describedby", "edit-profile-username-error");
     expect(onSubmit).toHaveBeenCalledTimes(0);
   });
 
@@ -129,5 +136,44 @@ describe("EditProfileModal", () => {
 
     await waitFor(() => expect(checkUsername).toHaveBeenCalledWith("newuser"));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ fullName: "New Name", username: "newuser" }));
+  });
+
+  it("preserves edits and focuses username when availability cannot be checked", async () => {
+    const checkUsername = jest.fn().mockRejectedValue(new Error("offline"));
+    render(
+      <EditProfileModal
+        open
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        checkUsername={checkUsername}
+        initialValues={initialValues}
+      />,
+    );
+
+    const username = screen.getByLabelText(/username/i);
+    fireEvent.change(username, { target: { value: "newuser" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(screen.getByText(/couldn't save your profile/i)).toBeInTheDocument());
+    expect(username).toHaveValue("newuser");
+    expect(username).toHaveFocus();
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+  });
+
+  it("preserves edits and restores focus after a rejected profile save", async () => {
+    const onSubmit = jest.fn().mockRejectedValue(new Error("save failed"));
+    render(<EditProfileModal open onClose={jest.fn()} onSubmit={onSubmit} initialValues={initialValues} />);
+
+    const fullName = screen.getByLabelText(/full name/i);
+    const username = screen.getByLabelText(/username/i);
+    fireEvent.change(fullName, { target: { value: "New Name" } });
+    fireEvent.change(username, { target: { value: "newuser" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(screen.getByText(/couldn't save your profile/i)).toBeInTheDocument());
+    expect(fullName).toHaveValue("New Name");
+    expect(username).toHaveValue("newuser");
+    expect(username).toHaveFocus();
+    expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
   });
 });

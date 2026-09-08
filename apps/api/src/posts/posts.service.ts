@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, IsNull, MoreThan, Repository } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { Like } from './entities/like.entity';
 import { Comment } from './entities/comment.entity';
@@ -16,21 +17,18 @@ import { FeedQueryDto } from './dto/feed-query.dto';
 import { FeedResponseDto } from './dto/feed-response.dto';
 import { PostDto } from './dto/post.dto';
 import { PostAuthorDto } from './dto/post-author.dto';
-import { ConfigService } from '@nestjs/config';
+import { MediaService, PreparedMedia } from '../media/media.service';
+import { MediaUpload } from '../media/entities/media-upload.entity';
 import { PostLikeStatusDto } from './dto/post-like-status.dto';
 import { CommentLikeStatusDto } from './dto/comment-like-status.dto';
 import { CommentsResponseDto } from './dto/comments-response.dto';
 import { CommentDto } from './dto/comment.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { isUniqueConstraintError } from '../common/db-errors';
+import { NotificationsWriter } from '../notifications/notifications.writer';
 
 const DEFAULT_FEED_LIMIT = 20;
-const DEFAULT_MEDIA_HOSTS = [
-  'cdn.isntgram.ai',
-  'localhost:9000',
-  '127.0.0.1:9000',
-  'picsum.photos',
-];
+class MediaClaimLost extends Error {}
 
 @Injectable()
 export class PostsService {
@@ -48,16 +46,9 @@ export class PostsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly dataSource: DataSource,
-    private readonly configService: ConfigService,
+    private readonly mediaService: MediaService,
+    private readonly notificationsWriter: NotificationsWriter,
   ) {}
-
-  private shouldUseTransactionalWrites(): boolean {
-    const options = this.dataSource.options as {
-      type?: string;
-      database?: string | undefined;
-    };
-    return !(options.type === 'sqlite' && options.database === ':memory:');
-  }
 
   private async getLikedPostIds(
     viewerId: string | null | undefined,
@@ -126,52 +117,149 @@ export class PostsService {
   }
 
   async createPost(authorId: string, dto: CreatePostDto): Promise<PostDto> {
-    if (dto.mediaUrl && !this.isAllowedMediaUrl(dto.mediaUrl)) {
-      throw new BadRequestException('Unsupported media host');
+    return this.publishPost(authorId, dto);
+  }
+
+  // This seam is used only by the local fixture command, never an HTTP DTO.
+  async createFixturePost(
+    authorId: string,
+    dto: CreatePostDto,
+    postId: string,
+  ): Promise<PostDto> {
+    if (
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-5[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+        postId,
+      )
+    )
+      throw new BadRequestException('Invalid fixture identity');
+    return this.publishPost(authorId, dto, postId);
+  }
+
+  private async publishPost(
+    authorId: string,
+    dto: CreatePostDto,
+    fixturePostId?: string,
+  ): Promise<PostDto> {
+    if (dto.mediaUrl !== undefined && dto.mediaUrl !== null) {
+      throw new BadRequestException('Use a verified upload to attach a photo');
     }
 
-    const created = this.shouldUseTransactionalWrites()
-      ? await this.dataSource.transaction(async (manager) => {
-          const postRepository = manager.getRepository(Post);
-          const userRepository = manager.getRepository(User);
-
-          const post = postRepository.create({
+    let prepared: PreparedMedia | undefined;
+    if (dto.mediaUploadId) {
+      const replay = await this.getMediaReplay(
+        authorId,
+        dto.mediaUploadId,
+        dto.content,
+      );
+      if (replay) {
+        if (fixturePostId && replay.id !== fixturePostId)
+          throw new ConflictException('Fixture media identity differs');
+        return replay;
+      }
+      try {
+        prepared = await this.mediaService.preparePublication(
+          authorId,
+          dto.mediaUploadId,
+        );
+      } catch (error) {
+        // A concurrent request may bind the intent between our lookup and preparation.
+        if (error instanceof ConflictException) {
+          const replay = await this.getMediaReplay(
             authorId,
-            content: dto.content,
-            mediaUrl: dto.mediaUrl,
-          });
-
-          const saved = await postRepository.save(post);
-          await userRepository.increment({ id: authorId }, 'postsCount', 1);
-
-          return postRepository.findOne({
-            where: { id: saved.id },
-            relations: ['author'],
-          });
-        })
-      : await (async () => {
-          const post = this.postRepository.create({
-            authorId,
-            content: dto.content,
-            mediaUrl: dto.mediaUrl,
-          });
-          const saved = await this.postRepository.save(post);
-          await this.userRepository.increment(
-            { id: authorId },
-            'postsCount',
-            1,
+            dto.mediaUploadId,
+            dto.content,
           );
-          return this.postRepository.findOne({
-            where: { id: saved.id },
-            relations: ['author'],
-          });
-        })();
-
-    if (!created) {
-      throw new NotFoundException('Post not found after creation');
+          if (replay) {
+            if (fixturePostId && replay.id !== fixturePostId)
+              throw new ConflictException('Fixture media identity differs');
+            return replay;
+          }
+        }
+        throw error;
+      }
     }
 
-    return this.toPostDto(created, { previewComments: [] });
+    try {
+      const created = await this.dataSource.transaction(async (manager) => {
+        const posts = manager.getRepository(Post);
+        const users = manager.getRepository(User);
+        const candidate = posts.create({
+          ...(fixturePostId ? { id: fixturePostId } : {}),
+          authorId,
+          content: dto.content,
+          mediaUrl: prepared?.publishedUrl,
+        });
+        // INSERT refuses a fixed-ID collision. save() would update that row.
+        const saved = fixturePostId
+          ? (await posts.insert(candidate), candidate)
+          : await posts.save(candidate);
+        if (prepared) {
+          const claim = await manager.getRepository(MediaUpload).update(
+            {
+              id: prepared.uploadId,
+              ownerId: authorId,
+              postId: IsNull(),
+              expiresAt: MoreThan(new Date()),
+            },
+            {
+              postId: saved.id,
+              publishedKey: prepared.publishedKey,
+              publishedChecksum: prepared.checksum,
+              publishedContentType: prepared.contentType,
+              publishedBytes: prepared.bytes,
+            },
+          );
+          if (claim.affected !== 1) throw new MediaClaimLost();
+        }
+        await users.increment({ id: authorId }, 'postsCount', 1);
+        const loaded = await posts.findOne({
+          where: { id: saved.id },
+          relations: ['author'],
+        });
+        if (!loaded)
+          throw new NotFoundException('Post not found after creation');
+        return loaded;
+      });
+      return this.toPostDto(created, { previewComments: [] });
+    } catch (error) {
+      if (prepared)
+        this.mediaService.recordOrphan(prepared, 'post_transaction_failed');
+      if (error instanceof MediaClaimLost && dto.mediaUploadId) {
+        const replay = await this.getMediaReplay(
+          authorId,
+          dto.mediaUploadId,
+          dto.content,
+        );
+        if (replay) {
+          if (fixturePostId && replay.id !== fixturePostId)
+            throw new ConflictException('Fixture media identity differs');
+          return replay;
+        }
+        throw new ConflictException(
+          'Media upload is no longer available. Select the photo again.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async getMediaReplay(
+    ownerId: string,
+    uploadId: string,
+    content: string,
+  ): Promise<PostDto | undefined> {
+    const upload = await this.mediaService.getOwnedUpload(ownerId, uploadId);
+    if (!upload.postId) return undefined;
+    const post = await this.postRepository.findOne({
+      where: { id: upload.postId, authorId: ownerId },
+      relations: ['author'],
+    });
+    if (!post || post.content !== content) {
+      throw new ConflictException(
+        'Media upload is already attached to another post',
+      );
+    }
+    return this.toPostDto(post, { previewComments: [] });
   }
 
   async getFeed(
@@ -189,8 +277,12 @@ export class PostsService {
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where(
-        `post.authorId = :viewerId OR post.authorId IN (${followsSubquery.getQuery()})`,
-        { viewerId: userId },
+        `(post.authorId = :viewerId OR post.authorId IN (${followsSubquery.getQuery()}) OR (:includeDemoSeeds = true AND author.isDemoSeed = true))`,
+        {
+          viewerId: userId,
+          includeDemoSeeds:
+            viewerIsDemo && process.env.DEMO_CONTENT_SOURCE === 'curated',
+        },
       )
       .andWhere('author.isDemoUser = :viewerIsDemo', { viewerIsDemo })
       .orderBy('post.createdAt', 'DESC')
@@ -224,12 +316,19 @@ export class PostsService {
       items.map((post) => post.id),
       3,
     );
+    const likedPreviewCommentIds = await this.getLikedCommentIds(
+      userId,
+      Array.from(previewComments.values()).flatMap((comments) =>
+        comments.map((comment) => comment.id),
+      ),
+    );
 
     return {
       items: items.map((post) =>
         this.toPostDto(post, {
           likedByViewer: likedPostIds.has(post.id),
           previewComments: previewComments.get(post.id) ?? [],
+          likedPreviewCommentIds,
         }),
       ),
       nextCursor,
@@ -340,12 +439,19 @@ export class PostsService {
       items.map((post) => post.id),
       3,
     );
+    const likedPreviewCommentIds = await this.getLikedCommentIds(
+      viewer.userId,
+      Array.from(previewComments.values()).flatMap((comments) =>
+        comments.map((comment) => comment.id),
+      ),
+    );
 
     return {
       items: items.map((post) =>
         this.toPostDto(post, {
           likedByViewer: likedPostIds.has(post.id),
           previewComments: previewComments.get(post.id) ?? [],
+          likedPreviewCommentIds,
         }),
       ),
       nextCursor,
@@ -354,16 +460,22 @@ export class PostsService {
 
   private toPostDto(
     post: Post,
-    options?: { likedByViewer?: boolean; previewComments?: Comment[] },
+    options?: {
+      likedByViewer?: boolean;
+      previewComments?: Comment[];
+      likedPreviewCommentIds?: ReadonlySet<string>;
+    },
   ): PostDto {
     return {
       id: post.id,
       content: post.content,
-      mediaUrl: post.mediaUrl,
+      mediaUrl: this.mediaService.toDisplayUrl(post.mediaUrl),
       likeCount: post.likeCount ?? 0,
       commentCount: post.commentCount ?? 0,
       previewComments: (options?.previewComments ?? []).map((comment) =>
-        this.toCommentDto(comment),
+        this.toCommentDto(comment, {
+          likedByViewer: options?.likedPreviewCommentIds?.has(comment.id),
+        }),
       ),
       likedByViewer: options?.likedByViewer ?? false,
       createdAt: post.createdAt.toISOString(),
@@ -379,10 +491,16 @@ export class PostsService {
     const post = await this.getPostForViewer(postId, viewer.isDemoUser);
     const likedPostIds = await this.getLikedPostIds(viewer.userId, [postId]);
     const previewComments = await this.getPreviewCommentsByPostId([postId], 3);
+    const postPreviewComments = previewComments.get(postId) ?? [];
+    const likedPreviewCommentIds = await this.getLikedCommentIds(
+      viewer.userId,
+      postPreviewComments.map((comment) => comment.id),
+    );
 
     return this.toPostDto(post, {
       likedByViewer: likedPostIds.has(postId),
-      previewComments: previewComments.get(postId) ?? [],
+      previewComments: postPreviewComments,
+      likedPreviewCommentIds,
     });
   }
 
@@ -444,22 +562,22 @@ export class PostsService {
     }
 
     try {
-      await (this.shouldUseTransactionalWrites()
-        ? this.dataSource.transaction(async (manager) => {
-            const likeRepository = manager.getRepository(Like);
-            const postRepository = manager.getRepository(Post);
+      await this.dataSource.transaction(async (manager) => {
+        const likeRepository = manager.getRepository(Like);
+        const postRepository = manager.getRepository(Post);
 
-            await likeRepository.save(
-              likeRepository.create({ postId, userId }),
-            );
-            await postRepository.increment({ id: postId }, 'likeCount', 1);
-          })
-        : (async () => {
-            await this.likeRepository.save(
-              this.likeRepository.create({ postId, userId }),
-            );
-            await this.postRepository.increment({ id: postId }, 'likeCount', 1);
-          })());
+        const like = await likeRepository.save(
+          likeRepository.create({ postId, userId }),
+        );
+        await postRepository.increment({ id: postId }, 'likeCount', 1);
+        await this.notificationsWriter.write(manager, {
+          recipientId: post.authorId,
+          actorId: userId,
+          type: 'like',
+          sourceId: like.id,
+          postId,
+        });
+      });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         const counts = await this.getPostCounts(postId);
@@ -489,22 +607,26 @@ export class PostsService {
       return { isLiked: false, likeCount: post.likeCount ?? 0 };
     }
 
-    await (this.shouldUseTransactionalWrites()
-      ? this.dataSource.transaction(async (manager) => {
-          const likeRepository = manager.getRepository(Like);
-          const postRepository = manager.getRepository(Post);
-          await likeRepository.delete({ id: existing.id });
-          await postRepository.decrement({ id: postId }, 'likeCount', 1);
-        })
-      : (async () => {
-          await this.likeRepository.delete({ id: existing.id });
-          await this.postRepository.decrement({ id: postId }, 'likeCount', 1);
-        })());
+    const likeCount = await this.dataSource.transaction(async (manager) => {
+      const likeRepository = manager.getRepository(Like);
+      const postRepository = manager.getRepository(Post);
+      const deleted = await likeRepository.delete({ postId, userId });
+      if (deleted.affected === 1) {
+        await postRepository.decrement({ id: postId }, 'likeCount', 1);
+      }
+      const current = await postRepository.findOne({
+        where: { id: postId },
+        select: ['id', 'likeCount'],
+      });
+      if (!current) {
+        throw new NotFoundException('Post not found after unlike');
+      }
+      return current.likeCount;
+    });
 
-    const counts = await this.getPostCounts(postId);
     return {
       isLiked: false,
-      likeCount: counts?.likeCount ?? Math.max((post.likeCount ?? 0) - 1, 0),
+      likeCount,
     };
   }
 
@@ -545,29 +667,12 @@ export class PostsService {
     }
 
     try {
-      await (this.shouldUseTransactionalWrites()
-        ? this.dataSource.transaction(async (manager) => {
-            const likeRepository = manager.getRepository(CommentLike);
-            const commentRepository = manager.getRepository(Comment);
-            await likeRepository.save(
-              likeRepository.create({ commentId, userId }),
-            );
-            await commentRepository.increment(
-              { id: commentId },
-              'likeCount',
-              1,
-            );
-          })
-        : (async () => {
-            await this.commentLikeRepository.save(
-              this.commentLikeRepository.create({ commentId, userId }),
-            );
-            await this.commentRepository.increment(
-              { id: commentId },
-              'likeCount',
-              1,
-            );
-          })());
+      await this.dataSource.transaction(async (manager) => {
+        const likeRepository = manager.getRepository(CommentLike);
+        const commentRepository = manager.getRepository(Comment);
+        await likeRepository.save(likeRepository.create({ commentId, userId }));
+        await commentRepository.increment({ id: commentId }, 'likeCount', 1);
+      });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         const likeCount = await this.getCommentLikeCount(commentId);
@@ -608,26 +713,26 @@ export class PostsService {
       return { isLiked: false, likeCount: comment.likeCount ?? 0 };
     }
 
-    await (this.shouldUseTransactionalWrites()
-      ? this.dataSource.transaction(async (manager) => {
-          const likeRepository = manager.getRepository(CommentLike);
-          const commentRepository = manager.getRepository(Comment);
-          await likeRepository.delete({ id: existing.id });
-          await commentRepository.decrement({ id: commentId }, 'likeCount', 1);
-        })
-      : (async () => {
-          await this.commentLikeRepository.delete({ id: existing.id });
-          await this.commentRepository.decrement(
-            { id: commentId },
-            'likeCount',
-            1,
-          );
-        })());
+    const likeCount = await this.dataSource.transaction(async (manager) => {
+      const likeRepository = manager.getRepository(CommentLike);
+      const commentRepository = manager.getRepository(Comment);
+      const deleted = await likeRepository.delete({ commentId, userId });
+      if (deleted.affected === 1) {
+        await commentRepository.decrement({ id: commentId }, 'likeCount', 1);
+      }
+      const current = await commentRepository.findOne({
+        where: { id: commentId },
+        select: ['id', 'likeCount'],
+      });
+      if (!current) {
+        throw new NotFoundException('Comment not found after unlike');
+      }
+      return current.likeCount;
+    });
 
-    const likeCount = await this.getCommentLikeCount(commentId);
     return {
       isLiked: false,
-      likeCount: likeCount ?? Math.max((comment.likeCount ?? 0) - 1, 0),
+      likeCount,
     };
   }
 
@@ -687,44 +792,34 @@ export class PostsService {
     postId: string,
     dto: CreateCommentDto,
   ): Promise<CommentDto> {
-    await this.getPostForViewer(postId, viewerIsDemo);
+    const post = await this.getPostForViewer(postId, viewerIsDemo);
 
-    const created = this.shouldUseTransactionalWrites()
-      ? await this.dataSource.transaction(async (manager) => {
-          const commentRepository = manager.getRepository(Comment);
-          const postRepository = manager.getRepository(Post);
+    const created = await this.dataSource.transaction(async (manager) => {
+      const commentRepository = manager.getRepository(Comment);
+      const postRepository = manager.getRepository(Post);
 
-          const comment = commentRepository.create({
-            postId,
-            authorId: userId,
-            content: dto.content,
-          });
+      const comment = commentRepository.create({
+        postId,
+        authorId: userId,
+        content: dto.content,
+      });
 
-          const saved = await commentRepository.save(comment);
-          await postRepository.increment({ id: postId }, 'commentCount', 1);
+      const saved = await commentRepository.save(comment);
+      await postRepository.increment({ id: postId }, 'commentCount', 1);
+      await this.notificationsWriter.write(manager, {
+        recipientId: post.authorId,
+        actorId: userId,
+        type: 'comment',
+        sourceId: saved.id,
+        postId,
+        commentId: saved.id,
+      });
 
-          return commentRepository.findOne({
-            where: { id: saved.id },
-            relations: ['author'],
-          });
-        })
-      : await (async () => {
-          const comment = this.commentRepository.create({
-            postId,
-            authorId: userId,
-            content: dto.content,
-          });
-          const saved = await this.commentRepository.save(comment);
-          await this.postRepository.increment(
-            { id: postId },
-            'commentCount',
-            1,
-          );
-          return this.commentRepository.findOne({
-            where: { id: saved.id },
-            relations: ['author'],
-          });
-        })();
+      return commentRepository.findOne({
+        where: { id: saved.id },
+        relations: ['author'],
+      });
+    });
 
     if (!created) {
       throw new NotFoundException('Comment not found after creation');
@@ -747,43 +842,6 @@ export class PostsService {
       updatedAt: comment.updatedAt.toISOString(),
       author: this.toAuthorDto(comment.author),
     };
-  }
-
-  private isAllowedMediaUrl(url: string): boolean {
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      return false;
-    }
-
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return false;
-    }
-
-    const configuredHosts =
-      this.configService.get<string>('MEDIA_ALLOWED_HOSTS') || '';
-    const allowedHosts = configuredHosts
-      .split(',')
-      .map((host) => host.trim())
-      .filter(Boolean);
-
-    const publicBaseUrl = this.configService.get<string>('S3_PUBLIC_BASE_URL');
-    let publicHost: string | undefined;
-    if (publicBaseUrl) {
-      try {
-        publicHost = new URL(publicBaseUrl).host;
-      } catch {
-        publicHost = undefined;
-      }
-    }
-
-    const mergedHosts = [
-      ...(publicHost ? [publicHost] : []),
-      ...(allowedHosts.length > 0 ? allowedHosts : DEFAULT_MEDIA_HOSTS),
-    ];
-    const finalHosts = Array.from(new Set(mergedHosts));
-    return finalHosts.includes(parsed.host);
   }
 
   private encodeCursor(entity: { createdAt: Date; id: string }): string {

@@ -142,7 +142,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden">
+    <main
+      aria-label="Create an account"
+      className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden"
+    >
       <div className="absolute inset-0 z-0">
         <div className="relative w-full h-full overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -164,7 +167,11 @@ export default function RegisterPage() {
 
           <div className="w-full max-w-sm">
             <form onSubmit={handleSubmit} className="space-y-4">
-              {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+              {formError ? (
+                <p id="register-form-error" className="text-sm text-red-600" role="alert">
+                  {formError}
+                </p>
+              ) : null}
 
               <div>
                 <label className="sr-only" htmlFor="email">
@@ -182,8 +189,14 @@ export default function RegisterPage() {
                   autoCorrect="off"
                   required
                   type="email"
+                  aria-invalid={errors.email ? true : undefined}
+                  aria-describedby={errors.email ? "register-email-error" : undefined}
                 />
-                {errors.email ? <p className="mt-1 text-xs text-red-600">{errors.email}</p> : null}
+                {errors.email ? (
+                  <p id="register-email-error" className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.email}
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -200,8 +213,14 @@ export default function RegisterPage() {
                   onBlur={() => handleBlur("fullName")}
                   required
                   type="text"
+                  aria-invalid={errors.fullName ? true : undefined}
+                  aria-describedby={errors.fullName ? "register-full-name-error" : undefined}
                 />
-                {errors.fullName ? <p className="mt-1 text-xs text-red-600">{errors.fullName}</p> : null}
+                {errors.fullName ? (
+                  <p id="register-full-name-error" className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.fullName}
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -220,8 +239,14 @@ export default function RegisterPage() {
                   autoCorrect="off"
                   required
                   type="text"
+                  aria-invalid={errors.username ? true : undefined}
+                  aria-describedby={errors.username ? "register-username-error" : undefined}
                 />
-                {errors.username ? <p className="mt-1 text-xs text-red-600">{errors.username}</p> : null}
+                {errors.username ? (
+                  <p id="register-username-error" className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.username}
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -238,12 +263,20 @@ export default function RegisterPage() {
                   onBlur={() => handleBlur("password")}
                   required
                   type="password"
+                  aria-invalid={errors.password ? true : undefined}
+                  aria-describedby={errors.password ? "register-password-error" : undefined}
                 />
-                {errors.password ? <p className="mt-1 text-xs text-red-600">{errors.password}</p> : null}
+                {errors.password ? (
+                  <p id="register-password-error" className="mt-1 text-xs text-red-600" role="alert">
+                    {errors.password}
+                  </p>
+                ) : null}
               </div>
 
               {successMessage ? (
-                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md" role="status">
+                  {successMessage}
+                </div>
               ) : null}
 
               <button
@@ -309,6 +342,6 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

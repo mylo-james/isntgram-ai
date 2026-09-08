@@ -12,10 +12,11 @@ export const internalApi = createClient<ApiPaths>({ baseUrl: API_BASE_URL });
 
 function getJwtExpirySeconds(token: string): number | null {
   const parts = token.split(".");
-  if (parts.length < 2) return null;
+  if (parts.length !== 3 || parts.some((part) => part.length === 0)) return null;
   try {
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as { exp?: number };
-    return typeof payload.exp === "number" ? payload.exp : null;
+    const payload: unknown = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    if (typeof payload !== "object" || payload === null || !("exp" in payload)) return null;
+    return typeof payload.exp === "number" && Number.isFinite(payload.exp) ? payload.exp : null;
   } catch {
     return null;
   }
@@ -23,7 +24,7 @@ function getJwtExpirySeconds(token: string): number | null {
 
 function isJwtExpired(token: string, skewSeconds = 30): boolean {
   const exp = getJwtExpirySeconds(token);
-  if (!exp) return false;
+  if (exp === null) return true;
   const now = Math.floor(Date.now() / 1000);
   return exp <= now + skewSeconds;
 }
@@ -45,7 +46,7 @@ export async function getApiAccessToken(): Promise<string | null> {
   })) as AppJwtToken | null;
 
   const accessToken = token?.accessToken ?? null;
-  if (!accessToken) return null;
+  if (typeof accessToken !== "string" || !accessToken) return null;
   if (isJwtExpired(accessToken)) return null;
   return accessToken;
 }

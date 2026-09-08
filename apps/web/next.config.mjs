@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const defaultMediaHosts = "localhost:9000,127.0.0.1:9000,cdn.isntgram.ai,picsum.photos";
 const rawMediaHosts = process.env.NEXT_PUBLIC_MEDIA_HOSTS || defaultMediaHosts;
+const localMedia = process.env.NODE_ENV === "development" && process.env.ISNTGRAM_LOCAL_MEDIA === "true";
+const configuredAppOrigin = process.env.NEXT_PUBLIC_APP_URL;
+let allowedDevOrigins;
+if (localMedia && configuredAppOrigin?.startsWith("https:")) {
+  const origin = new URL(configuredAppOrigin);
+  if (origin.origin !== configuredAppOrigin || !origin.hostname.endsWith(".ts.net") ||
+      origin.username || origin.password || origin.search || origin.hash) {
+    throw new Error("Invalid private development origin");
+  }
+  allowedDevOrigins = [origin.hostname];
+}
 
 const mediaPatterns = rawMediaHosts
   .split(",")
@@ -28,7 +39,11 @@ const mediaPatterns = rawMediaHosts
 
 const nextConfig = {
   turbopack: {},
+  ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   images: {
+    // Local published bytes already pass the API decoder. Let the browser load
+    // them directly without opening Next's optimizer to private network fetches.
+    unoptimized: localMedia,
     remotePatterns: mediaPatterns.length > 0 ? mediaPatterns : undefined,
   },
   async headers() {

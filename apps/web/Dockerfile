@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24.20.0-alpine AS builder
 
 WORKDIR /app
 ENV HUSKY=0
@@ -19,11 +19,13 @@ COPY packages/shared-types ./packages/shared-types
 RUN pnpm --filter @isntgram-ai/shared-types build
 RUN pnpm --filter web build
 
-FROM node:20-alpine AS runtime
+FROM node:24.20.0-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk upgrade --no-cache
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/web/package.json apps/web/
@@ -42,8 +44,10 @@ COPY --from=builder /app/apps/web/next.config.mjs ./apps/web/next.config.mjs
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
 
+WORKDIR /app/apps/web
+
 USER node
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]

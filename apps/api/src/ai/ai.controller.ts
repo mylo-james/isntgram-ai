@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Get,
   Post,
   Req,
   UseGuards,
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { AuthUser } from '../auth/jwt.types';
 import { ApiErrorDto } from '../common/dto/api-error.dto';
 import { AiService } from './ai.service';
+import { AiCapabilitiesDto } from './dto/ai-capabilities.dto';
 import {
   AiRewriteRequestDto,
   AiRewriteResponseDto,
@@ -39,6 +41,15 @@ const ONE_MINUTE_MS = 60_000;
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('capabilities')
+  @ApiOkResponse({ type: AiCapabilitiesDto })
+  @ApiUnauthorizedResponse({ type: ApiErrorDto })
+  capabilities(): AiCapabilitiesDto {
+    return this.aiService.capabilities();
+  }
 
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: ONE_MINUTE_MS } })

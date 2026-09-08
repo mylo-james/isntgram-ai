@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": true,
+    "types": ["node"],
+    "strict": false
+  },
+  "include": [
+    "apps/api/scripts/journey/*.cjs",
+    "apps/api/test/test-database-target.cjs",
+    "scripts/jest.cjs",
+    "scripts/test-env.cjs",
+    "scripts/journey-test-env.test.cjs",
+    "scripts/contracts.cjs"
+  ]
+}

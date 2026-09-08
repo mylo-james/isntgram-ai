@@ -10,36 +10,16 @@ export default async function ExplorePage() {
   const accessToken = await getApiAccessToken();
   const requestId = await getRequestId();
   if (!session?.user?.id || !accessToken) redirect("/login");
-
-  return (
-    <>
-      <ExploreAuthedPage
-        accessToken={accessToken}
-        requestId={requestId}
-        profileUsername={session.user.username ?? null}
-      />
-    </>
-  );
-}
-
-async function ExploreAuthedPage({
-  accessToken,
-  requestId,
-  profileUsername,
-}: {
-  accessToken: string;
-  requestId: string;
-  profileUsername: string | null;
-}) {
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
 
-  const [{ data: me }, { data: explore }] = await Promise.all([
+  const [{ data: me, response: meResponse }, { data: explore }] = await Promise.all([
     internalApi.GET("/api/users/me", { headers, cache: "no-store" }),
     internalApi.GET("/api/posts/explore", { headers, cache: "no-store" }),
   ]);
 
-  const avatarSrc = me?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = profileUsername ? `/${profileUsername}` : "/feed";
+  const avatarSrc = me?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
 
   const initialExplore = (explore ?? { items: [] }) as FeedResponse;
 

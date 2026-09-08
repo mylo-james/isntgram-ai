@@ -25,26 +25,28 @@ export default async function PostPage({ params }: PostPageProps) {
 
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
 
-  const [{ data: me }, { data: post, response: postResponse }, { data: comments }] = await Promise.all([
-    internalApi.GET("/api/users/me", { headers, cache: "no-store" }),
-    internalApi.GET("/api/posts/{postId}", {
-      params: { path: { postId } },
-      headers,
-      cache: "no-store",
-    }),
-    internalApi.GET("/api/posts/{postId}/comments", {
-      params: { path: { postId }, query: { limit: 50 } },
-      headers,
-      cache: "no-store",
-    }),
-  ]);
+  const [{ data: me, response: meResponse }, { data: post, response: postResponse }, { data: comments }] =
+    await Promise.all([
+      internalApi.GET("/api/users/me", { headers, cache: "no-store" }),
+      internalApi.GET("/api/posts/{postId}", {
+        params: { path: { postId } },
+        headers,
+        cache: "no-store",
+      }),
+      internalApi.GET("/api/posts/{postId}/comments", {
+        params: { path: { postId }, query: { limit: 50 } },
+        headers,
+        cache: "no-store",
+      }),
+    ]);
 
   if (!postResponse.ok || !post) {
     notFound();
   }
 
-  const avatarSrc = me?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = me?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
 
   return (
     <>

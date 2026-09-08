@@ -1,5 +1,13 @@
 const { spawnSync } = require("node:child_process");
-const env = { ...process.env };
+const path = require("node:path");
+const { buildTestEnvironment } = require("./test-env.cjs");
+let env;
+try {
+  env = buildTestEnvironment(process.env, path.resolve(__dirname, ".."));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Unsafe test environment refused.");
+  process.exit(1);
+}
 const existingNodeOptions = env.NODE_OPTIONS ?? "";
 
 const splitArgs = (value) => {
@@ -71,7 +79,12 @@ if (serializedNodeOptions) {
 }
 
 const jestBin = require.resolve("jest/bin/jest");
-const result = spawnSync(process.execPath, [jestBin, ...process.argv.slice(2)], {
+// pnpm can forward its option separator to this script. Consume that boundary
+// so options such as --runInBand still reach Jest as options.
+const jestArgs = process.argv.slice(2);
+const separatorIndex = jestArgs.indexOf("--");
+if (separatorIndex !== -1) jestArgs.splice(separatorIndex, 1);
+const result = spawnSync(process.execPath, [jestBin, ...jestArgs], {
   env,
   stdio: "inherit",
 });

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import argon2 from 'argon2';
@@ -9,6 +9,7 @@ import { User } from '../../users/entities/user.entity';
 import { PrivateUserProfileDto } from '../../users/dto/private-user-profile.dto';
 import { AuthService } from '../auth.service';
 import { DemoSeeder } from './demo.seeder';
+import { CuratedDemoService } from './curated-demo.service';
 
 @Injectable()
 export class DemoService {
@@ -20,6 +21,7 @@ export class DemoService {
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
     private readonly demoSeeder: DemoSeeder,
+    @Optional() private readonly curatedDemoService?: CuratedDemoService,
   ) {}
 
   private async withDemoSessionLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -73,6 +75,11 @@ export class DemoService {
     isDemoUser: true;
     demoExpiresAt: string;
   }> {
+    if (this.configService.get<string>('DEMO_CONTENT_SOURCE') === 'curated') {
+      if (!this.curatedDemoService)
+        throw new ForbiddenException('Curated demo is unavailable');
+      return this.curatedDemoService.createSession();
+    }
     if (this.shouldSerializeDemoSessions()) {
       return this.withDemoSessionLock(() => this.createDemoSessionInternal());
     }

@@ -20,20 +20,25 @@ jest.mock("./components/ProfileActions", () => {
     currentUser,
     isOwnProfile,
     isFollowing,
+    followStatus,
     onProfileUpdated,
     onFollowChange,
+    onRetryFollowStatus,
   }: {
     currentUser?: { username: string } | null;
     isOwnProfile: boolean;
     isFollowing: boolean | null;
+    followStatus?: "unresolved" | "known" | "error";
     onProfileUpdated: (updated: { fullName: string; username: string }) => void;
     onFollowChange: (next: boolean) => void;
+    onRetryFollowStatus?: () => void;
   }) {
     return (
       <div data-testid="profile-actions">
         <span data-testid="is-own-profile">{isOwnProfile.toString()}</span>
         <span data-testid="current-user">{currentUser?.username || "no-user"}</span>
         <span data-testid="is-following">{String(isFollowing)}</span>
+        <span data-testid="follow-status">{followStatus ?? "unresolved"}</span>
         <button type="button" onClick={() => onProfileUpdated({ fullName: "Updated Name", username: "updated" })}>
           Trigger profile update
         </button>
@@ -42,6 +47,9 @@ jest.mock("./components/ProfileActions", () => {
         </button>
         <button type="button" onClick={() => onFollowChange(false)}>
           Trigger unfollow
+        </button>
+        <button type="button" onClick={() => onRetryFollowStatus?.()}>
+          Retry follow status
         </button>
       </div>
     );
@@ -182,6 +190,25 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledWith("testuser"));
     await waitFor(() => expect(screen.getByTestId("is-following")).toHaveTextContent("true"));
+    expect(screen.getByTestId("follow-status")).toHaveTextContent("known");
+  });
+
+  it("marks a failed follow-status fetch as retryable and keeps mutation unresolved", async () => {
+    mockApiClient.getFollowStatus
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ isFollowing: false });
+
+    render(
+      <ProfilePage {...baseProps} initialProfile={{ ...mockProfile, id: "other-profile" }} initialIsFollowing={null} />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("follow-status")).toHaveTextContent("error"));
+    expect(screen.getByTestId("is-following")).toHaveTextContent("null");
+
+    fireEvent.click(screen.getByRole("button", { name: /retry follow status/i }));
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("follow-status")).toHaveTextContent("known"));
+    expect(screen.getByTestId("is-following")).toHaveTextContent("false");
   });
 
   it("does not fetch follow status for own profile", async () => {
@@ -243,6 +270,7 @@ describe("ProfilePage", () => {
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
 
     await waitFor(() => expect(screen.getByText(/more posts failed/i)).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
   });
 
   it("falls back to a generic error when loading more posts throws a non-Error", async () => {
@@ -273,6 +301,35 @@ describe("ProfilePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /trigger follow/i }));
     await waitFor(() => expect(screen.getByText(/followers/i)).toHaveTextContent("1"));
+  });
+
+  it("offers an empty-bio prompt only to the profile owner", async () => {
+    const { rerender } = render(<ProfilePage {...baseProps} initialProfile={{ ...mockProfile, bio: "" }} />);
+
+    expect(screen.getByText("Add a bio to tell people about yourself.")).toBeInTheDocument();
+
+    rerender(
+      <ProfilePage
+        {...baseProps}
+        initialProfile={{ ...mockProfile, id: "other-profile", bio: "" }}
+        initialIsFollowing={false}
+      />,
+    );
+
+    expect(screen.queryByText("Add a bio to tell people about yourself.")).not.toBeInTheDocument();
+  });
+
+  it("makes a text-only post reachable with a bounded visible excerpt", async () => {
+    const longContent = `${"A focused text post. ".repeat(8)}The final words should not be shown.`;
+    render(
+      <ProfilePage {...baseProps} initialPosts={[{ ...createPost("text-post", longContent), mediaUrl: undefined }]} />,
+    );
+
+    const destination = screen.getByRole("link", { name: "View post 1" });
+    expect(destination).toHaveAttribute("href", "/post/text-post");
+    expect(screen.getByText("Text post")).toBeInTheDocument();
+    expect(screen.getByText(`${longContent.trim().slice(0, 90)}…`)).toBeInTheDocument();
+    expect(screen.queryByText(longContent)).not.toBeInTheDocument();
   });
 
   it("updates profile and posts when initial props change", async () => {

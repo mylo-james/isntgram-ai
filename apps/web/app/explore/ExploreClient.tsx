@@ -26,31 +26,58 @@ export default function ExploreClient({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [query, setQuery] = useState("");
+  const [isClientReady, setIsClientReady] = useState(false);
   const [results, setResults] = useState<UserSearchItem[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchState, setSearchState] = useState<"idle" | "loading" | "success" | "empty" | "error">("idle");
+  const searchGenerationRef = useRef(0);
 
   useEffect(() => {
+    setIsClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    const generation = searchGenerationRef.current + 1;
+    searchGenerationRef.current = generation;
     const q = query.trim();
     if (!q) {
       setResults([]);
-      setIsSearching(false);
+      setSearchState("idle");
       return;
     }
 
     const timer = setTimeout(async () => {
-      setIsSearching(true);
+      setSearchState("loading");
       try {
         const response = await apiClient.searchUsers({ q, limit: 8 });
-        setResults(response.items ?? []);
+        if (searchGenerationRef.current !== generation) return;
+        const nextResults = response.items ?? [];
+        setResults(nextResults);
+        setSearchState(nextResults.length === 0 ? "empty" : "success");
       } catch {
+        if (searchGenerationRef.current !== generation) return;
         setResults([]);
+        setSearchState("error");
       } finally {
-        setIsSearching(false);
+        if (searchGenerationRef.current === generation) {
+          setSearchState((state) => (state === "loading" ? "empty" : state));
+        }
       }
     }, 200);
 
     return () => clearTimeout(timer);
   }, [query]);
+
+  const searchStatus = !isClientReady
+    ? "Preparing search…"
+    : searchState === "loading"
+      ? "Searching..."
+      : searchState === "empty"
+        ? "No results."
+        : searchState === "success"
+          ? results.length === 1
+            ? "1 result available."
+            : `${results.length} results available.`
+          : "";
 
   const rows = useMemo(
     () =>
@@ -105,19 +132,30 @@ export default function ExploreClient({
           name="search"
           placeholder="Search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            if (!isClientReady) return;
+            setQuery(event.target.value);
+          }}
+          disabled={!isClientReady}
           className="w-[200px] rounded-sm border border-gray-300 px-2 py-1 transition-colors focus:border-gray-400 focus:outline-none"
           aria-label="Search users"
           autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"
         />
+        <p className="sr-only" role="status" aria-live="polite">
+          {searchStatus}
+        </p>
 
         {query.trim().length > 0 ? (
           <div className="absolute left-1/2 top-full z-20 mt-2 w-[200px] -translate-x-1/2 overflow-hidden rounded-sm border border-gray-200 bg-white shadow">
-            {isSearching ? (
+            {searchState === "loading" ? (
               <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
-            ) : results.length === 0 ? (
+            ) : searchState === "error" ? (
+              <div className="px-3 py-2 text-sm text-red-600" role="alert">
+                Search failed. Please try again.
+              </div>
+            ) : searchState === "empty" ? (
               <div className="px-3 py-2 text-sm text-gray-500">No results.</div>
             ) : (
               <ul className="max-h-[260px] overflow-auto py-1">
@@ -126,7 +164,7 @@ export default function ExploreClient({
                     <Link href={`/${user.username}`} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={user.profilePictureUrl ?? "/assets/profile.jpeg"}
+                        src={user.profilePictureUrl ?? "/assets/default-avatar.svg"}
                         alt=""
                         className="h-8 w-8 rounded-full object-cover"
                       />

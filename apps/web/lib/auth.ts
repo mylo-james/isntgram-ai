@@ -37,7 +37,7 @@ const sessionMaxAgeSeconds = parseDurationSeconds(
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV !== "production",
+  debug: false,
   providers: [
     CredentialsProvider({
       name: "credentials",

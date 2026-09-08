@@ -11,6 +11,7 @@ describe('PostsService cursor helpers', () => {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   ) as any;
 
   it('encodes and decodes a cursor round-trip', () => {

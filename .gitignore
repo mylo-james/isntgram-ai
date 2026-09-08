@@ -55,6 +55,7 @@ Thumbs.db
 tmp/
 temp/
 .tmp/
+.local/
 .firebase/
 web-bundles/
 Isntgram/

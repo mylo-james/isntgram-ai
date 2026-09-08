@@ -2,16 +2,15 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, development]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, development]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
-  NODE_ENV: ci
   CI: true
 
 jobs:
@@ -23,16 +22,15 @@ jobs:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -76,16 +74,15 @@ jobs:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -126,25 +123,21 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: isntgram_test
+      NODE_ENV: ci
+      ISNTGRAM_TEST_POSTGRES: "1"
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -181,16 +174,15 @@ jobs:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: ♻️ Cache Next.js build cache
         uses: actions/cache@v4
@@ -258,7 +250,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy API Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: isntgram-ai-api:${{ github.sha }}
           format: "table"
@@ -278,7 +270,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy Web Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: isntgram-ai-web:${{ github.sha }}
           format: "table"
@@ -312,16 +304,15 @@ jobs:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile

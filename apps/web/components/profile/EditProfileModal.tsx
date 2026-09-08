@@ -31,10 +31,15 @@ export default function EditProfileModal({
     reset,
     formState: { errors, isSubmitting },
     setError,
+    setFocus,
     watch,
   } = useForm<EditProfileInitialValues>({ defaultValues: initialValues, mode: "onBlur" });
 
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const focusFieldAfterRecovery = (field: keyof EditProfileInitialValues) => {
+    window.setTimeout(() => setFocus(field), 0);
+  };
 
   useEffect(() => {
     reset(initialValues);
@@ -47,24 +52,35 @@ export default function EditProfileModal({
     const fullNameValidation = validateFullName(values.fullName);
     if (!fullNameValidation.isValid) {
       setError("fullName", { type: "validate", message: fullNameValidation.message });
+      focusFieldAfterRecovery("fullName");
       return;
     }
     const usernameValidation = validateUsername(values.username);
     if (!usernameValidation.isValid) {
       setError("username", { type: "validate", message: usernameValidation.message });
+      focusFieldAfterRecovery("username");
       return;
     }
 
     // Async check username availability if provided
-    if (checkUsername) {
-      const available = await Promise.resolve(checkUsername(values.username));
-      if (!available) {
-        setError("username", { type: "validate", message: "Username already taken" });
-        return;
+    try {
+      if (checkUsername) {
+        const available = await Promise.resolve(checkUsername(values.username));
+        if (!available) {
+          setError("username", { type: "validate", message: "Username already taken" });
+          focusFieldAfterRecovery("username");
+          return;
+        }
       }
-    }
 
-    await Promise.resolve(onSubmit?.(values));
+      await Promise.resolve(onSubmit?.(values));
+    } catch {
+      setError("root", {
+        type: "submit",
+        message: "We couldn't save your profile. Your changes are still here. Please try again.",
+      });
+      focusFieldAfterRecovery("username");
+    }
   };
 
   const currentUsername = watch("username");
@@ -93,6 +109,11 @@ export default function EditProfileModal({
       </div>
 
       <form onSubmit={handleSubmit(submitHandler)} className="px-6 py-4 space-y-4">
+        {errors.root?.message ? (
+          <p className="text-sm text-red-600" role="alert">
+            {errors.root.message}
+          </p>
+        ) : null}
         <div>
           <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
             Full Name
@@ -101,11 +122,13 @@ export default function EditProfileModal({
             id="fullName"
             type="text"
             {...register("fullName", { required: "Full name is required" })}
+            aria-invalid={errors.fullName ? true : undefined}
+            aria-describedby={errors.fullName?.message ? "edit-profile-full-name-error" : undefined}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Enter your full name"
           />
           {errors.fullName?.message && (
-            <p className="mt-1 text-sm text-red-600" role="alert">
+            <p id="edit-profile-full-name-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.fullName.message}
             </p>
           )}
@@ -122,13 +145,15 @@ export default function EditProfileModal({
               required: "Username is required",
               minLength: { value: 3, message: "Username must be at least 3 characters" },
             })}
+            aria-invalid={errors.username ? true : undefined}
+            aria-describedby={errors.username?.message ? "edit-profile-username-error" : undefined}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Enter your username"
             autoCapitalize="none"
             autoCorrect="off"
           />
           {errors.username?.message && (
-            <p className="mt-1 text-sm text-red-600" role="alert">
+            <p id="edit-profile-username-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.username.message}
             </p>
           )}

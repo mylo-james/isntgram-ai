@@ -4,10 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Follow } from './entities/follow.entity';
 import { User } from '../users/entities/user.entity';
 import { isUniqueConstraintError } from '../common/db-errors';
+import { NotificationsWriter } from '../notifications/notifications.writer';
 
 @Injectable()
 export class FollowsService {
@@ -17,20 +18,37 @@ export class FollowsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly notificationsWriter: NotificationsWriter,
   ) {}
-
-  private shouldUseTransactionalWrites(): boolean {
-    const options = (
-      this.dataSource as unknown as {
-        options?: { type?: string; database?: string };
-      }
-    ).options;
-    if (!options) return true;
-    return !(options.type === 'sqlite' && options.database === ':memory:');
-  }
 
   private normalizeUsername(value: string): string {
     return value.trim().toLowerCase();
+  }
+
+  private async changeFollowCounts(
+    manager: EntityManager,
+    followerId: string,
+    followingId: string,
+    amount: 1 | -1,
+  ): Promise<void> {
+    const updates = [
+      {
+        id: followerId,
+        column: 'followingCount' as const,
+      },
+      {
+        id: followingId,
+        column: 'followerCount' as const,
+      },
+    ].sort((left, right) => left.id.localeCompare(right.id));
+
+    for (const update of updates) {
+      if (amount === 1) {
+        await manager.increment(User, { id: update.id }, update.column, 1);
+      } else {
+        await manager.decrement(User, { id: update.id }, update.column, 1);
+      }
+    }
   }
 
   async getFollowStatus(
@@ -83,38 +101,20 @@ export class FollowsService {
     }
 
     try {
-      if (this.shouldUseTransactionalWrites()) {
-        await this.dataSource.transaction(async (manager) => {
-          const follow = manager.create(Follow, {
-            followerId,
-            followingId: target.id,
-          });
-          await manager.save(follow);
-          await manager.increment(
-            User,
-            { id: followerId },
-            'followingCount',
-            1,
-          );
-          await manager.increment(User, { id: target.id }, 'followerCount', 1);
-        });
-      } else {
-        const follow = this.followRepository.create({
+      await this.dataSource.transaction(async (manager) => {
+        const follow = manager.create(Follow, {
           followerId,
           followingId: target.id,
         });
-        await this.followRepository.save(follow);
-        await this.userRepository.increment(
-          { id: followerId },
-          'followingCount',
-          1,
-        );
-        await this.userRepository.increment(
-          { id: target.id },
-          'followerCount',
-          1,
-        );
-      }
+        const saved = await manager.save(follow);
+        await this.changeFollowCounts(manager, followerId, target.id, 1);
+        await this.notificationsWriter.write(manager, {
+          recipientId: target.id,
+          actorId: followerId,
+          type: 'follow',
+          sourceId: saved.id,
+        });
+      });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         return { isFollowing: true };
@@ -148,25 +148,15 @@ export class FollowsService {
       return { isFollowing: false };
     }
 
-    if (this.shouldUseTransactionalWrites()) {
-      await this.dataSource.transaction(async (manager) => {
-        await manager.delete(Follow, { id: existing.id });
-        await manager.decrement(User, { id: followerId }, 'followingCount', 1);
-        await manager.decrement(User, { id: target.id }, 'followerCount', 1);
+    await this.dataSource.transaction(async (manager) => {
+      const deleted = await manager.delete(Follow, {
+        followerId,
+        followingId: target.id,
       });
-    } else {
-      await this.followRepository.delete({ id: existing.id });
-      await this.userRepository.decrement(
-        { id: followerId },
-        'followingCount',
-        1,
-      );
-      await this.userRepository.decrement(
-        { id: target.id },
-        'followerCount',
-        1,
-      );
-    }
+      if (deleted.affected === 1) {
+        await this.changeFollowCounts(manager, followerId, target.id, -1);
+      }
+    });
 
     return { isFollowing: false };
   }

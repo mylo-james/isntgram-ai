@@ -132,6 +132,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/media/presign": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["MediaController_createUploadUrl"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/users/me": {
     parameters: {
       query?: never;
@@ -340,6 +356,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["NotificationsController_getNotifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/follows/{username}/status": {
     parameters: {
       query?: never;
@@ -372,32 +404,16 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/notifications": {
+  "/api/ai/capabilities": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["NotificationsController_getNotifications"];
+    get: operations["AiController_capabilities"];
     put?: never;
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/media/presign": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations["MediaController_createUploadUrl"];
     delete?: never;
     options?: never;
     head?: never;
@@ -465,6 +481,55 @@ export interface components {
     };
     AuthLogoutResponseDto: {
       message: string;
+    };
+    UploadUrlDto: {
+      /**
+       * Format: uuid
+       * @description Owned pending upload intent. Supply this as mediaUploadId when creating the post.
+       */
+      uploadId: string;
+      /** @example https://s3.us-east-1.amazonaws.com/isntgram-media/pending/owner-uuid/upload-uuid?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=... */
+      uploadUrl: string;
+      /**
+       * @description Compatibility locator only. Pending objects are private and this URL cannot authorize a photo post.
+       * @example https://cdn.isntgram.ai/pending/owner-uuid/upload-uuid
+       */
+      publicUrl: string;
+      /** @example pending/owner-uuid/upload-uuid */
+      key: string;
+      /** @example 900 */
+      expiresIn: number;
+    };
+    ApiErrorDto: {
+      /** @example 400 */
+      statusCode: number;
+      /** @example 2025-12-19T12:34:56.789Z */
+      timestamp: string;
+      /** @example /api/posts/feed?limit=20 */
+      path: string;
+      /** @example req_9a6b3f0c-4a0a-4f11-9c61-2f6a3c5d1b2c */
+      requestId?: string;
+      /** @example Invalid cursor */
+      message: string;
+      /**
+       * @example [
+       *       "username must be longer than or equal to 3 characters"
+       *     ]
+       */
+      errors?: string[];
+      /** @example BadRequestException */
+      error: string;
+    };
+    CreateUploadUrlDto: {
+      /** @example photo.jpg */
+      fileName: string;
+      /** @example image/jpeg */
+      contentType: string;
+      /**
+       * @description File size in bytes
+       * @example 245000
+       */
+      contentLength: number;
     };
     UserSearchItemDto: {
       /** @example b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e */
@@ -608,41 +673,24 @@ export interface components {
        */
       nextCursor?: string;
     };
-    ApiErrorDto: {
-      /** @example 400 */
-      statusCode: number;
-      /** @example 2025-12-19T12:34:56.789Z */
-      timestamp: string;
-      /** @example /api/posts/feed?limit=20 */
-      path: string;
-      /** @example req_9a6b3f0c-4a0a-4f11-9c61-2f6a3c5d1b2c */
-      requestId?: string;
-      /** @example Invalid cursor */
-      message: string;
-      /**
-       * @example [
-       *       "username must be longer than or equal to 3 characters"
-       *     ]
-       */
-      errors?: string[];
-      /** @example BadRequestException */
-      error: string;
-    };
     CreatePostDto: {
       /** @example Shipping a fresh batch of ideas after today's research sprint. */
       content: string;
       /**
        * Format: uri
+       * @deprecated
+       * @description Deprecated. New photo posts must use mediaUploadId; supplied media URLs are rejected.
        * @example https://cdn.isntgram.ai/uploads/ava/post-cover.jpg
        */
       mediaUrl?: string;
+      /**
+       * Format: uuid
+       * @description Owned upload intent returned by media presign.
+       */
+      mediaUploadId?: string;
     };
     CreateCommentDto: {
       content: string;
-    };
-    FollowStatusDto: {
-      /** @example true */
-      isFollowing: boolean;
     };
     NotificationActorDto: {
       /** @example b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e */
@@ -697,26 +745,9 @@ export interface components {
        */
       nextCursor?: string;
     };
-    UploadUrlDto: {
-      /** @example https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=... */
-      uploadUrl: string;
-      /** @example https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg */
-      publicUrl: string;
-      /** @example uploads/ava/1702990000-uuid-photo.jpg */
-      key: string;
-      /** @example 900 */
-      expiresIn: number;
-    };
-    CreateUploadUrlDto: {
-      /** @example photo.jpg */
-      fileName: string;
-      /** @example image/jpeg */
-      contentType: string;
-      /**
-       * @description File size in bytes
-       * @example 245000
-       */
-      contentLength: number;
+    FollowStatusDto: {
+      /** @example true */
+      isFollowing: boolean;
     };
     AiRewriteResponseDto: {
       /** @example Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share. */
@@ -725,6 +756,12 @@ export interface components {
       provider: "mock" | "openai";
       /** @example gpt-4o-mini */
       model?: string;
+    };
+    AiCapabilitiesDto: {
+      /** @enum {string} */
+      mode: "disabled" | "mock" | "openai";
+      available: boolean;
+      label: string;
     };
     AiRewriteRequestDto: {
       /** @example Shipping a fresh batch of ideas after today's research sprint. */
@@ -898,6 +935,57 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuthLogoutResponseDto"];
+        };
+      };
+    };
+  };
+  MediaController_createUploadUrl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadUrlDto"];
+      };
+    };
+    responses: {
+      /** @description Presigned upload URL */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadUrlDto"];
+        };
+      };
+      /** @description Unsupported media type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiErrorDto"];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiErrorDto"];
+        };
+      };
+      /** @description Media storage is not configured */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiErrorDto"];
         };
       };
     };
@@ -1470,6 +1558,48 @@ export interface operations {
       };
     };
   };
+  NotificationsController_getNotifications: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from previous page */
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notifications list */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationsResponseDto"];
+        };
+      };
+      /** @description Invalid cursor */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiErrorDto"];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiErrorDto"];
+        };
+      };
+    };
+  };
   FollowsController_getFollowStatus: {
     parameters: {
       query?: never;
@@ -1599,90 +1729,24 @@ export interface operations {
       };
     };
   };
-  NotificationsController_getNotifications: {
-    parameters: {
-      query?: {
-        /** @description Opaque cursor from previous page */
-        cursor?: string;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Notifications list */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["NotificationsResponseDto"];
-        };
-      };
-      /** @description Invalid cursor */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ApiErrorDto"];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ApiErrorDto"];
-        };
-      };
-    };
-  };
-  MediaController_createUploadUrl: {
+  AiController_capabilities: {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateUploadUrlDto"];
-      };
-    };
+    requestBody?: never;
     responses: {
-      /** @description Presigned upload URL */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["UploadUrlDto"];
+          "application/json": components["schemas"]["AiCapabilitiesDto"];
         };
       };
-      /** @description Unsupported media type */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ApiErrorDto"];
-        };
-      };
-      /** @description Missing or invalid access token */
       401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ApiErrorDto"];
-        };
-      };
-      /** @description Media storage is not configured */
-      500: {
         headers: {
           [name: string]: unknown;
         };

@@ -1,3 +1,13 @@
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 export function getApiErrorMessage(error: unknown, fallback = "Request failed"): string {
   if (error && typeof error === "object") {
     if ("errors" in error) {

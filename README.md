@@ -32,6 +32,9 @@ Isntgram is a signal-first social feed designed for thoughtful updates. The core
 
 ## Start here
 
+- For the current local v1 implementation, use [the guarded local operator guide](docs/v1-local.md). The legacy Quick
+  Start below is not the v1 runtime entry point. Do not combine broad setup commands with an existing guarded v1
+  database or storage instance.
 - `docs/system-design/` — system design packet (15-minute read)
 - `docs/observability.md` — metrics/logs/request IDs (hands-on)
 - `docs/adr/001-auth-model.md` — auth boundary rationale

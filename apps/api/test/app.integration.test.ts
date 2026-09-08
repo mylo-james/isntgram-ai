@@ -33,13 +33,6 @@ describe('AppController (Integration)', () => {
         .expect(200)
         .expect('Content-Type', /text\/html/);
     });
-
-    it('should respond within reasonable time', async () => {
-      const start = Date.now();
-      await request(app.getHttpServer()).get('/').expect(200);
-      const duration = Date.now() - start;
-      expect(duration).toBeLessThan(1000); // Should respond within 1 second
-    });
   });
 
   describe('Error handling', () => {

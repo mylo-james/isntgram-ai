@@ -14,7 +14,9 @@ interface ProfileActionsProps {
   isOwnProfile: boolean;
   onProfileUpdated?: (profile: { fullName: string; username: string }) => void;
   isFollowing?: boolean | null;
+  followStatus?: "unresolved" | "known" | "error";
   onFollowChange?: (isFollowing: boolean) => void;
+  onRetryFollowStatus?: () => void;
 }
 
 export default function ProfileActions({
@@ -23,13 +25,16 @@ export default function ProfileActions({
   isOwnProfile,
   onProfileUpdated,
   isFollowing,
+  followStatus = typeof isFollowing === "boolean" ? "known" : "unresolved",
   onFollowChange,
+  onRetryFollowStatus,
 }: ProfileActionsProps) {
   const [hydrated, setHydrated] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
+  const [followError, setFollowError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -57,13 +62,24 @@ export default function ProfileActions({
       return;
     }
 
+    if (typeof isFollowing !== "boolean") {
+      if (followStatus === "error") {
+        onRetryFollowStatus?.();
+      }
+      return;
+    }
+
     setIsFollowLoading(true);
+    setFollowError(null);
     try {
       const response = isFollowing
         ? await apiClient.unfollowUser(profile.username)
         : await apiClient.followUser(profile.username);
-      onFollowChange?.(response.isFollowing);
+      if (response.isFollowing !== isFollowing) {
+        onFollowChange?.(response.isFollowing);
+      }
     } catch (error) {
+      setFollowError("We couldn't update this follow. Please try again.");
       if (process.env.NODE_ENV !== "production") {
         console.error("Error following user:", error);
       }
@@ -156,19 +172,37 @@ export default function ProfileActions({
           />
         </>
       ) : (
-        <button
-          type="button"
-          onClick={handleFollowToggle}
-          disabled={!hydrated || isFollowLoading}
-          className={[
-            "h-[30px] rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
-            isFollowing
-              ? "border border-[#dbdbdb] bg-white text-[#262626] hover:bg-gray-50"
-              : "bg-[#0095f6] text-white hover:bg-[#1877f2]",
-          ].join(" ")}
-        >
-          {isFollowLoading ? "Updating..." : isFollowing ? "Following" : "Follow"}
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={handleFollowToggle}
+            disabled={!hydrated || isFollowLoading || (followStatus !== "known" && followStatus !== "error")}
+            aria-describedby={followError ? "follow-error" : undefined}
+            className={[
+              "h-[30px] rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+              isFollowing
+                ? "border border-[#dbdbdb] bg-white text-[#262626] hover:bg-gray-50"
+                : "bg-[#0095f6] text-white hover:bg-[#1877f2]",
+            ].join(" ")}
+          >
+            {isFollowLoading
+              ? "Updating..."
+              : followStatus === "unresolved"
+                ? "Checking follow…"
+                : followStatus === "error"
+                  ? "Retry follow status"
+                  : typeof isFollowing !== "boolean"
+                    ? "Follow unavailable"
+                    : isFollowing
+                      ? "Following"
+                      : "Follow"}
+          </button>
+          {followError ? (
+            <p id="follow-error" className="mt-1 text-xs text-red-600" role="alert">
+              {followError}
+            </p>
+          ) : null}
+        </div>
       )}
     </div>
   );
