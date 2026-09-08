@@ -36,7 +36,12 @@ function fixture(run) {
     const state = { generated: ["dirty current\n", "dirty current\n"], fail: false, during: null, temporary: null };
     const spawn = (command, args, options) => {
       if (command === "git") return spawnSync(command, args, { ...options, stdio: "pipe" });
+      if (args.includes("@isntgram-ai/shared-types")) {
+        if (state.failBuild) return { status: 1 };
+        state.built = true;
+      }
       if (args.includes("openapi:generate")) {
+        assert.equal(state.built, true, "build the workspace dependency before API bootstrap");
         state.temporary = path.dirname(args.at(-1));
         fs.writeFileSync(args.at(-1), state.generated[0]);
         state.during?.();
@@ -113,3 +118,11 @@ for (const remove of [false, true])
       assert.throws(() => contracts("check", options), /Contract changed during generation/);
       if (!remove) assert.equal(fs.readFileSync(path.join(root, FILES[0]), "utf8"), "concurrent edit\n");
     }));
+
+test("a shared-package build failure leaves both contracts untouched", () =>
+  fixture(({ root, state, options }) => {
+    state.failBuild = true;
+    assert.throws(() => contracts("check", options), /Contract step failed/);
+    assert.equal(state.temporary, null);
+    assert.deepEqual(read(root), ["dirty current\n", "dirty current\n"]);
+  }));

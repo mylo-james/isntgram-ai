@@ -21,6 +21,7 @@ function contracts(mode, { root = path.resolve(__dirname, ".."), source = proces
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "isntgram-contracts-"));
   const outputs = FILES.map((file) => path.join(temporary, path.basename(file)));
   try {
+    run("pnpm", ["--filter", "@isntgram-ai/shared-types", "build"]);
     run("pnpm", ["--filter", "api", "openapi:generate", outputs[0]]);
     run("pnpm", ["exec", "openapi-typescript", outputs[0], "--default-non-nullable=false", "-o", outputs[1]]);
     run("pnpm", [

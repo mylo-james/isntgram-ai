@@ -109,11 +109,11 @@ observed physical-phone interaction.
 
 Use substantive commands: `lint:web`, `lint:api`, `lint:shared-types`, `lint:journey`, `lint:v1`, `lint:md`,
 `type-check`, `build:shared-types`, `build:api` and `build:web`. The root `lint` and `build` currently do no work.
-`contracts:check` generates temporary copies and compares their bytes with the current working contract files. It leaves
-those files untouched, including when generation fails or contracts are stale. Uncommitted contracts pass when they
-match the current API source. `contracts:generate` updates both files only after generation succeeds and preserves
-existing bytes under `.local/contract-backups/` before writing. Review the resulting diff. These checks do not recover
-earlier versions that were overwritten without a backup.
+`contracts:check` builds the shared workspace dependency, then generates temporary copies and compares their bytes with
+the current working contract files. It leaves those files untouched, including when generation fails or contracts are
+stale. Uncommitted contracts pass when they match the current API source. `contracts:generate` updates both files only
+after generation succeeds and preserves existing bytes under `.local/contract-backups/` before writing. Review the
+resulting diff. These checks do not recover earlier versions that were overwritten without a backup.
 
 The focused legacy accessibility configuration uses ports 3100 and 4011 with fresh in-memory SQLite. It requires its own
 production web build for those origins and synthetic auth values. Stop conflicting watchers first. Its one ordinary
