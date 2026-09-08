@@ -139,7 +139,24 @@
       "cross-spawn": "^7.0.6",
       "glob@10.4.5": "10.5.0",
       "tar-fs@2.1.3": "2.1.4",
-      "execa": "^9.6.0"
+      "execa": "^9.6.0",
+      "brace-expansion@1": "1.1.18",
+      "brace-expansion@2": "2.1.4",
+      "minimatch@3": "3.1.4",
+      "minimatch@5": "5.1.8",
+      "minimatch@9": "9.0.7",
+      "js-yaml@3": "3.15.1",
+      "js-yaml@4": "4.3.1",
+      "lodash@4": "4.18.1",
+      "multer@2": "2.2.0",
+      "path-to-regexp@0.1": "0.1.13",
+      "tar@6": "7.5.21",
+      "socks@2": "2.8.10",
+      "picomatch@2": "2.3.2",
+      "sharp@<0.35.4": "0.35.4",
+      "postcss@8": "8.5.18",
+      "nanoid@3": "3.3.18",
+      "browserslist@4": "4.28.7"
     }
   },
   "_comment": "Note: CVE-2024-21538 in cross-spawn is a known issue with Jest 30.0.5. The vulnerability is in jest-changed-files/node_modules/execa which is a development-only dependency. This is tracked in .trivyignore and will be resolved when Jest updates jest-changed-files."
