@@ -117,6 +117,34 @@ describe('AuthController', () => {
         accessToken: loginResult.accessToken,
       });
     });
+
+    it('discloses demo fields only for a demo login', async () => {
+      mockAuthService.login.mockResolvedValue({
+        user: { id: 'demo' },
+        accessToken: 'jwt',
+        isDemoUser: true,
+        demoExpiresAt: '2026-01-01T00:00:00.000Z',
+      });
+      await expect(
+        controller.login({
+          email: 'demo@example.com',
+          password: 'Password123',
+        }),
+      ).resolves.toEqual({
+        message: 'Login successful',
+        user: { id: 'demo' },
+        accessToken: 'jwt',
+        isDemoUser: true,
+        demoExpiresAt: '2026-01-01T00:00:00.000Z',
+      });
+    });
+  });
+
+  it('revokes only the authenticated user token version on logout', async () => {
+    await expect(
+      controller.logout({ user: { userId: 'user-1' } } as never),
+    ).resolves.toEqual({ message: 'Logged out' });
+    expect(mockAuthService.revokeUserTokens).toHaveBeenCalledWith('user-1');
   });
 
   describe('demo', () => {

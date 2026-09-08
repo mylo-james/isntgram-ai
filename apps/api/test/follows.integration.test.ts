@@ -11,6 +11,7 @@ import { Post } from '../src/posts/entities/post.entity';
 import { Like } from '../src/posts/entities/like.entity';
 import { Comment } from '../src/posts/entities/comment.entity';
 import { Follow } from '../src/follows/entities/follow.entity';
+import { Notification } from '../src/notifications/entities/notification.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
@@ -18,6 +19,7 @@ describe('Follows Integration Tests', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
   let followRepository: Repository<Follow>;
+  let notificationRepository: Repository<Notification>;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
@@ -27,7 +29,7 @@ describe('Follows Integration Tests', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User, Post, Like, Comment, Follow],
+          entities: [User, Post, Like, Comment, Follow, Notification],
           synchronize: true,
         }),
         ThrottlerModule.forRoot([
@@ -60,9 +62,13 @@ describe('Follows Integration Tests', () => {
     followRepository = moduleFixture.get<Repository<Follow>>(
       getRepositoryToken(Follow),
     );
+    notificationRepository = moduleFixture.get<Repository<Notification>>(
+      getRepositoryToken(Notification),
+    );
   });
 
   beforeEach(async () => {
+    await notificationRepository.clear();
     await followRepository.clear();
     await userRepository.clear();
   });
@@ -117,6 +123,28 @@ describe('Follows Integration Tests', () => {
       .expect(201);
     expect(followRes.body).toEqual({ isFollowing: true });
 
+    const [followingUser, followedUser] = await Promise.all([
+      userRepository.findOneByOrFail({ username: 'usera' }),
+      userRepository.findOneByOrFail({ username: 'userb' }),
+    ]);
+    expect(followingUser.followingCount).toBe(1);
+    expect(followedUser.followerCount).toBe(1);
+    const firstFollow = await followRepository.findOneByOrFail({
+      followerId: followingUser.id,
+      followingId: followedUser.id,
+    });
+    await expect(
+      notificationRepository.findOneByOrFail({
+        type: 'follow',
+        sourceId: firstFollow.id,
+      }),
+    ).resolves.toMatchObject({
+      recipientId: followedUser.id,
+      actorId: followingUser.id,
+      postId: null,
+      commentId: null,
+    });
+
     const statusAfter = await request(app.getHttpServer())
       .get('/api/follows/userb/status')
       .set('Authorization', `Bearer ${tokenA}`)
@@ -129,11 +157,26 @@ describe('Follows Integration Tests', () => {
       .expect(200);
     expect(unfollowRes.body).toEqual({ isFollowing: false });
 
+    const [unfollowedUser, formerTarget] = await Promise.all([
+      userRepository.findOneByOrFail({ username: 'usera' }),
+      userRepository.findOneByOrFail({ username: 'userb' }),
+    ]);
+    expect(unfollowedUser.followingCount).toBe(0);
+    expect(formerTarget.followerCount).toBe(0);
+    expect(await notificationRepository.count()).toBe(1);
+
     const statusAfterUnfollow = await request(app.getHttpServer())
       .get('/api/follows/userb/status')
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
     expect(statusAfterUnfollow.body).toEqual({ isFollowing: false });
+
+    await request(app.getHttpServer())
+      .post('/api/follows/userb')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201);
+
+    expect(await notificationRepository.count()).toBe(2);
   });
 
   it('rejects following yourself', async () => {

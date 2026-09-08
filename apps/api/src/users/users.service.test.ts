@@ -141,6 +141,13 @@ describe('UsersService', () => {
   });
 
   describe('isUsernameTaken', () => {
+    it('returns true for a normalized reserved route without querying users', async () => {
+      await expect(service.isUsernameTaken('  NoTiFiCaTiOnS ')).resolves.toBe(
+        true,
+      );
+      expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+    });
+
     it('returns true when username belongs to another user', async () => {
       (mockUserRepository.findOne as jest.Mock).mockResolvedValue({
         ...mockUser,
@@ -168,6 +175,18 @@ describe('UsersService', () => {
   });
 
   describe('updateProfile', () => {
+    it('rejects a reserved rename without reading or changing an account', async () => {
+      await expect(
+        service.updateProfile('1', {
+          fullName: 'New Name',
+          username: '  FeEd ',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockUserRepository.findOne).not.toHaveBeenCalled();
+      expect(mockUserRepository.save).not.toHaveBeenCalled();
+    });
+
     it('updates fullName and username when available', async () => {
       (mockUserRepository.findOne as jest.Mock)
         .mockResolvedValueOnce(mockUser) // findById

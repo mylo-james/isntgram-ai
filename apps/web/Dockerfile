@@ -42,8 +42,10 @@ COPY --from=builder /app/apps/web/next.config.mjs ./apps/web/next.config.mjs
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
 
+WORKDIR /app/apps/web
+
 USER node
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]

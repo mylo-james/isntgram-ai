@@ -33,11 +33,11 @@ export default function DemoBanner() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let stored = true;
+    let stored = false;
     try {
       stored = localStorage.getItem(STORAGE_KEY) === "true";
     } catch {
-      // Ignore localStorage access issues (e.g. privacy mode)
+      // Show the disclosure unless a saved dismissal can actually be read.
     }
 
     queueMicrotask(() => setDismissed(stored));
@@ -99,9 +99,10 @@ export default function DemoBanner() {
       : `Demo session expires in ${remainingLabel}`
     : "Demo session";
 
-  const subtitle = demoExpiresAt
-    ? `This demo account will be deleted on ${demoExpiresAt.toLocaleString()}.`
-    : "This demo account will be deleted automatically.";
+  const subtitle =
+    process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "curated"
+      ? "Curated examples use fictional profiles and credited photographs. Session access expires; demo data is retained for review."
+      : "This is a temporary demo account. Session access ends at the expiry shown above.";
 
   const handleDismiss = () => {
     try {

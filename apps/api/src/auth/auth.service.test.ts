@@ -75,6 +75,20 @@ describe('AuthService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
+    it('rejects a normalized reserved username before looking up conflicts', async () => {
+      await expect(
+        service.register({
+          email: 'route@example.com',
+          username: '  ExPlOrE ',
+          fullName: 'Route User',
+          password: 'Password123!',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+      expect(userRepository.save).not.toHaveBeenCalled();
+    });
+
     it('should create a new user when no conflicts', async () => {
       (argon2.hash as jest.Mock).mockResolvedValue('hashed');
       (userRepository.findOne as jest.Mock).mockResolvedValueOnce(
@@ -165,6 +179,24 @@ describe('AuthService', () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
+
+    it('keeps an unexpected persistence failure distinct from a duplicate identity', async () => {
+      (argon2.hash as jest.Mock).mockResolvedValue('hashed');
+      (userRepository.findOne as jest.Mock)
+        .mockResolvedValueOnce(null as unknown as User)
+        .mockResolvedValueOnce(null as unknown as User);
+      const storageFailure = new Error('storage unavailable');
+      (userRepository.save as jest.Mock).mockRejectedValueOnce(storageFailure);
+
+      await expect(
+        service.register({
+          email: 'ok@example.com',
+          username: 'ok',
+          fullName: 'Ok',
+          password: 'Password123!',
+        }),
+      ).rejects.toBe(storageFailure);
+    });
   });
 
   describe('login', () => {
@@ -173,6 +205,26 @@ describe('AuthService', () => {
       await expect(
         service.login('bad@example.com', 'Password123!'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects a password mismatch after looking up the normalized email', async () => {
+      const user = {
+        id: '1',
+        email: 'ok@example.com',
+        username: 'ok',
+        fullName: 'Ok',
+        hashedPassword: 'hashed',
+      } as unknown as User;
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce(user);
+      (argon2.verify as jest.Mock).mockResolvedValueOnce(false);
+
+      await expect(
+        service.login('  OK@EXAMPLE.COM ', 'WrongPass123!'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'ok@example.com' },
+      });
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
     });
 
     it('should return access token and user for valid credentials', async () => {
@@ -205,6 +257,24 @@ describe('AuthService', () => {
       });
     });
 
+    it('rejects an expired non-seed demo account after password verification', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce({
+        id: 'demo',
+        email: 'demo@example.com',
+        username: 'demo',
+        fullName: 'Demo',
+        hashedPassword: 'hashed',
+        isDemoUser: true,
+        isDemoSeed: false,
+        demoExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+      } as unknown as User);
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+      await expect(
+        service.login('demo@example.com', 'Password123!'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    });
+
     it('includes tokenVersion when present on the user', async () => {
       const mockUser = {
         id: '2',
@@ -232,9 +302,74 @@ describe('AuthService', () => {
         tokenVersion: 3,
       });
     });
+
+    it('returns the bounded demo identity and expiry for an active non-seed account', async () => {
+      const now = new Date('2026-09-08T00:00:00.000Z').getTime();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const expiresAt = new Date('2026-09-08T00:05:00.000Z');
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce({
+        id: 'demo',
+        email: 'demo@example.com',
+        username: 'demo',
+        fullName: 'Demo',
+        hashedPassword: 'hashed',
+        isDemoUser: true,
+        isDemoSeed: false,
+        demoExpiresAt: expiresAt,
+        createdAt: new Date('2025-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+      } as unknown as User);
+      (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
+
+      try {
+        await expect(
+          service.login('demo@example.com', 'Password123!'),
+        ).resolves.toMatchObject({
+          accessToken: 'jwt-token',
+          isDemoUser: true,
+          demoExpiresAt: expiresAt.toISOString(),
+        });
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('allows a curated demo seed without a visitor expiry or visitor marker', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce({
+        id: 'seed',
+        email: 'seed@example.com',
+        username: 'seed',
+        fullName: 'Seed',
+        hashedPassword: 'hashed',
+        isDemoUser: true,
+        isDemoSeed: true,
+        demoExpiresAt: null,
+        createdAt: new Date('2025-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2025-01-01T00:00:00.000Z'),
+      } as unknown as User);
+      (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
+
+      const result = await service.login('seed@example.com', 'Password123!');
+
+      expect(result).toMatchObject({ accessToken: 'jwt-token' });
+      expect(result).not.toHaveProperty('isDemoUser');
+      expect(result).not.toHaveProperty('demoExpiresAt');
+    });
   });
 
   describe('validateUser', () => {
+    it('returns null for an absent normalized email without verifying a password', async () => {
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        service.validateUser('  MISSING@EXAMPLE.COM ', 'Password123!'),
+      ).resolves.toBeNull();
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'missing@example.com' },
+      });
+      expect(argon2.verify).not.toHaveBeenCalled();
+    });
+
     it('returns null when password verification fails', async () => {
       const user = {
         id: '1',
@@ -250,6 +385,37 @@ describe('AuthService', () => {
       await expect(
         service.validateUser('ok@example.com', 'WrongPass123!'),
       ).resolves.toBeNull();
+    });
+
+    it('returns the private-safe profile when the password verifies', async () => {
+      const user = {
+        id: '1',
+        email: 'ok@example.com',
+        username: 'ok',
+        fullName: 'Ok',
+        hashedPassword: 'hashed',
+        postsCount: 2,
+        followerCount: 3,
+        followingCount: 4,
+        createdAt: new Date('2025-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2025-01-02T00:00:00.000Z'),
+      } as unknown as User;
+      (userRepository.findOne as jest.Mock).mockResolvedValueOnce(user);
+      (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
+
+      const result = await service.validateUser(
+        'ok@example.com',
+        'Password123!',
+      );
+
+      expect(result).toMatchObject({
+        id: '1',
+        email: 'ok@example.com',
+        postCount: 2,
+        followerCount: 3,
+        followingCount: 4,
+      });
+      expect(result).not.toHaveProperty('hashedPassword');
     });
   });
 

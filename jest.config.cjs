@@ -1,8 +1,37 @@
+const { getIncludedCoveragePaths, COVERAGE_THRESHOLD } = require("./scripts/coverage-report.cjs");
+
+// Every project retains its established transformer for its own source. The
+// root collector also traverses the other approved runtime paths, so each
+// project needs the same path-specific transform map while emitting one root
+// summary.
+const WEB_TRANSFORM = ["babel-jest", { presets: ["next/babel"] }];
+const API_TRANSFORM = [
+  "babel-jest",
+  {
+    presets: [["@babel/preset-env", { targets: { node: "20" } }], "@babel/preset-typescript"],
+    plugins: [
+      ["@babel/plugin-proposal-decorators", { legacy: true }],
+      ["@babel/plugin-transform-class-properties", { loose: true }],
+      "babel-plugin-transform-typescript-metadata",
+    ],
+  },
+];
+const SHARED_TYPES_TRANSFORM = [
+  "babel-jest",
+  { presets: [["@babel/preset-env", { targets: { node: "20" } }], "@babel/preset-typescript"] },
+];
+const COVERAGE_TRANSFORM = {
+  "^.+/apps/web/.+\\.(js|jsx|ts|tsx)$": WEB_TRANSFORM,
+  "^.+/apps/api/(src|test)/.+\\.(t|j)s$": API_TRANSFORM,
+  "^.+/packages/shared-types/src/.+\\.ts$": SHARED_TYPES_TRANSFORM,
+};
+
 module.exports = {
   projects: [
     // Next.js Web App
     {
       displayName: "web",
+      modulePathIgnorePatterns: ["<rootDir>/.local/"],
       testEnvironment: "jsdom",
       setupFilesAfterEnv: ["<rootDir>/apps/web/jest.setup.ts"],
       testMatch: ["<rootDir>/apps/web/**/*.test.(js|jsx|ts|tsx)"],
@@ -11,123 +40,43 @@ module.exports = {
         "^@/(.*)$": "<rootDir>/apps/web/$1",
         "^@/components/(.*)$": "<rootDir>/apps/web/components/$1",
         "^@/lib/(.*)$": "<rootDir>/apps/web/lib/$1",
+        "^@isntgram-ai/shared-types$": "<rootDir>/packages/shared-types/src/index.ts",
         "^next-auth/jwt$": "<rootDir>/apps/web/test/next-auth-jwt.ts",
         "^server-only$": "<rootDir>/apps/web/test/server-only.ts",
         "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       },
-      transform: {
-        "^.+\\.(js|jsx|ts|tsx)$": [
-          "babel-jest",
-          {
-            presets: ["next/babel"],
-          },
-        ],
-      },
+      transform: COVERAGE_TRANSFORM,
       moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
-      collectCoverageFrom: [
-        "apps/web/app/**/*.{js,jsx,ts,tsx}",
-        "apps/web/components/**/*.{js,jsx,ts,tsx}",
-        "apps/web/lib/**/*.{js,jsx,ts,tsx}",
-        "!apps/web/**/*.d.ts",
-        "!apps/web/**/node_modules/**",
-        "!apps/web/**/*.test.{js,jsx,ts,tsx}",
-        "!apps/web/**/test-utils.{js,jsx,ts,tsx}",
-      ],
-      coverageThreshold: {
-        global: {
-          branches: 90,
-          functions: 95,
-          lines: 95,
-          statements: 95,
-        },
-      },
-      coverageReporters: ["text", "lcov", "html", "json-summary"],
-      coverageDirectory: "<rootDir>/apps/web/coverage",
     },
     // NestJS API
     {
       displayName: "api",
+      modulePathIgnorePatterns: ["<rootDir>/.local/"],
       testEnvironment: "node",
       testMatch: ["<rootDir>/apps/api/src/**/*.test.ts", "<rootDir>/apps/api/test/**/*.test.ts"],
       setupFilesAfterEnv: ["<rootDir>/apps/api/test/setup.ts"],
-      transform: {
-        "^.+\\.(t|j)s$": [
-          "babel-jest",
-          {
-            presets: [
-              [
-                "@babel/preset-env",
-                {
-                  targets: { node: "20" },
-                },
-              ],
-              "@babel/preset-typescript",
-            ],
-            plugins: [
-              ["@babel/plugin-proposal-decorators", { legacy: true }],
-              ["@babel/plugin-transform-class-properties", { loose: true }],
-              "babel-plugin-transform-typescript-metadata",
-            ],
-          },
-        ],
-      },
+      transform: COVERAGE_TRANSFORM,
       moduleFileExtensions: ["js", "json", "ts"],
       moduleNameMapper: {
         "^src/(.*)$": "<rootDir>/apps/api/src/$1",
+        "^@isntgram-ai/shared-types$": "<rootDir>/packages/shared-types/src/index.ts",
       },
       testTimeout: 30000, // 30 second timeout for database setup
-      collectCoverageFrom: [
-        "apps/api/src/**/*.(t|j)s",
-        "!apps/api/src/**/*.spec.ts",
-        "!apps/api/src/**/*.test.ts",
-        "!apps/api/src/**/main.ts",
-        "!apps/api/**/test/**",
-        "!apps/api/**/*.d.ts",
-        "!apps/api/**/node_modules/**",
-      ],
-      coverageThreshold: {
-        global: {
-          branches: 90,
-          functions: 95,
-          lines: 95,
-          statements: 95,
-        },
-      },
-      coverageReporters: ["text", "lcov", "html", "json-summary"],
-      coverageDirectory: "<rootDir>/apps/api/coverage",
     },
     // Shared Types
     {
       displayName: "shared-types",
+      modulePathIgnorePatterns: ["<rootDir>/.local/"],
       testEnvironment: "node",
       testMatch: ["<rootDir>/packages/shared-types/src/**/*.test.ts"],
-      transform: {
-        "^.+\\.ts$": [
-          "babel-jest",
-          {
-            presets: [
-              [
-                "@babel/preset-env",
-                {
-                  targets: { node: "20" },
-                },
-              ],
-              "@babel/preset-typescript",
-            ],
-          },
-        ],
-      },
-      collectCoverageFrom: [
-        "packages/shared-types/src/**/*.ts",
-        "!packages/shared-types/src/**/*.test.ts",
-        "!packages/shared-types/src/**/*.d.ts",
-        "!packages/shared-types/src/openapi.ts",
-      ],
-      coverageReporters: ["text", "lcov", "html", "json-summary"],
-      coverageDirectory: "<rootDir>/packages/shared-types/coverage",
+      transform: COVERAGE_TRANSFORM,
     },
   ],
-  // Root-level coverage configuration for combined reports
+  // One root inventory and one root summary feed the coverage reporter.
+  collectCoverageFrom: getIncludedCoveragePaths(),
+  coverageThreshold: {
+    global: COVERAGE_THRESHOLD,
+  },
   coverageProvider: "babel",
   coverageReporters: ["text", "lcov", "html", "json-summary"],
   coverageDirectory: "<rootDir>/coverage",

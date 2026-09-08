@@ -47,3 +47,7 @@ export type CreateUploadUrlRequest = Schemas["CreateUploadUrlDto"];
 export type UploadUrlResponse = Schemas["UploadUrlDto"];
 
 export type ApiError = Schemas["ApiErrorDto"];
+
+export * from "./username-policy";
+
+export type AiCapabilities = Schemas["AiCapabilitiesDto"];

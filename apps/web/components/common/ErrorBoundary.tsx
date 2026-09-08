@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
+  onReload?: () => void;
 }
 
 interface State {
@@ -37,7 +38,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
             </p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={this.props.onReload ?? (() => window.location.reload())}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Refresh Page

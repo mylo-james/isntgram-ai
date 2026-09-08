@@ -65,12 +65,13 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     initialIsFollowing = followData.isFollowing;
   }
 
-  const { data: me } = await internalApi.GET("/api/users/me", {
+  const { data: me, response: meResponse } = await internalApi.GET("/api/users/me", {
     headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
-  const avatarSrc = me?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = me?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
   const nav: ReactNode = <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />;
 
   return (

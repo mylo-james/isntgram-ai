@@ -69,6 +69,10 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/password is required/i)).toBeInTheDocument();
     });
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "register-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("id", "register-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("role", "alert");
   });
 
   it("validates email format", async () => {
@@ -151,6 +155,7 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/registration successful/i)).toHaveAttribute("role", "status");
   });
 
   it("redirects to login after successful registration", async () => {
@@ -232,6 +237,9 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/email already exists/i)).toBeInTheDocument();
     });
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "register-email-error");
+    expect(screen.getByText(/email already exists/i)).toHaveAttribute("role", "alert");
   });
 
   it("handles username-specific backend error mapping", async () => {
@@ -288,6 +296,7 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/network down/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/network down/i)).toHaveAttribute("role", "alert");
   });
 
   it("validates username and full name on blur", async () => {

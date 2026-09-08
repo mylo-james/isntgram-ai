@@ -1,6 +1,7 @@
 .bmad-core/
 Isntgram/
 node_modules/
+.local/
 web-bundles/
 playwright-report/
 coverage/

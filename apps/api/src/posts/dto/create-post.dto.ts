@@ -4,6 +4,7 @@ import {
   MaxLength,
   MinLength,
   IsUrl,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -19,13 +20,24 @@ export class CreatePostDto {
   content!: string;
 
   @ApiPropertyOptional({
+    description:
+      'Deprecated. New photo posts must use mediaUploadId; supplied media URLs are rejected.',
+    deprecated: true,
     format: 'uri',
     maxLength: 1000,
     example: 'https://cdn.isntgram.ai/uploads/ava/post-cover.jpg',
   })
   @IsOptional()
-  // Allow localhost URLs for local MinIO dev (host allowlist is enforced in PostsService).
+  // Retained in the contract to return a clear migration error to older clients.
   @IsUrl({ require_protocol: true, require_tld: false })
   @MaxLength(1000)
   mediaUrl?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Owned upload intent returned by media presign.',
+  })
+  @IsOptional()
+  @IsUUID()
+  mediaUploadId?: string;
 }

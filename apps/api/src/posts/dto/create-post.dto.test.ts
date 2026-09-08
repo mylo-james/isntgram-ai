@@ -3,7 +3,7 @@ import { validate } from 'class-validator';
 import { CreatePostDto } from './create-post.dto';
 
 describe('CreatePostDto validation', () => {
-  it('accepts localhost media URLs (for local MinIO)', async () => {
+  it('accepts an http://localhost:9000 media URL for local MinIO', async () => {
     const dto = plainToInstance(CreatePostDto, {
       content: 'Hello world',
       mediaUrl: 'http://localhost:9000/isntgram-media/uploads/x/y.jpg',

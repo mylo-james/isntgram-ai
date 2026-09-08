@@ -12,6 +12,10 @@ import { isUniqueConstraintError } from '../common/db-errors';
 import { UserSearchQueryDto } from './dto/user-search-query.dto';
 import { UserSearchItemDto } from './dto/user-search-item.dto';
 import { UserSearchResponseDto } from './dto/user-search-response.dto';
+import {
+  isReservedUsername,
+  normalizeUsername,
+} from '@isntgram-ai/shared-types';
 
 @Injectable()
 export class UsersService {
@@ -20,17 +24,13 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  private normalizeUsername(value: string): string {
-    return value.trim().toLowerCase();
-  }
-
   private normalizeFullName(value: string): string {
     return value.trim();
   }
 
   async findByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { username: this.normalizeUsername(username) },
+      where: { username: normalizeUsername(username) },
     });
 
     if (!user) {
@@ -44,8 +44,11 @@ export class UsersService {
     username: string,
     excludeUserId?: string,
   ): Promise<boolean> {
+    const normalizedUsername = normalizeUsername(username);
+    if (isReservedUsername(normalizedUsername)) return true;
+
     const existing = await this.userRepository.findOne({
-      where: { username: this.normalizeUsername(username) },
+      where: { username: normalizedUsername },
     });
     if (!existing) return false;
     if (excludeUserId && existing.id === excludeUserId) return false;
@@ -78,7 +81,7 @@ export class UsersService {
     username: string,
     viewerIsDemo = false,
   ): Promise<PublicUserProfileDto> {
-    const normalizedUsername = this.normalizeUsername(username);
+    const normalizedUsername = normalizeUsername(username);
     const user = await this.userRepository.findOne({
       where: { username: normalizedUsername, isDemoUser: viewerIsDemo },
     });
@@ -111,10 +114,14 @@ export class UsersService {
     id: string,
     updates: { fullName: string; username: string },
   ): Promise<PrivateUserProfileDto> {
-    const user = await this.findById(id);
-
-    const nextUsername = this.normalizeUsername(updates.username);
+    const nextUsername = normalizeUsername(updates.username);
     const nextFullName = this.normalizeFullName(updates.fullName);
+
+    if (isReservedUsername(nextUsername)) {
+      throw new ConflictException('Username is reserved');
+    }
+
+    const user = await this.findById(id);
 
     // Username uniqueness check (exclude current user)
     const usernameTaken = await this.isUsernameTaken(nextUsername, id);

@@ -27,10 +27,9 @@ describe('AppController', () => {
   });
 
   describe('ready', () => {
-    it('should return readiness status', async () => {
+    it('returns the no-DataSource readiness result', async () => {
       const result = await appController.readiness();
-      expect(result).toHaveProperty('status');
-      expect(result).toHaveProperty('database');
+      expect(result).toEqual({ status: 'ok', database: 'skipped' });
     });
   });
 });

@@ -1,3 +1,7 @@
+import { TextEncoder } from "node:util";
+
+Object.assign(globalThis, { TextEncoder });
+
 // Mock NextAuth.js before importing
 jest.mock("next-auth/react", () => ({
   signIn: jest.fn(),
@@ -41,6 +45,30 @@ describe("LoginPage", () => {
     } else {
       process.env.NEXT_PUBLIC_DEMO_ENABLED = originalDemoEnabled;
     }
+  });
+
+  it("keeps credential and demo mutation controls disabled in server markup until hydration", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const markup = renderToStaticMarkup(<LoginPage />);
+
+    expect(markup).toMatch(/id="email"[^>]*disabled/);
+    expect(markup).toMatch(/id="password"[^>]*disabled/);
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Log In<\/button>/);
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Try Our Demo<\/button>/);
+    expect(markup).toContain("Preparing login…");
+  });
+
+  it("enables ordinary login after mount without waiting for session resolution", async () => {
+    const { useSession } = jest.requireMock("next-auth/react") as { useSession: jest.Mock };
+    useSession.mockReturnValue({ data: null, status: "loading" });
+
+    render(<LoginPage />);
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeEnabled());
+    expect(screen.getByLabelText(/password/i)).toBeEnabled();
+    expect(screen.getByRole("button", { name: /log in/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /try our demo/i })).toBeEnabled();
+    expect(screen.queryByText("Preparing login…")).not.toBeInTheDocument();
   });
 
   it("renders login form with required fields", () => {
@@ -114,6 +142,10 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/password is required/i)).toBeInTheDocument();
     });
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "login-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("id", "login-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("role", "alert");
   });
 
   it("validates email format", async () => {
@@ -189,6 +221,7 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/login successful/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/login successful/i)).toHaveAttribute("role", "status");
   });
 
   it("redirects after successful login", async () => {
@@ -211,6 +244,49 @@ describe("LoginPage", () => {
 
     expect(mockPush).toHaveBeenCalledWith("/");
     jest.useRealTimers();
+  });
+
+  it("cancels a completed login redirect when the login component unmounts", async () => {
+    jest.useFakeTimers();
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    signIn.mockResolvedValue({ ok: true, error: null });
+
+    const { unmount } = render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Password123" } });
+    const form = screen.getByLabelText(/email/i).closest("form");
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => expect(screen.getByText(/login successful/i)).toBeInTheDocument());
+    unmount();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it("does not navigate after an unmounted demo sign-in resolves", async () => {
+    const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
+    let resolveSignIn!: (result: { ok: boolean; error: null }) => void;
+    signIn.mockImplementation(
+      () =>
+        new Promise<{ ok: boolean; error: null }>((resolve) => {
+          resolveSignIn = resolve;
+        }),
+    );
+
+    const { unmount } = render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
+    unmount();
+
+    await act(async () => {
+      resolveSignIn({ ok: true, error: null });
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("shows a friendly error when signIn throws", async () => {
@@ -279,6 +355,7 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/invalid credentials/i)).toHaveAttribute("role", "alert");
   });
 
   it("shows an unmapped sign-in error message", async () => {
@@ -367,7 +444,7 @@ describe("LoginPage", () => {
     process.env.NEXT_PUBLIC_DEMO_PASSWORD = originalPassword;
   });
 
-  it("does not redirect when signIn returns no result", async () => {
+  it("keeps the form available and shows recovery when signIn returns no result", async () => {
     const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
     signIn.mockResolvedValue(undefined);
 
@@ -378,22 +455,20 @@ describe("LoginPage", () => {
     const form = screen.getByLabelText(/email/i).closest("form");
     if (form) fireEvent.submit(form);
 
-    await waitFor(() => {
-      expect(screen.queryByText(/login successful/i)).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText(/couldn't complete sign in/i)).toBeInTheDocument());
     expect(mockPush).not.toHaveBeenCalledWith("/");
+    expect(screen.getByRole("button", { name: /log in/i })).toBeEnabled();
   });
 
-  it("does not redirect or show error when demo sign-in returns no result", async () => {
+  it("keeps demo recovery available when signIn returns no result", async () => {
     const { signIn } = jest.requireMock("next-auth/react") as { signIn: jest.Mock };
     signIn.mockResolvedValue(undefined);
 
     render(<LoginPage />);
     fireEvent.click(screen.getByRole("button", { name: /try our demo/i }));
 
-    await waitFor(() => {
-      expect(screen.queryByText(/demo sign-in failed/i)).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText(/couldn't complete sign in/i)).toBeInTheDocument());
     expect(mockPush).not.toHaveBeenCalledWith("/");
+    expect(screen.getByRole("button", { name: /try our demo/i })).toBeEnabled();
   });
 });

@@ -8,10 +8,14 @@ import { Comment } from './entities/comment.entity';
 import { CommentLike } from './entities/comment-like.entity';
 import { Follow } from '../follows/entities/follow.entity';
 import { User } from '../users/entities/user.entity';
+import { MediaModule } from '../media/media.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Post, Like, Comment, CommentLike, Follow, User]),
+    NotificationsModule,
+    MediaModule,
   ],
   controllers: [PostsController],
   providers: [PostsService],

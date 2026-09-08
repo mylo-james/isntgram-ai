@@ -23,8 +23,8 @@
     "migration:revert": "npm run typeorm migration:revert -- -d ormconfig.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.891.0",
-    "@aws-sdk/s3-request-presigner": "^3.891.0",
+    "@aws-sdk/client-s3": "3.980.0",
+    "@aws-sdk/s3-request-presigner": "3.980.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^10.0.0",
@@ -45,7 +45,9 @@
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
-    "validator": "^13.15.22"
+    "validator": "^13.15.22",
+    "@isntgram-ai/shared-types": "workspace:*",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

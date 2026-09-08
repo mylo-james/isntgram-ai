@@ -1,5 +1,13 @@
 const { spawnSync } = require("node:child_process");
-const env = { ...process.env };
+const path = require("node:path");
+const { buildTestEnvironment } = require("./test-env.cjs");
+let env;
+try {
+  env = buildTestEnvironment(process.env, path.resolve(__dirname, ".."));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Unsafe test environment refused.");
+  process.exit(1);
+}
 const existingNodeOptions = env.NODE_OPTIONS ?? "";
 
 const splitArgs = (value) => {

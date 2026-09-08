@@ -8,6 +8,7 @@ import { Comment } from './posts/entities/comment.entity';
 import { CommentLike } from './posts/entities/comment-like.entity';
 import { Follow } from './follows/entities/follow.entity';
 import { Notification } from './notifications/entities/notification.entity';
+import { MediaUpload } from './media/entities/media-upload.entity';
 import { getPostgresSslOptions } from './config/postgres-ssl';
 
 async function main() {
@@ -19,7 +20,16 @@ async function main() {
   const dataSource = new DataSource({
     type: 'postgres',
     url: databaseUrl,
-    entities: [User, Post, Like, Comment, CommentLike, Follow, Notification],
+    entities: [
+      User,
+      Post,
+      Like,
+      Comment,
+      CommentLike,
+      Follow,
+      Notification,
+      MediaUpload,
+    ],
     migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     synchronize: false,
     logging: (process.env.NODE_ENV ?? 'development') === 'development',

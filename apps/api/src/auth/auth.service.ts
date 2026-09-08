@@ -10,6 +10,10 @@ import { isUniqueConstraintError } from '../common/db-errors';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
+import {
+  isReservedUsername,
+  normalizeUsername,
+} from '@isntgram-ai/shared-types';
 import { JwtPayload } from './jwt.types';
 import { PrivateUserProfileDto } from '../users/dto/private-user-profile.dto';
 
@@ -22,10 +26,6 @@ export class AuthService {
   ) {}
 
   private normalizeEmail(value: string): string {
-    return value.trim().toLowerCase();
-  }
-
-  private normalizeUsername(value: string): string {
     return value.trim().toLowerCase();
   }
 
@@ -69,9 +69,35 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<PrivateUserProfileDto> {
+    return this.registerRecord(dto);
+  }
+
+  async registerFixture(
+    dto: RegisterDto,
+    id: string,
+    isDemoSeed: boolean,
+    bio?: string,
+  ) {
+    if (
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-5[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+        id,
+      )
+    )
+      throw new ConflictException('Invalid fixture user identity');
+    return this.registerRecord(dto, { id, isDemoSeed, bio });
+  }
+
+  private async registerRecord(
+    dto: RegisterDto,
+    fixture?: { id: string; isDemoSeed: boolean; bio?: string },
+  ): Promise<PrivateUserProfileDto> {
     const email = this.normalizeEmail(dto.email);
-    const username = this.normalizeUsername(dto.username);
+    const username = normalizeUsername(dto.username);
     const fullName = this.normalizeFullName(dto.fullName);
+
+    if (isReservedUsername(username)) {
+      throw new ConflictException('Username is reserved');
+    }
 
     const existingEmail = await this.userRepository.findOne({
       where: { email },
@@ -92,13 +118,14 @@ export class AuthService {
     });
 
     const user = this.userRepository.create({
+      ...(fixture ? { id: fixture.id, bio: fixture.bio } : {}),
       email,
       username,
       fullName,
       hashedPassword,
       tokenVersion: 0,
-      isDemoUser: false,
-      isDemoSeed: false,
+      isDemoUser: fixture?.isDemoSeed ?? false,
+      isDemoSeed: fixture?.isDemoSeed ?? false,
       demoExpiresAt: null,
       postsCount: 0,
       followerCount: 0,
@@ -106,7 +133,12 @@ export class AuthService {
     });
 
     try {
-      const saved = await this.userRepository.save(user);
+      const saved = fixture
+        ? (await this.userRepository.insert(user),
+          await this.userRepository.findOneOrFail({
+            where: { id: fixture.id },
+          }))
+        : await this.userRepository.save(user);
       return this.toSafeUser(saved);
     } catch (error) {
       if (isUniqueConstraintError(error)) {

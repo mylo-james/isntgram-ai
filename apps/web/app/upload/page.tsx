@@ -13,13 +13,14 @@ export default async function UploadPage() {
     redirect("/login");
   }
 
-  const { data } = await internalApi.GET("/api/users/me", {
+  const { data, response } = await internalApi.GET("/api/users/me", {
     headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  const avatarSrc = data?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = data?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    response.ok && typeof data?.username === "string" && data.username.length > 0 ? `/${data.username}` : "/feed";
 
   return (
     <>

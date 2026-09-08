@@ -14,6 +14,15 @@ import { Follow } from '../src/follows/entities/follow.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
+// The CommonJS module is deliberately dependency-free so its standalone tests
+// can prove target rejection before Nest, TypeORM, or a database is created.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { selectTestDatabase } = require('./test-database-target.cjs') as {
+  selectTestDatabase: (
+    env: NodeJS.ProcessEnv,
+  ) => { kind: 'sqlite' } | { kind: 'postgres'; url: string };
+};
+
 describe('Auth Integration Tests', () => {
   let app: INestApplication;
   let userRepository: Repository<User>;
@@ -24,24 +33,24 @@ describe('Auth Integration Tests', () => {
   beforeAll(async () => {
     process.env.DEMO_ENABLED = 'true';
     process.env.JWT_SECRET = 'test-jwt-secret';
-    // Use SQLite for testing by default, PostgreSQL only when DATABASE_URL is explicitly set
-    isPostgres =
-      Boolean(process.env.DATABASE_URL) && process.env.NODE_ENV !== 'test';
-    const databaseConfig = isPostgres
-      ? {
-          type: 'postgres' as const,
-          url: process.env.DATABASE_URL,
-          entities: [User, Post, Like, Comment, Follow],
-          synchronize: true,
-          logging: false,
-        }
-      : {
-          type: 'sqlite' as const,
-          database: ':memory:',
-          entities: [User, Post, Like, Comment, Follow],
-          synchronize: true,
-          logging: false,
-        };
+    const selectedDatabase = selectTestDatabase(process.env);
+    isPostgres = selectedDatabase.kind === 'postgres';
+    const databaseConfig =
+      selectedDatabase.kind === 'postgres'
+        ? {
+            type: 'postgres' as const,
+            url: selectedDatabase.url,
+            entities: [User, Post, Like, Comment, Follow],
+            synchronize: true,
+            logging: false,
+          }
+        : {
+            type: 'sqlite' as const,
+            database: ':memory:',
+            entities: [User, Post, Like, Comment, Follow],
+            synchronize: true,
+            logging: false,
+          };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [

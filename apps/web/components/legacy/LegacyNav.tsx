@@ -31,7 +31,7 @@ const icons = {
 } as const;
 
 export default function LegacyNav({
-  avatarSrc = "/assets/profile.jpeg",
+  avatarSrc = "/assets/default-avatar.svg",
   profileHref = "/feed",
 }: {
   avatarSrc?: string;

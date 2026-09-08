@@ -13,11 +13,11 @@
     "setup:local": "bash scripts/setup-local-env.sh",
     "lint:md": "markdownlint . --ignore-path .markdownlintignore --config .markdownlint.json",
     "lint": "echo 'root lint noop'",
-    "lint:all": "pnpm run lint:md && pnpm -r --if-present lint",
+    "lint:all": "pnpm run lint:md && pnpm -r --if-present lint && pnpm run lint:journey && pnpm run lint:v1",
     "lint:web": "pnpm --filter web lint",
     "lint:api": "pnpm --filter api lint",
     "lint:shared-types": "pnpm --filter @isntgram-ai/shared-types lint",
-    "type-check": "pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p packages/shared-types/tsconfig.json --noEmit",
+    "type-check": "pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p packages/shared-types/tsconfig.json --noEmit && pnpm exec tsc -p tsconfig.journey.json && pnpm exec tsc -p tsconfig.journey-e2e.json",
     "validate": "pnpm run lint:all && pnpm run type-check && pnpm test -- --watchAll=false && pnpm run build:all",
     "test": "node scripts/jest.cjs",
     "test:integration": "node scripts/jest.cjs --selectProjects api --testPathPatterns integration",
@@ -29,14 +29,40 @@
     "build:shared-types": "pnpm --filter @isntgram-ai/shared-types build",
     "coverage:report": "node scripts/coverage-report.cjs",
     "coverage:changed": "node scripts/coverage-report.cjs --changed",
-    "contracts:generate": "pnpm --filter api openapi:generate && pnpm exec openapi-typescript apps/api/openapi.json --default-non-nullable=false -o packages/shared-types/src/openapi.ts && pnpm exec prettier --write apps/api/openapi.json packages/shared-types/src/openapi.ts",
-    "contracts:check": "git ls-files --error-unmatch apps/api/openapi.json packages/shared-types/src/openapi.ts >/dev/null && pnpm run contracts:generate && git diff --exit-code -- apps/api/openapi.json packages/shared-types/src/openapi.ts",
+    "contracts:generate": "node scripts/contracts.cjs generate",
+    "contracts:check": "node scripts/contracts.cjs check",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:db": "bash scripts/dev-db.sh",
     "dev:all": "bash scripts/dev-all.sh",
     "usertest": "bash scripts/usertest.sh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "journey:config": "node apps/api/scripts/journey/config.cjs",
+    "journey:preflight": "node apps/api/scripts/journey/preflight.cjs",
+    "journey:db": "node apps/api/scripts/journey/db.cjs",
+    "journey:migrate": "node apps/api/scripts/journey/migrate.cjs",
+    "journey:fixture": "node apps/api/scripts/journey/fixture.cjs",
+    "journey:verify": "node apps/api/scripts/journey/verify.cjs",
+    "test:journey": "playwright test --config playwright.journey.config.ts",
+    "test:journey:guards": "node --test scripts/journey-test-env.test.cjs scripts/contracts.test.cjs apps/api/scripts/journey/*.test.cjs",
+    "lint:journey": "eslint --config eslint.journey.config.cjs apps/api/scripts/journey/*.cjs apps/api/test/test-database-target.cjs scripts/jest.cjs scripts/test-env.cjs scripts/journey-test-env.test.cjs scripts/contracts.cjs scripts/contracts.test.cjs",
+    "test:journey:fixture": "node apps/api/scripts/journey/fixture.postgres.cjs",
+    "v1:config": "node apps/api/scripts/v1/config.cjs",
+    "v1:preflight": "node apps/api/scripts/v1/preflight.cjs",
+    "v1:db": "node apps/api/scripts/v1/db.cjs",
+    "test:v1:guards": "node --test apps/api/scripts/v1/*.test.cjs scripts/coverage-report.test.cjs scripts/coverage-producer.test.cjs",
+    "lint:v1": "eslint --config eslint.journey.config.cjs apps/api/scripts/v1/*.cjs apps/api/v1-test/*.cjs scripts/coverage-report.cjs scripts/coverage-report.test.cjs scripts/coverage-producer.test.cjs",
+    "v1:migrate": "node apps/api/scripts/v1/migrate.cjs",
+    "test:v1:postgres": "node apps/api/scripts/v1/postgres-test.cjs",
+    "v1:storage": "node apps/api/scripts/v1/storage.cjs",
+    "v1:storage:start": "node apps/api/scripts/v1/storage-start.cjs",
+    "test:v1:storage": "node apps/api/scripts/v1/storage-capabilities.cjs prove",
+    "v1:storage:bootstrap": "node apps/api/scripts/v1/storage-capabilities.cjs bootstrap",
+    "v1:storage:readiness": "node apps/api/scripts/v1/storage-readiness.cjs",
+    "v1:storage:retained-sockets": "node apps/api/scripts/v1/storage-retained-sockets.cjs",
+    "v1:fixture": "node apps/api/scripts/v1/fixture.cjs apply",
+    "v1:fixture:verify": "node apps/api/scripts/v1/fixture.cjs verify",
+    "v1:verify": "node apps/api/scripts/v1/verify.cjs"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
@@ -63,7 +89,7 @@
     "jest-junit": "^16.0.0",
     "lint-staged": "^16.1.5",
     "markdownlint-cli": "^0.37.0",
-    "next": "16.1.0",
+    "next": "16.2.11",
     "openapi-typescript": "^7.10.1",
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
@@ -92,7 +118,10 @@
     "scripts/**/*.{js,cjs}": [
       "prettier --write"
     ],
-    "*.{json,md}": [
+    "*.json": [
+      "prettier --write"
+    ],
+    "*.md": [
       "markdownlint --fix",
       "prettier --write"
     ]
@@ -103,8 +132,8 @@
   },
   "pnpm": {
     "overrides": {
-      "next": "16.1.0",
-      "eslint-config-next": "16.1.0",
+      "next": "16.2.11",
+      "eslint-config-next": "16.2.11",
       "@playwright/test": "1.55.1",
       "playwright": "1.55.1",
       "cross-spawn": "^7.0.6",

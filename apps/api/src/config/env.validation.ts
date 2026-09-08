@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import { plainToInstance } from 'class-transformer';
 import { IsIn, IsOptional, IsString, validateSync } from 'class-validator';
 
@@ -97,6 +98,14 @@ class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  S3_PRESIGN_ENDPOINT?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_DISPLAY_BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
   MEDIA_ALLOWED_HOSTS?: string;
 
   @IsOptional()
@@ -169,6 +178,46 @@ export function validateEnv(config: Record<string, unknown>) {
   const provider = (env.AI_PROVIDER ?? 'mock').toLowerCase() as AiProvider;
   if (provider === 'openai' && !env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY must be set when AI_PROVIDER=openai');
+  }
+
+  const phoneValues = [env.S3_PRESIGN_ENDPOINT, env.S3_DISPLAY_BASE_URL];
+  if (phoneValues.some(Boolean) && phoneValues.some((value) => !value)) {
+    throw new Error(
+      'S3_PRESIGN_ENDPOINT and S3_DISPLAY_BASE_URL must be paired',
+    );
+  }
+  const phoneUrls = phoneValues.map((value) => {
+    if (!value) return undefined;
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error('Phone media URL is invalid');
+    }
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    )
+      throw new Error('Phone media URL must be HTTPS without credentials');
+    if (
+      url.hostname === 'localhost' ||
+      isIP(url.hostname.replace(/^\[|\]$/g, '')) !== 0
+    )
+      throw new Error('Phone media URL must not be loopback or an IP literal');
+    return url;
+  });
+  const [presignUrl, displayUrl] = phoneUrls;
+  if (presignUrl && displayUrl) {
+    if (
+      presignUrl.pathname !== '/' ||
+      presignUrl.origin !== displayUrl.origin ||
+      displayUrl.pathname === '/'
+    ) {
+      throw new Error('Phone media endpoints are inconsistent');
+    }
   }
 
   return {

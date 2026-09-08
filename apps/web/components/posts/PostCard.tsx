@@ -7,10 +7,14 @@ import { apiClient, type PostItem } from "@/lib/api-client";
 import Dialog from "@/components/ui/Dialog";
 import { CommentIcon, HeartIcon } from "@/components/posts/PostIcons";
 
-function formatDateLabel(date: string) {
+function formatPostDate(date: string) {
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (Number.isNaN(parsed.getTime())) return null;
+  return {
+    dateTime: parsed.toISOString(),
+    visibleLabel: parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    accessibleLabel: parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+  };
 }
 
 export default function PostCard({ post }: { post: PostItem }) {
@@ -32,7 +36,7 @@ export default function PostCard({ post }: { post: PostItem }) {
       .toUpperCase();
   }, [post.author.fullName]);
 
-  const createdAtLabel = useMemo(() => formatDateLabel(post.createdAt), [post.createdAt]);
+  const createdAt = useMemo(() => formatPostDate(post.createdAt), [post.createdAt]);
 
   const handleToggleLike = async () => {
     if (isLiking) return;
@@ -98,9 +102,14 @@ export default function PostCard({ post }: { post: PostItem }) {
         </Link>
 
         <div className="flex items-center gap-3">
-          <span aria-label="Post date" className="text-xs text-gray-500">
-            {createdAtLabel}
-          </span>
+          {createdAt ? (
+            <time dateTime={createdAt.dateTime} className="text-xs text-gray-500">
+              <span aria-hidden="true">{createdAt.visibleLabel}</span>
+              <span className="sr-only">Posted {createdAt.accessibleLabel}</span>
+            </time>
+          ) : (
+            <span className="text-xs text-gray-500" />
+          )}
           <button
             type="button"
             aria-label="More options"
