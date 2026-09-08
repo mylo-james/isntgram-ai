@@ -16,6 +16,7 @@
     "apps/api/src/auth/auth.controller.ts",
     "apps/api/src/auth/auth.module.ts",
     "apps/api/src/auth/auth.service.ts",
+    "apps/api/src/auth/demo/community.seeder.ts",
     "apps/api/src/auth/demo/curated-demo.service.ts",
     "apps/api/src/auth/demo/demo.constants.ts",
     "apps/api/src/auth/demo/demo.seeder.ts",
@@ -186,6 +187,7 @@
     "apps/api/src/auth/jwt.types.ts": "TypeScript AST contains only type declarations/imports/exports, no runtime statement",
     "apps/api/src/common/types/express.d.ts": "type declaration",
     "apps/api/src/main.ts": "preserved explicit bootstrap exclusion; real startup/recovery evidence required",
-    "packages/shared-types/src/openapi.ts": "generated types, separately contracts-checked"
+    "packages/shared-types/src/openapi.ts": "generated types, separately contracts-checked",
+    "apps/api/src/auth/demo/data/community.ts": "Saved fictional fixture data; integrity and behavior verified by community seeder integration tests"
   }
 }

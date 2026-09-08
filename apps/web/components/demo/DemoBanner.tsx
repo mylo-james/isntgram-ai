@@ -102,7 +102,9 @@ export default function DemoBanner() {
   const subtitle =
     process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "curated"
       ? "Curated examples use fictional profiles and credited photographs. Session access expires; demo data is retained for review."
-      : "This is a temporary demo account. Session access ends at the expiry shown above.";
+      : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "community"
+        ? "A fictional community with generated avatars and credited photos. Your account is temporary."
+        : "This is a temporary demo account. Session access ends at the expiry shown above.";
 
   const handleDismiss = () => {
     try {
