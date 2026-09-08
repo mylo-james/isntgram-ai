@@ -97,9 +97,9 @@ export default function EditProfileModal({
       aria-labelledby="edit-profile-title"
       data-testid="edit-profile-modal"
       initialFocusRef={closeButtonRef}
-      contentClassName="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
+      contentClassName="mx-4 w-full max-w-md rounded-xl bg-white"
     >
-      <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
         <h2 id="edit-profile-title" className="text-lg font-semibold text-gray-900">
           Edit Profile
         </h2>
@@ -108,7 +108,7 @@ export default function EditProfileModal({
           onClick={onClose}
           aria-label="Close edit profile"
           disabled={isSubmitting}
-          className="ui-action text-gray-700 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+          className="ui-quiet text-gray-700"
         >
           ✕
         </button>
@@ -137,7 +137,7 @@ export default function EditProfileModal({
             {...register("fullName", { required: "Full name is required" })}
             aria-invalid={errors.fullName ? true : undefined}
             aria-describedby={errors.fullName?.message ? "edit-profile-full-name-error" : undefined}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="ui-field mt-1"
             placeholder="Enter your full name"
           />
           {errors.fullName?.message && (
@@ -165,7 +165,7 @@ export default function EditProfileModal({
             aria-describedby={
               errors.username?.message ? "edit-username-help edit-profile-username-error" : "edit-username-help"
             }
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="ui-field mt-1"
             placeholder="Enter your username"
             autoCapitalize="none"
             autoCorrect="off"
@@ -183,20 +183,11 @@ export default function EditProfileModal({
           ) : null}
         </div>
 
-        <div className="flex justify-end space-x-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="ui-action px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
+        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+          <button type="button" onClick={onClose} disabled={isSubmitting} className="ui-secondary">
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="ui-action px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
-          >
+          <button type="submit" disabled={isSubmitting} className="ui-primary">
             {isSubmitting ? "Saving..." : "Save"}
           </button>
         </div>

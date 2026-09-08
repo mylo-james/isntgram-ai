@@ -37,16 +37,16 @@ export default function FeedClient({ initialFeed }: FeedClientProps) {
 
   return (
     <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="page-header">
         <h1 className="page-heading">Home</h1>
-        <Link href="/upload" className="ui-action border border-gray-400">
+        <Link href="/upload" className="ui-primary">
           Create post
         </Link>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {items.length === 0 ? (
-          <div className="rounded-sm border border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+          <div className="social-surface p-8 text-center text-sm text-gray-600">
             <h2 className="text-lg font-semibold text-gray-900">Your feed is ready for a first post</h2>
             <p className="my-3 text-gray-700">Follow people to see their posts here, or share something yourself.</p>
             <Link className="ui-action text-blue-700 underline" href="/explore">

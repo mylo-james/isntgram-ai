@@ -189,8 +189,8 @@ export default function PostDetailClient({
   };
 
   return (
-    <article className="w-full bg-white sm:rounded-sm sm:border sm:border-gray-300">
-      <header className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3">
+    <article className="social-surface w-full">
+      <header className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:px-5">
         <Link href={`/${post.author.username}`} className="flex min-w-0 items-center gap-3">
           {post.author.profilePictureUrl ? (
             <Image
@@ -226,7 +226,7 @@ export default function PostDetailClient({
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
-            className="ui-action rounded-sm text-gray-600 hover:text-gray-900"
+            className="ui-action post-action text-gray-600 hover:text-gray-900"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="h-5 w-5 fill-current">
               <circle cx="6" cy="12" r="1.5" />
@@ -249,8 +249,8 @@ export default function PostDetailClient({
         </div>
       ) : null}
 
-      <div className="px-4 pb-4 pt-3">
-        <div className="flex items-center gap-4">
+      <div className="post-body">
+        <div className="post-actions">
           <button
             type="button"
             onClick={handleToggleLike}
@@ -258,7 +258,7 @@ export default function PostDetailClient({
             aria-pressed={likedByViewer}
             aria-label={likedByViewer ? "Unlike" : "Like"}
             className={[
-              "ui-action transition-transform duration-150 active:scale-95",
+              "ui-action post-action transition-transform duration-150 active:scale-95",
               isLiking ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
             ].join(" ")}
           >
@@ -272,12 +272,7 @@ export default function PostDetailClient({
             <span className="text-sm">{likedByViewer ? "Liked" : "Like"}</span>
           </button>
 
-          <button
-            type="button"
-            aria-label="Comment"
-            onClick={handleFocusComment}
-            className="ui-action hover:opacity-70"
-          >
+          <button type="button" aria-label="Comment" onClick={handleFocusComment} className="ui-action post-action">
             <CommentIcon className="h-6 w-6 text-[#262626]" />
             <span className="text-sm">Comment</span>
           </button>
@@ -288,7 +283,7 @@ export default function PostDetailClient({
         </p>
 
         {post.content ? (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+          <p className="post-caption">
             <Link href={`/${post.author.username}`} className="font-semibold text-gray-900">
               {post.author.username}
             </Link>{" "}
@@ -305,7 +300,7 @@ export default function PostDetailClient({
             retryLabel="Retry like"
           />
         ) : null}
-        <section className="mt-5 space-y-3" aria-label="Comments">
+        <section className="mt-6 space-y-4 border-t border-gray-200 pt-5" aria-label="Comments">
           <h2 className="text-lg font-semibold">Comments ({commentCount})</h2>
           {commentsChronological.length === 0 && !commentsLoading && !commentsLoadError ? (
             <p className="text-sm text-gray-500">No comments yet.</p>
@@ -364,12 +359,7 @@ export default function PostDetailClient({
             />
           ) : null}
           {commentsCursor && !commentsLoadError ? (
-            <button
-              type="button"
-              onClick={handleLoadMoreComments}
-              disabled={commentsLoading}
-              className="ui-action border border-gray-400"
-            >
+            <button type="button" onClick={handleLoadMoreComments} disabled={commentsLoading} className="ui-secondary">
               {commentsLoading ? "Loading..." : "Load more comments"}
             </button>
           ) : null}
@@ -398,16 +388,18 @@ export default function PostDetailClient({
               maxLength={1000}
               disabled={isSubmittingComment}
             />
-            <button
-              type="submit"
-              disabled={isSubmittingComment || commentDraft.trim().length === 0}
-              className="ui-action bg-blue-700 text-white disabled:opacity-60"
-            >
-              {isSubmittingComment ? "Posting..." : "Post comment"}
-            </button>
-            <p id="comment-help" className="text-sm text-gray-700">
-              Up to 1,000 characters. {commentDraft.length}/1000.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p id="comment-help" className="text-xs text-gray-600">
+                Up to 1,000 characters. {commentDraft.length}/1000.
+              </p>
+              <button
+                type="submit"
+                disabled={isSubmittingComment || commentDraft.trim().length === 0}
+                className="ui-primary"
+              >
+                {isSubmittingComment ? "Posting..." : "Post comment"}
+              </button>
+            </div>
           </form>
 
           {commentError ? (
@@ -420,8 +412,6 @@ export default function PostDetailClient({
               retryLabel="Try posting comment again"
             />
           ) : null}
-
-          <p className="mt-2 text-xs text-gray-500">Comments: {commentCount}</p>
         </div>
       </div>
 

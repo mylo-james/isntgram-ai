@@ -20,18 +20,13 @@ const Button: React.FC<ButtonProps> = ({
   className = "",
   ...props
 }) => {
-  const baseClasses =
-    "inline-flex min-h-11 min-w-11 items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors";
+  const baseClasses = "ui-action";
 
   const variantClasses = {
-    primary:
-      "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed",
-    secondary:
-      "bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed",
-    outline:
-      "bg-transparent text-blue-600 border border-transparent hover:underline focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed",
-    destructive:
-      "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:opacity-60 disabled:cursor-not-allowed",
+    primary: "ui-primary",
+    secondary: "ui-secondary",
+    outline: "ui-quiet",
+    destructive: "ui-destructive",
   };
 
   const sizeClasses = {

@@ -110,24 +110,21 @@ export default function NotificationsClient({
         {isLoading ? "Loading notifications…" : ""}
       </p>
       {items.length === 0 ? (
-        <div className="text-gray-700">
+        <div className="social-surface p-6 text-gray-700">
           <p>No notifications yet. Likes, comments and new followers will appear here.</p>
-          <Link href="/feed" className="ui-action mt-3 text-blue-700 underline">
-            Back to Home
+          <Link href="/feed" className="ui-quiet mt-3">
+            Home
           </Link>
         </div>
       ) : (
-        <ul className="space-y-3" aria-label="Notifications">
+        <ul className="notification-list" aria-label="Notifications">
           {items.map((notification) => {
             const actor = notification.actor;
             const time = timeAgoLabel(notification.createdAt);
 
             return (
               <li key={notification.id}>
-                <Link
-                  href={notificationTarget(notification)}
-                  className="flex items-center gap-3 rounded-sm border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50"
-                >
+                <Link href={notificationTarget(notification)} className="notification-item">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={actor.profilePictureUrl ?? "/assets/default-avatar.svg"}
@@ -150,7 +147,7 @@ export default function NotificationsClient({
                   </div>
                   {notification.type !== "follow" && notification.postMediaUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={notification.postMediaUrl} alt="" className="h-10 w-10 rounded-sm object-cover" />
+                    <img src={notification.postMediaUrl} alt="" className="h-11 w-11 rounded-lg object-cover" />
                   ) : null}
                 </Link>
               </li>
@@ -173,7 +170,7 @@ export default function NotificationsClient({
           type="button"
           onClick={() => void loadNotifications()}
           disabled={isLoading}
-          className="ui-action mt-4 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="ui-secondary mt-5"
         >
           {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
         </button>

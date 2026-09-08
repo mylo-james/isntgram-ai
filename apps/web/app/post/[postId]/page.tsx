@@ -63,11 +63,25 @@ export default async function PostPage({ params }: PostPageProps) {
         style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
       >
         <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="page-heading">Post</h1>
-            <Link className="ui-action text-blue-700 underline" href="/feed">
-              Back to Home
+          <div className="page-header justify-start">
+            <Link className="return-link -ml-2" href="/feed" aria-label="Back to Home">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m14 7-5 5 5 5" />
+              </svg>
+              Home
             </Link>
+            <span className="h-5 w-px bg-gray-300" aria-hidden="true" />
+            <h1 className="page-heading">Post</h1>
           </div>
           <PostDetailClient
             initialCommentsError={!commentsResponse.ok}

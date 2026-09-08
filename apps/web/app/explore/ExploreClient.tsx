@@ -139,11 +139,11 @@ export default function ExploreClient({
             autoCapitalize="none"
             autoCorrect="off"
           />
-          <button className="ui-action border border-gray-400" disabled={!isClientReady || !query.trim()} type="submit">
+          <button className="ui-primary" disabled={!isClientReady || !query.trim()} type="submit">
             Search
           </button>
           {query ? (
-            <button className="ui-action" type="button" onClick={() => setQuery("")}>
+            <button className="ui-quiet" type="button" onClick={() => setQuery("")}>
               Clear search
             </button>
           ) : null}
@@ -153,7 +153,7 @@ export default function ExploreClient({
         </p>
 
         {query.trim().length > 0 ? (
-          <div className="mt-3 w-full rounded-md border border-gray-300 bg-white">
+          <div className="social-surface mt-3 w-full">
             {searchState === "loading" ? (
               <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
             ) : searchState === "error" ? (
@@ -193,19 +193,19 @@ export default function ExploreClient({
             No photos yet. Search for people above or create the first photo post.
           </p>
         ) : (
-          <div className="space-y-[1vw]">
+          <div className="space-y-2">
             {rows.map((row, rowIndex) => (
               <div
                 // Matches legacy Explore/Layout1 row geometry.
                 key={`row-${rowIndex}`}
-                className="grid grid-cols-3 gap-1"
+                className="grid grid-cols-3 gap-2"
               >
                 {row.map((post, colIndex) => (
                   <Link
                     key={`img-${rowIndex}-${colIndex}`}
                     href={`/post/${post.id}`}
                     aria-label={postLinkLabel(post)}
-                    className="block aspect-square w-full"
+                    className="block aspect-square w-full overflow-hidden rounded-xl"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -225,11 +225,7 @@ export default function ExploreClient({
           <ErrorNotice key={error} message={error} onRetry={() => void handleLoadMore()} pending={isLoadingMore} />
         ) : null}
         {nextCursor && !error ? (
-          <button
-            className="ui-action mt-5 border border-gray-400"
-            onClick={() => void handleLoadMore()}
-            disabled={isLoadingMore}
-          >
+          <button className="ui-secondary mt-5" onClick={() => void handleLoadMore()} disabled={isLoadingMore}>
             Load more photos
           </button>
         ) : null}

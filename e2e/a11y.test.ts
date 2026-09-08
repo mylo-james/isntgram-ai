@@ -112,6 +112,20 @@ test.describe("Accessibility (axe-core)", () => {
   test("login page has no WCAG A/AA violations", async ({ page }, testInfo) => {
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /log in/i })).toBeVisible();
+    const logoDots = page.locator(".brand-mark .circle-loader-dot");
+    const positions = () =>
+      logoDots.evaluateAll((dots) =>
+        dots.map((dot) => {
+          const { x, y } = dot.getBoundingClientRect();
+          return { x, y };
+        }),
+      );
+    await page.getByRole("button", { name: "Pause logo animation" }).click();
+    const pausedPositions = await positions();
+    await page.waitForTimeout(350);
+    expect(await positions()).toEqual(pausedPositions);
+    await page.getByRole("button", { name: "Play logo animation" }).click();
+    await expect.poll(positions).not.toEqual(pausedPositions);
     await expectNoA11yViolations(page, "/login");
     await page.screenshot({ path: testInfo.outputPath("login.png"), fullPage: true });
   });
@@ -173,6 +187,8 @@ test.describe("Accessibility (axe-core)", () => {
       await page.goto(path);
       await expect(page.locator("h1")).toHaveCount(1);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.locator(".brand-mark")).toBeVisible();
+      await expect(page.locator(".brand-mark .circle-loader-dot")).toHaveCount(8);
       await expectNoA11yViolations(page, `${path} 320px`);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const nav = page.getByRole("navigation");
@@ -184,6 +200,20 @@ test.describe("Accessibility (axe-core)", () => {
         })),
       );
       expect(targets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
+      if (path === "/feed" || path.startsWith("/post/")) {
+        const action = page.locator(".post-actions button").first();
+        await action.focus();
+        await expect(action).toBeFocused();
+        expect(
+          await action.evaluate((button) => {
+            const surface = button.closest(".social-surface")!.getBoundingClientRect();
+            const target = button.getBoundingClientRect();
+            const style = getComputedStyle(button);
+            const clearance = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+            return target.left - clearance >= surface.left && target.right + clearance <= surface.right;
+          }),
+        ).toBe(true);
+      }
       await page.screenshot({ path: testInfo.outputPath(`${path.replaceAll("/", "_")}-mobile.png`), fullPage: true });
     }
     await page.getByRole("button", { name: "More options" }).click();
@@ -283,7 +313,7 @@ test.describe("Accessibility (axe-core)", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.getByRole("button", { name: "Publish post", exact: true }).click();
     try {
-      await expect(page.locator(".circle-loader-arm")).toHaveCount(8);
+      await expect(page.getByRole("main").locator(".circle-loader-arm")).toHaveCount(8);
       const animations = await page
         .locator(".circle-loader-arm, .circle-loader-dot")
         .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).animationName));

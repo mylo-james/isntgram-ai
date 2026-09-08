@@ -213,7 +213,7 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
         event.preventDefault();
         void handleSubmit();
       }}
-      className="rounded-md border border-gray-300 bg-white p-4 sm:p-6"
+      className="social-surface p-4 sm:p-6"
     >
       <div className="mb-5">
         <label htmlFor="post-content" className="mb-2 block font-medium">
@@ -263,7 +263,7 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
             <img
               src={previewUrl}
               alt={mediaAltText.trim() || "Selected photo preview"}
-              className="mb-3 max-h-96 w-full rounded-md object-contain"
+              className="mb-3 max-h-72 w-full rounded-xl bg-gray-50 object-contain"
             />
           ) : null}
           <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -347,7 +347,7 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
         open={confirmDiscard}
         onClose={() => setConfirmDiscard(false)}
         aria-labelledby="discard-title"
-        contentClassName="w-full max-w-sm rounded-lg bg-white p-6"
+        contentClassName="w-full max-w-sm rounded-2xl bg-white p-6"
       >
         <h2 id="discard-title" className="mb-3 text-xl font-semibold">
           Discard this draft?

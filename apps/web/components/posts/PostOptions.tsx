@@ -31,14 +31,14 @@ export default function PostOptions({
       open={open}
       onClose={onClose}
       aria-labelledby="post-options-title"
-      contentClassName="w-full max-w-sm rounded-md bg-white p-5 shadow-xl"
+      contentClassName="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
     >
       <h2 id="post-options-title" className="mb-4 text-lg font-semibold">
         Post options
       </h2>
       <div className="space-y-3">
         {showPostLink ? (
-          <Link className="ui-action w-full border border-gray-400" href={`/post/${postId}`} onClick={onClose}>
+          <Link className="ui-secondary w-full" href={`/post/${postId}`} onClick={onClose}>
             Go to post
           </Link>
         ) : null}
@@ -63,7 +63,7 @@ export default function PostOptions({
             />
           </div>
         ) : null}
-        <Button className="w-full" variant="secondary" onClick={onClose}>
+        <Button className="w-full" variant="outline" onClick={onClose}>
           Close
         </Button>
       </div>

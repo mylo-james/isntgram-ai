@@ -1,6 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Brand from "@/components/ui/Brand";
 
 function Icon({ path, className }: { path: string; className?: string }) {
   return (
@@ -49,17 +50,14 @@ export default function LegacyNav({
   ];
   return (
     <header
-      className="fixed inset-x-0 z-[100] h-[72px] border-b border-gray-300 bg-white"
+      className="social-header fixed inset-x-0 z-[100] h-[72px] bg-white"
       style={{ top: "var(--demo-banner-height, 0px)" }}
     >
       <div className="mx-auto flex h-full max-w-[1000px] items-center justify-between gap-4 px-4">
-        <Link href="/feed" aria-label="Isntgram home" className="shrink-0 rounded-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="h-10 w-auto" src="/assets/logo.svg" alt="Isntgram" />
-        </Link>
+        <Brand href="/feed" className="shrink-0" />
         <nav
           aria-label="Main navigation"
-          className="fixed inset-x-0 bottom-0 border-t border-gray-300 bg-white pb-[env(safe-area-inset-bottom)] sm:static sm:border-0 sm:pb-0"
+          className="social-nav fixed inset-x-0 bottom-0 bg-white pb-[env(safe-area-inset-bottom)] sm:static sm:pb-0"
         >
           <ul className="flex justify-around gap-1 px-1 sm:gap-2 sm:px-0">
             {entries.map(({ href, label, icon }) => (
@@ -78,7 +76,7 @@ export default function LegacyNav({
                     href={href}
                     aria-label={label}
                     aria-current={pathname === href && (label !== "Profile" || href !== "/feed") ? "page" : undefined}
-                    className={`flex min-h-16 min-w-11 flex-col items-center justify-center gap-1 rounded-sm px-1 py-2 text-xs font-medium sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${pathname === href && (label !== "Profile" || href !== "/feed") ? "bg-blue-50 text-blue-800 underline underline-offset-4" : "text-gray-700 hover:bg-gray-100"}`}
+                    className="nav-item flex min-h-16 min-w-11 flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm"
                   >
                     {icon ? (
                       <Icon path={icon} className="text-xl" />

@@ -73,8 +73,8 @@ export default function PostCard({ post }: { post: PostItem }) {
   }, [post.previewComments]);
 
   return (
-    <article className="w-full bg-white sm:rounded-sm sm:border sm:border-gray-300">
-      <header className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3">
+    <article className="social-surface w-full">
+      <header className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:px-5">
         <Link href={`/${post.author.username}`} className="flex min-w-0 items-center gap-3">
           {post.author.profilePictureUrl ? (
             <Image
@@ -110,7 +110,7 @@ export default function PostCard({ post }: { post: PostItem }) {
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
-            className="ui-action rounded-sm text-gray-600 hover:text-gray-900"
+            className="ui-action post-action text-gray-600 hover:text-gray-900"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="h-5 w-5 fill-current">
               <circle cx="6" cy="12" r="1.5" />
@@ -133,8 +133,8 @@ export default function PostCard({ post }: { post: PostItem }) {
         </div>
       ) : null}
 
-      <div className="px-4 pb-4 pt-3">
-        <div className="flex items-center gap-4">
+      <div className="post-body">
+        <div className="post-actions">
           <button
             type="button"
             onClick={handleToggleLike}
@@ -142,7 +142,7 @@ export default function PostCard({ post }: { post: PostItem }) {
             aria-pressed={likedByViewer}
             aria-label={likedByViewer ? "Unlike" : "Like"}
             className={[
-              "ui-action transition-transform duration-150 active:scale-95",
+              "ui-action post-action transition-transform duration-150 active:scale-95",
               isLiking ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
             ].join(" ")}
           >
@@ -156,7 +156,7 @@ export default function PostCard({ post }: { post: PostItem }) {
             <span className="text-sm">{likedByViewer ? "Liked" : "Like"}</span>
           </button>
 
-          <Link href={`/post/${post.id}`} aria-label="Comment" className="ui-action hover:opacity-70">
+          <Link href={`/post/${post.id}`} aria-label="Comment" className="ui-action post-action">
             <CommentIcon className="h-6 w-6 text-[#262626]" />
             <span className="text-sm">Comment</span>
           </Link>
@@ -167,7 +167,7 @@ export default function PostCard({ post }: { post: PostItem }) {
         </p>
 
         {post.content ? (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+          <p className="post-caption">
             <Link href={`/${post.author.username}`} className="font-semibold text-gray-900">
               {post.author.username}
             </Link>{" "}
@@ -189,7 +189,7 @@ export default function PostCard({ post }: { post: PostItem }) {
             </ul>
           ) : null}
 
-          <Link href={`/post/${post.id}`} className="ui-action text-sm text-gray-700 underline">
+          <Link href={`/post/${post.id}`} className="ui-action quiet-link">
             {commentCount === 0 ? "Be the first to comment" : `View all ${commentCount} comments`}
           </Link>
         </div>

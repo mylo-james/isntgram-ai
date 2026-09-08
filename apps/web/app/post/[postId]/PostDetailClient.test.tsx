@@ -149,7 +149,7 @@ describe("PostDetailClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "Post comment" }));
     await waitFor(() => expect(mockApi.createComment).toHaveBeenCalledWith("post-1", { content: "new comment" }));
     expect(input).toHaveValue("");
-    expect(screen.getByText("Comments: 2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comments (2)" })).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "keep this draft" } });
     fireEvent.click(screen.getByRole("button", { name: "Post comment" }));

@@ -38,12 +38,7 @@ export default function ErrorNotice({
       ) : null}
       <div className="flex flex-wrap gap-2">
         {message.startsWith("Your session has expired") ? (
-          <a
-            href="/login?reauth=1"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ui-action border border-gray-500 underline"
-          >
+          <a href="/login?reauth=1" target="_blank" rel="noopener noreferrer" className="ui-secondary">
             Log in (new tab)
           </a>
         ) : null}

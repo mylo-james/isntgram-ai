@@ -145,10 +145,10 @@ export default function ProfilePage({
 
   return (
     <ErrorBoundary>
-      <div className="mx-auto w-full max-w-[935px] px-5 pb-10 pt-6">
-        <header className="flex flex-col gap-5 pb-8 pt-4 sm:flex-row sm:gap-8">
+      <div className="mx-auto w-full max-w-[935px] px-5 pb-10 pt-8">
+        <header className="flex flex-col gap-5 border-b border-gray-200 pb-7 sm:flex-row sm:items-center sm:gap-8">
           <div className="flex shrink-0 items-center sm:justify-center">
-            <div className="h-[96px] w-[96px] overflow-hidden rounded-full sm:h-[150px] sm:w-[150px]">
+            <div className="h-[96px] w-[96px] overflow-hidden rounded-full bg-gray-100 sm:h-[132px] sm:w-[132px]">
               {profile.profilePictureUrl ? (
                 <Image
                   src={profile.profilePictureUrl}
@@ -167,9 +167,11 @@ export default function ProfilePage({
             </div>
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="break-all text-[28px] font-normal text-[#262626]">{profile.username}</h1>
+              <h1 className="break-all text-2xl font-semibold tracking-tight text-gray-950 sm:text-[28px]">
+                {profile.username}
+              </h1>
               <ProfileActions
                 profile={profile}
                 currentUser={currentUser}
@@ -182,27 +184,27 @@ export default function ProfilePage({
               />
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#262626] sm:gap-10">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600 sm:gap-x-8">
               <span>
-                <span className="font-semibold">{profile.postCount}</span> posts
+                <span className="font-semibold text-gray-950">{profile.postCount}</span> posts
               </span>
               <span>
-                <span className="font-semibold">{profile.followerCount}</span> followers
+                <span className="font-semibold text-gray-950">{profile.followerCount}</span> followers
               </span>
               <span>
-                <span className="font-semibold">{profile.followingCount}</span> following
+                <span className="font-semibold text-gray-950">{profile.followingCount}</span> following
               </span>
             </div>
 
-            <div className="mt-4 space-y-1 text-sm text-[#262626]">
-              <div className="font-semibold">{profile.fullName}</div>
+            <div className="space-y-1 text-sm text-gray-700">
+              <div className="font-semibold text-gray-950">{profile.fullName}</div>
               {profile.bio ? <div className="whitespace-pre-wrap">{profile.bio}</div> : null}
             </div>
           </div>
         </header>
 
-        <div className="border-t border-gray-300 pt-5">
-          <h2 className="text-lg font-semibold">Posts</h2>
+        <div className="pt-6">
+          <h2 className="text-lg font-semibold text-gray-950">Posts</h2>
           {postsError ? (
             <ErrorNotice
               key={postsError}
@@ -224,12 +226,12 @@ export default function ProfilePage({
               ) : null}
             </div>
           ) : (
-            <div className="mt-5 grid grid-cols-3 gap-1 pb-14 sm:gap-6 sm:pb-0">
+            <div className="mt-5 grid grid-cols-3 gap-2 pb-14 sm:gap-4 sm:pb-0">
               {posts.map((post) => (
                 <Link
                   key={post.id}
                   href={`/post/${post.id}`}
-                  className="relative aspect-square w-full overflow-hidden bg-gray-100"
+                  className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100"
                   aria-label={postLinkLabel(post)}
                 >
                   {post.mediaUrl ? (
@@ -241,11 +243,11 @@ export default function ProfilePage({
                       className="object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-gray-600">
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50 px-3 text-center text-xs text-gray-600">
                       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="h-6 w-6 text-gray-400">
                         <path fill="currentColor" d="M4 4h16v2H4V4zm0 4h16v12H4V8zm2 2v8h12v-8H6z" />
                       </svg>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-600">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
                         Text post
                       </span>
                       {post.content ? (

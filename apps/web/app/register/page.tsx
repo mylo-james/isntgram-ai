@@ -12,6 +12,7 @@ import {
   validateUsername,
   ValidationResult,
 } from "@/lib/validation";
+import Brand from "@/components/ui/Brand";
 
 interface FormData {
   email: string;
@@ -168,11 +169,10 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="relative min-h-screen w-full max-w-md bg-white border border-gray-200 shadow-xl z-10">
+      <div className="relative z-10 min-h-screen w-full max-w-md bg-white/95">
         <div className="flex flex-col items-center justify-center min-h-screen px-8 py-12">
           <div className="mb-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="w-48 h-auto object-contain" src="/assets/logo.svg" alt="Isntgram logo" />
+            <Brand className="auth-brand" />
           </div>
 
           <div className="w-full max-w-sm">
@@ -185,7 +185,7 @@ export default function RegisterPage() {
                   Email
                 </label>
                 <input
-                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="ui-field"
                   placeholder="Email"
                   name="email"
                   autoComplete="email"
@@ -212,7 +212,7 @@ export default function RegisterPage() {
                   Full Name
                 </label>
                 <input
-                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="ui-field"
                   placeholder="Full Name"
                   name="fullName"
                   autoComplete="name"
@@ -237,7 +237,7 @@ export default function RegisterPage() {
                   Username
                 </label>
                 <input
-                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="ui-field"
                   placeholder="Username"
                   name="username"
                   autoComplete="username"
@@ -267,7 +267,7 @@ export default function RegisterPage() {
                   Password
                 </label>
                 <input
-                  className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  className="ui-field"
                   placeholder="Password"
                   name="password"
                   autoComplete="new-password"
@@ -285,7 +285,7 @@ export default function RegisterPage() {
                 </p>
                 <button
                   type="button"
-                  className="ui-action mt-1 text-blue-700 underline"
+                  className="ui-quiet mt-1"
                   aria-controls="password"
                   aria-pressed={showPassword}
                   onClick={() => setShowPassword((value) => !value)}
@@ -305,21 +305,14 @@ export default function RegisterPage() {
                 </div>
               ) : null}
 
-              <button
-                className="min-h-11 w-full bg-blue-700 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                type="submit"
-                disabled={isLoading}
-              >
+              <button className="ui-primary w-full" type="submit" disabled={isLoading}>
                 {isLoading ? "Signing up..." : "Sign Up"}
               </button>
             </form>
 
             <div className="mt-6 text-sm text-center">
               <span className="text-gray-600">Have an account? </span>
-              <Link
-                className="text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-200"
-                href="/login"
-              >
+              <Link className="ui-quiet font-semibold" href="/login">
                 Log in
               </Link>
             </div>

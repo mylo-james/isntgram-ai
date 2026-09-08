@@ -115,11 +115,7 @@ export default function ProfileActions({
 
   if (!currentUser) {
     return (
-      <button
-        type="button"
-        onClick={() => router.push("/login")}
-        className="min-h-11 rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50"
-      >
+      <button type="button" onClick={() => router.push("/login")} className="ui-primary">
         Log In
       </button>
     );
@@ -153,7 +149,7 @@ export default function ProfileActions({
             type="button"
             onClick={handleEditProfile}
             disabled={!hydrated || isSigningOut}
-            className="min-h-11 rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-secondary"
           >
             Edit Profile
           </button>
@@ -163,7 +159,7 @@ export default function ProfileActions({
             onClick={() => setConfirmSignOut(true)}
             disabled={!hydrated || isSigningOut}
             aria-label="Log out"
-            className="ui-action rounded-sm text-[#262626] hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-quiet text-gray-700"
           >
             Log out
           </button>
@@ -174,7 +170,7 @@ export default function ProfileActions({
               if (!isSigningOut) setConfirmSignOut(false);
             }}
             aria-labelledby="logout-title"
-            contentClassName="w-full max-w-sm rounded-md bg-white p-6"
+            contentClassName="w-full max-w-sm rounded-2xl bg-white p-6"
           >
             <h2 id="logout-title" className="text-lg font-semibold">
               Log out?
@@ -204,12 +200,7 @@ export default function ProfileActions({
             onClick={handleFollowToggle}
             disabled={!hydrated || isFollowLoading || (followStatus !== "known" && followStatus !== "error")}
             aria-describedby={followError ? "follow-error" : undefined}
-            className={[
-              "min-h-11 rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
-              isFollowing
-                ? "border border-[#dbdbdb] bg-white text-[#262626] hover:bg-gray-50"
-                : "bg-blue-700 text-white hover:bg-[#1877f2]",
-            ].join(" ")}
+            className={["ui-action", isFollowing ? "ui-secondary" : "ui-primary"].join(" ")}
           >
             {isFollowLoading
               ? "Updating..."

@@ -123,14 +123,6 @@ describe("SignOutButton", () => {
   it("applies custom class, secondary variant, and small size through Button", () => {
     render(<SignOutButton className="custom-class" variant="secondary" size="sm" />);
     const button = screen.getByText("Sign Out");
-    expect(button).toHaveClass(
-      "custom-class",
-      "bg-white",
-      "text-gray-800",
-      "border-gray-300",
-      "px-3",
-      "py-1.5",
-      "text-sm",
-    );
+    expect(button).toHaveClass("custom-class", "ui-secondary", "px-3", "py-1.5", "text-sm");
   });
 });
