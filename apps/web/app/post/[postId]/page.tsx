@@ -21,7 +21,7 @@ export default async function PostPage({ params }: PostPageProps) {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
@@ -44,7 +44,8 @@ export default async function PostPage({ params }: PostPageProps) {
     }),
   ]);
 
-  if (postResponse.status === 401 || commentsResponse.status === 401) redirect("/login");
+  if (postResponse.status === 401 || commentsResponse.status === 401)
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   if (postResponse.status === 404) notFound();
   if (!postResponse.ok || !post) throw new Error("Post unavailable");
 

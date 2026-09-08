@@ -53,12 +53,12 @@ describe("FeedPage", () => {
     expect(serverApi.internalApi.GET).not.toHaveBeenCalled();
   });
 
-  it("preserves the login redirect when the session has no API access token", async () => {
+  it("allows reauthentication when the browser session has no API access token", async () => {
     serverApi.getApiAccessToken.mockResolvedValue(null);
 
     await expect(FeedPage()).rejects.toThrow("redirect");
 
-    expect(mockRedirect).toHaveBeenCalledWith("/login");
+    expect(mockRedirect).toHaveBeenCalledWith("/login?reauth=1");
     expect(serverApi.internalApi.GET).not.toHaveBeenCalled();
   });
 
@@ -116,7 +116,7 @@ describe("FeedPage", () => {
   it("redirects a feed 401 through the existing authentication boundary", async () => {
     serverApi.internalApi.GET.mockResolvedValueOnce({ data: null, response: { ok: false, status: 401 } });
     await expect(FeedPage()).rejects.toThrow("redirect");
-    expect(mockRedirect).toHaveBeenCalledWith("/login");
+    expect(mockRedirect).toHaveBeenCalledWith("/login?reauth=1");
     expect(serverApi.internalApi.GET).toHaveBeenCalledTimes(1);
   });
 

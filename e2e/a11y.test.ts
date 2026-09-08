@@ -13,6 +13,7 @@ const account = {
 };
 const content = `TA06 required detail ${runId}`;
 let postId: string;
+let fixtureApiToken: string;
 type Diagnostic = { message: string; url: string };
 const diagnostics = new WeakMap<Page, Diagnostic[]>();
 const expectedFailures = new WeakMap<Page, Set<string>>();
@@ -58,6 +59,7 @@ test.describe("Accessibility (axe-core)", () => {
     expect(login.status()).toBe(200);
     const session = (await login.json()) as { accessToken: string };
     expect(typeof session.accessToken).toBe("string");
+    fixtureApiToken = session.accessToken;
     const post = await request.post(`${apiOrigin}/api/posts`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       data: { content },
@@ -92,7 +94,7 @@ test.describe("Accessibility (axe-core)", () => {
     const unexpected = errors.filter(
       (error) =>
         !(blocked.has(error.url) && error.message.includes("net::ERR_BLOCKED_BY_CLIENT")) &&
-        !(expectedFailures.get(page)?.has(error.url) && error.message.includes("503")),
+        !(expectedFailures.get(page)?.has(error.url) && /\b(401|503)\b/.test(error.message)),
     );
     await testInfo.attach("browser-errors", {
       body: JSON.stringify({
@@ -307,5 +309,39 @@ test.describe("Accessibility (axe-core)", () => {
     await expect(description).toBeDisabled();
     await expectNoA11yViolations(page, "unconfirmed photo recovery");
     await page.screenshot({ path: testInfo.outputPath("photo-recovery.png"), fullPage: true });
+  });
+  test("an API-rejected session can reauthenticate in another tab and retry its retained draft", async ({
+    page,
+    context,
+    request,
+  }) => {
+    await logIn(page);
+    await page.goto(`/post/${postId}`);
+    await expect(page.locator("#comment-draft")).toHaveCount(1);
+    const draft = page.getByLabel("Add a comment", { exact: true });
+    await draft.fill("Keep this draft while I log in again");
+    const revoked = await request.post(`${apiOrigin}/api/auth/logout`, {
+      headers: { Authorization: `Bearer ${fixtureApiToken}` },
+    });
+    expect(revoked.ok()).toBe(true);
+    expectedFailures.get(page)?.add(`http://127.0.0.1:3100/api/bff/posts/${postId}/comments`);
+    await page.getByRole("button", { name: "Post comment", exact: true }).click();
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("Your session has expired");
+    const popupPromise = context.waitForEvent("page");
+    await context.route("https://picsum.photos/**", (route) => route.abort("blockedbyclient"));
+    await page.getByRole("link", { name: "Log in (new tab)" }).click();
+    const recovery = await popupPromise;
+    await expect(recovery).toHaveURL(/\/login\?reauth=1/);
+    await expect(recovery.getByLabel("Email", { exact: true })).toBeEnabled();
+    await expectNoA11yViolations(recovery, "session recovery login");
+    await recovery.getByLabel("Email", { exact: true }).fill(account.email);
+    await recovery.getByLabel("Password", { exact: true }).fill(account.password);
+    await recovery.getByRole("button", { name: "Log In", exact: true }).click();
+    await recovery.waitForURL(/\/feed$/);
+    await recovery.close();
+    await expect(draft).toHaveValue("Keep this draft while I log in again");
+    await page.getByRole("button", { name: "Try posting comment again" }).click();
+    await expect(draft).toHaveValue("");
+    await expect(page.getByRole("list").filter({ hasText: "Keep this draft while I log in again" })).toBeVisible();
   });
 });

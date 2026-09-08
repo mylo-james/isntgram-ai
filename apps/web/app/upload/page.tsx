@@ -10,7 +10,7 @@ export default async function UploadPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const { data, response } = await internalApi.GET("/api/users/me", {

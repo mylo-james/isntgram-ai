@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { NotificationItem } from "@isntgram-ai/shared-types";
+import { ApiRequestError } from "@/lib/api-error";
 
 jest.mock("@/lib/api-client", () => ({
   apiClient: {
@@ -65,6 +66,16 @@ describe("NotificationsClient", () => {
     await waitFor(() => expect(screen.getByText("actor-second")).toBeInTheDocument());
     expect(mockApiClient.getNotifications).toHaveBeenNthCalledWith(1, { cursor: "cursor-2" });
     expect(mockApiClient.getNotifications).toHaveBeenNthCalledWith(2, { cursor: "cursor-2" });
+  });
+
+  it("retains notifications and exposes session recovery when pagination rejects the session", async () => {
+    mockApiClient.getNotifications.mockRejectedValueOnce(new ApiRequestError("Unauthorized", 401));
+    render(<NotificationsClient initialNotifications={{ items: [notification("first")], nextCursor: "cursor-2" }} />);
+    fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Your session has expired"));
+    expect(screen.getByText("actor-first")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Log in (new tab)" })).toHaveAttribute("href", "/login?reauth=1");
+    expect(screen.getByRole("button", { name: /retry load more/i })).toBeEnabled();
   });
 
   it("keeps page order while deduplicating repeated notification IDs", async () => {

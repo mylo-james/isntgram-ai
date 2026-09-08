@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const profileRequest = internalApi
@@ -41,6 +41,7 @@ export default async function NotificationsPage() {
     .catch(() => undefined);
 
   const [profileResult, notificationsResult] = await Promise.all([profileRequest, notificationsRequest]);
+  if (notificationsResult?.response.status === 401) redirect("/login?reauth=1");
   const notifications = notificationsResult?.data;
   const initialLoadError = !notificationsResult?.response.ok || !isNotificationsPayload(notifications);
   const initialNotifications = isNotificationsPayload(notifications)

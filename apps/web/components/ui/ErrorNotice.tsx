@@ -39,7 +39,7 @@ export default function ErrorNotice({
       <div className="flex flex-wrap gap-2">
         {message.startsWith("Your session has expired") ? (
           <a
-            href="/login"
+            href="/login?reauth=1"
             target="_blank"
             rel="noopener noreferrer"
             className="ui-action border border-gray-500 underline"

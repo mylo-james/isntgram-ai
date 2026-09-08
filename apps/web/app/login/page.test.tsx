@@ -471,4 +471,19 @@ describe("LoginPage", () => {
     expect(mockPush).not.toHaveBeenCalledWith("/");
     expect(screen.getByRole("button", { name: /try our demo/i })).toBeEnabled();
   });
+  it("allows reauthentication when Auth.js still has a session after the API rejects it", async () => {
+    const { useSession, signIn } = jest.requireMock("next-auth/react") as { useSession: jest.Mock; signIn: jest.Mock };
+    useSession.mockReturnValue({ data: { user: { id: "existing" } }, status: "authenticated" });
+    mockSearchParams.mockReturnValue(new URLSearchParams("reauth=1"));
+    signIn.mockResolvedValue({ ok: true });
+    render(<LoginPage />);
+    expect(mockPush).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "Password123" } });
+    fireEvent.submit(screen.getByLabelText("Email").closest("form")!);
+    await waitFor(() =>
+      expect(signIn).toHaveBeenCalledWith("credentials", expect.objectContaining({ email: "test@example.com" })),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(/login successful/i);
+  });
 });

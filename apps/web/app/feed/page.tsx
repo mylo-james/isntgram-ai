@@ -50,7 +50,7 @@ export default async function FeedPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
@@ -65,7 +65,7 @@ export default async function FeedPage() {
   }
 
   if (feedResponse?.response.status === 401) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   if (feedResponse?.response.ok && isFeedResponse(feedResponse.data)) {

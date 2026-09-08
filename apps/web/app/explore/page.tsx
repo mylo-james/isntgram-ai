@@ -9,7 +9,7 @@ export default async function ExplorePage() {
   const session = await auth();
   const accessToken = await getApiAccessToken();
   const requestId = await getRequestId();
-  if (!session?.user?.id || !accessToken) redirect("/login");
+  if (!session?.user?.id || !accessToken) redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
 
   const [{ data: me, response: meResponse }, { data: explore, response: exploreResponse }] = await Promise.all([
@@ -21,7 +21,7 @@ export default async function ExplorePage() {
   const profileHref =
     meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
 
-  if (exploreResponse.status === 401) redirect("/login");
+  if (exploreResponse.status === 401) redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   if (!exploreResponse.ok || !explore) throw new Error("Explore unavailable");
   const initialExplore = (explore ?? { items: [] }) as FeedResponse;
 

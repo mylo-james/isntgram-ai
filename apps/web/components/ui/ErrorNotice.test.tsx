@@ -27,7 +27,7 @@ describe("recoverable errors", () => {
   it("offers a new-tab login that leaves the current draft on screen", () => {
     const message = userError(new ApiRequestError("Internal auth detail", 401), "Fallback");
     render(<ErrorNotice message={message} />);
-    expect(screen.getByRole("link", { name: "Log in (new tab)" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Log in (new tab)" })).toHaveAttribute("href", "/login?reauth=1");
     expect(screen.getByRole("link")).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("alert")).not.toHaveTextContent("Internal auth detail");
   });

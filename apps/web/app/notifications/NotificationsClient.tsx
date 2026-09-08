@@ -1,5 +1,6 @@
 "use client";
 
+import { userError } from "@/lib/user-error";
 import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -61,6 +62,7 @@ export default function NotificationsClient({
   const [items, setItems] = useState<NotificationItem[]>(initialNotifications.items);
   const [nextCursor, setNextCursor] = useState<string | undefined>(initialNotifications.nextCursor);
   const [loadError, setLoadError] = useState<LoadError>(initialLoadError ? "initial" : null);
+  const [requestError, setRequestError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadNotifications = useCallback(async () => {
@@ -75,7 +77,16 @@ export default function NotificationsClient({
       setItems((previous) => mergeNotifications(previous, response.items));
       setNextCursor(response.nextCursor);
       setLoadError(null);
-    } catch {
+      setRequestError(null);
+    } catch (error) {
+      setRequestError(
+        userError(
+          error,
+          cursor
+            ? "We couldn’t load more notifications. Your earlier notifications are still here."
+            : "We couldn’t load your notifications. Please try again.",
+        ),
+      );
       setLoadError(cursor ? "more" : "initial");
     } finally {
       setIsLoading(false);
@@ -85,7 +96,7 @@ export default function NotificationsClient({
   if (loadError === "initial" && items.length === 0) {
     return (
       <ErrorNotice
-        message="We couldn’t load your notifications. Please try again."
+        message={requestError ?? "We couldn’t load your notifications. Please try again."}
         onRetry={() => void loadNotifications()}
         pending={isLoading}
         retryLabel="Retry notifications"
@@ -150,7 +161,7 @@ export default function NotificationsClient({
 
       {loadError === "more" ? (
         <ErrorNotice
-          message="We couldn’t load more notifications. Your earlier notifications are still here."
+          message={requestError ?? "We couldn’t load more notifications. Your earlier notifications are still here."}
           onRetry={() => void loadNotifications()}
           pending={isLoading}
           retryLabel="Retry load more"

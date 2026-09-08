@@ -28,7 +28,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
 
   // Match legacy parity: profile pages require auth.
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const viewerHeaders = {
@@ -50,7 +50,8 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
       }),
     ]);
 
-  if (profileResponse.status === 401 || postsResponse.status === 401) redirect("/login");
+  if (profileResponse.status === 401 || postsResponse.status === 401)
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   if (profileResponse.status === 404) notFound();
   if (!profileResponse.ok || !profileData) throw new Error("Profile unavailable");
 

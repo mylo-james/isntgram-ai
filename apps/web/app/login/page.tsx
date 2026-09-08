@@ -22,6 +22,7 @@ function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const reauthenticate = searchParams.get("reauth") === "1";
   const demoEnabled = process.env.NEXT_PUBLIC_DEMO_ENABLED === "true";
 
   const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
@@ -73,10 +74,10 @@ function LoginInner() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (status === "authenticated" && session) {
+    if (status === "authenticated" && session && !reauthenticate) {
       router.push("/");
     }
-  }, [status, session, router]);
+  }, [status, session, router, reauthenticate]);
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     const nextValue = field === "email" ? value.toLowerCase() : value;
@@ -214,6 +215,11 @@ function LoginInner() {
 
           <div className="w-full max-w-sm">
             <h1 className="page-heading mb-6">Log in</h1>
+            {reauthenticate ? (
+              <p className="mb-4 text-sm text-gray-700">
+                Log in again to continue. Your draft in the other tab will stay there.
+              </p>
+            ) : null}
             <div className="w-full space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {!isClientReady ? (
