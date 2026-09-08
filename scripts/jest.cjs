@@ -79,7 +79,12 @@ if (serializedNodeOptions) {
 }
 
 const jestBin = require.resolve("jest/bin/jest");
-const result = spawnSync(process.execPath, [jestBin, ...process.argv.slice(2)], {
+// pnpm can forward its option separator to this script. Consume that boundary
+// so options such as --runInBand still reach Jest as options.
+const jestArgs = process.argv.slice(2);
+const separatorIndex = jestArgs.indexOf("--");
+if (separatorIndex !== -1) jestArgs.splice(separatorIndex, 1);
+const result = spawnSync(process.execPath, [jestBin, ...jestArgs], {
   env,
   stdio: "inherit",
 });

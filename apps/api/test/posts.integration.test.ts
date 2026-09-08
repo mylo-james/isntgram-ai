@@ -20,8 +20,16 @@ import { ConfigModule } from '@nestjs/config';
 import { PostsService } from '../src/posts/posts.service';
 import { AuthService } from '../src/auth/auth.service';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { selectTestDatabase } = require('./test-database-target.cjs') as {
+  selectTestDatabase: (
+    env: NodeJS.ProcessEnv,
+  ) => { kind: 'sqlite' } | { kind: 'postgres'; url: string };
+};
+
 describe('Posts Integration Tests', () => {
   let app: INestApplication;
+  let isPostgres = false;
   let userRepository: Repository<User>;
   let postRepository: Repository<Post>;
   let followRepository: Repository<Follow>;
@@ -33,12 +41,17 @@ describe('Posts Integration Tests', () => {
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
+    const selectedDatabase = selectTestDatabase(process.env);
+    isPostgres = selectedDatabase.kind === 'postgres';
+    const databaseConnection =
+      selectedDatabase.kind === 'postgres'
+        ? { type: 'postgres' as const, url: selectedDatabase.url }
+        : { type: 'sqlite' as const, database: ':memory:' };
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
+          ...databaseConnection,
           entities: [
             User,
             Post,
@@ -101,6 +114,10 @@ describe('Posts Integration Tests', () => {
   });
 
   beforeEach(async () => {
+    if (isPostgres) {
+      await userRepository.query('TRUNCATE TABLE "users" CASCADE');
+      return;
+    }
     // Ensure tests are isolated.
     await notificationRepository.clear();
     await commentLikeRepository.clear();
@@ -112,7 +129,7 @@ describe('Posts Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   async function createActor(

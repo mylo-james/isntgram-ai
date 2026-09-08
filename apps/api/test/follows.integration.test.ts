@@ -15,20 +15,33 @@ import { Notification } from '../src/notifications/entities/notification.entity'
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { selectTestDatabase } = require('./test-database-target.cjs') as {
+  selectTestDatabase: (
+    env: NodeJS.ProcessEnv,
+  ) => { kind: 'sqlite' } | { kind: 'postgres'; url: string };
+};
+
 describe('Follows Integration Tests', () => {
   let app: INestApplication;
+  let isPostgres = false;
   let userRepository: Repository<User>;
   let followRepository: Repository<Follow>;
   let notificationRepository: Repository<Notification>;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
+    const selectedDatabase = selectTestDatabase(process.env);
+    isPostgres = selectedDatabase.kind === 'postgres';
+    const databaseConnection =
+      selectedDatabase.kind === 'postgres'
+        ? { type: 'postgres' as const, url: selectedDatabase.url }
+        : { type: 'sqlite' as const, database: ':memory:' };
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
+          ...databaseConnection,
           entities: [User, Post, Like, Comment, Follow, Notification],
           synchronize: true,
         }),
@@ -68,13 +81,17 @@ describe('Follows Integration Tests', () => {
   });
 
   beforeEach(async () => {
+    if (isPostgres) {
+      await userRepository.query('TRUNCATE TABLE "users" CASCADE');
+      return;
+    }
     await notificationRepository.clear();
     await followRepository.clear();
     await userRepository.clear();
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('requires auth for follow status', async () => {

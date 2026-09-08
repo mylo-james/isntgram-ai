@@ -47,3 +47,28 @@ test("actual Jest launcher rejects a foreign target before Jest loads", () => {
   assert.equal(result.stderr.includes(marker), false);
   assert.match(result.stderr, /refus|test|database/i);
 });
+
+test("package-manager separators do not turn Jest options into test patterns", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, "jest.cjs"),
+      "--selectProjects",
+      "api",
+      "--showConfig",
+      "--testPathPatterns",
+      "integration",
+      "--",
+      "--runInBand",
+    ],
+    {
+      env: { PATH: process.env.PATH, HOME: process.env.HOME },
+      encoding: "utf8",
+      timeout: 10000,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(result.stdout);
+  assert.equal(config.globalConfig.maxWorkers, 1);
+  assert.deepEqual(config.globalConfig.testPathPatterns, ["integration"]);
+});
