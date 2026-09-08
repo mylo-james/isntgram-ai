@@ -112,12 +112,15 @@ test.describe("Accessibility (axe-core)", () => {
   test("login page has no WCAG A/AA violations", async ({ page }, testInfo) => {
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /log in/i })).toBeVisible();
-    const logoDots = page.locator(".brand-mark .circle-loader-dot");
+    const logoDots = page
+      .getByRole("link", { name: "Isntgram home", exact: true })
+      .locator(".brand-mark .circle-loader-dot");
     const positions = () =>
       logoDots.evaluateAll((dots) =>
         dots.map((dot) => {
           const { x, y } = dot.getBoundingClientRect();
-          return { x, y };
+          const origin = dot.closest(".brand-motion")!.getBoundingClientRect();
+          return { x: x - origin.x, y: y - origin.y };
         }),
       );
     const logo = page.getByRole("link", { name: "Isntgram home", exact: true });
@@ -140,10 +143,13 @@ test.describe("Accessibility (axe-core)", () => {
     await logo.evaluate((node) => node.getAnimations({ subtree: true }).forEach((animation) => animation.play()));
     await expect.poll(positions).not.toEqual(openPositions);
     await page.getByRole("heading", { name: "Log in", exact: true }).hover();
+    await page.waitForTimeout(4100);
     expect(await positions()).toEqual(openPositions);
     await logo.focus();
     await expect.poll(positions).not.toEqual(openPositions);
     await page.getByLabel("Email", { exact: true }).focus();
+    await expect(logo).toHaveAttribute("data-animating", "true");
+    await expect(logo).toHaveAttribute("data-animating", "false", { timeout: 5000 });
     expect(await positions()).toEqual(openPositions);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await logo.hover();
@@ -185,9 +191,20 @@ test.describe("Accessibility (axe-core)", () => {
     await page.goto(`/post/${postId}`);
     await expect(page).toHaveURL(new RegExp(`/post/${postId}$`));
     await expect(page.getByRole("article")).toContainText(content);
-    await expect(page.getByPlaceholder(/add a comment/i)).toHaveCount(1);
-    await expect(page.getByPlaceholder(/add a comment/i)).toBeVisible();
-    await expect(page.getByPlaceholder(/add a comment/i)).toBeEnabled();
+    await expect(page.getByRole("textbox", { name: "Add a comment", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    const commentEditor = page.getByRole("textbox", { name: "Add a comment", exact: true });
+    await expect(commentEditor).toBeVisible();
+    await expect(commentEditor).toBeFocused();
+    expect(
+      await commentEditor.evaluate((editor) => {
+        const composer = editor.closest("#comment-composer");
+        const comments = composer?.parentElement?.querySelector("ul");
+        return Boolean(
+          composer && (!comments || composer.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING),
+        );
+      }),
+    ).toBe(true);
     await expectNoA11yViolations(page, "/post/[postId]");
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("required-post-detail.png"), fullPage: true });
@@ -213,7 +230,7 @@ test.describe("Accessibility (axe-core)", () => {
     await logIn(page);
     for (const path of ["/feed", "/explore", "/notifications", "/upload", `/${account.username}`, `/post/${postId}`]) {
       await page.goto(path);
-      await expect(page.locator("h1")).toHaveCount(1);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByRole("banner").locator(".brand-mark")).toBeVisible();
       await expect(page.getByRole("banner").locator(".brand-mark .circle-loader-dot")).toHaveCount(8);
@@ -221,7 +238,7 @@ test.describe("Accessibility (axe-core)", () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const nav = page.getByRole("navigation");
       await expect(nav).toBeVisible();
-      const targets = await nav.getByRole("link").evaluateAll((links) =>
+      const targets = await nav.locator("a, button").evaluateAll((links) =>
         links.map((link) => ({
           width: link.getBoundingClientRect().width,
           height: link.getBoundingClientRect().height,
@@ -229,8 +246,13 @@ test.describe("Accessibility (axe-core)", () => {
       );
       expect(targets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
       expect(await nav.getByRole("link").allTextContents()).toEqual(["", "", "", "", ""]);
+      await nav.getByRole("button", { name: "Log out", exact: true }).click();
+      const navLogout = page.getByRole("dialog", { name: "Log out?", exact: true });
+      await expect(navLogout).toBeVisible();
+      await navLogout.getByRole("button", { name: "Stay logged in", exact: true }).click();
+      await expect(nav.getByRole("button", { name: "Log out", exact: true })).toBeFocused();
       if (path === "/feed" || path.startsWith("/post/")) {
-        const action = page.locator(".post-actions button").first();
+        const action = page.getByRole("main").locator(".post-actions button").first();
         await action.focus();
         await expect(action).toBeFocused();
         expect(
@@ -258,14 +280,20 @@ test.describe("Accessibility (axe-core)", () => {
     await expect(page.getByRole("button", { name: "More options" })).toBeFocused();
     await page.goto(`/${account.username}`);
     await page.getByRole("button", { name: "Edit Profile", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Edit Profile" })).toBeVisible();
+    const profileEditor = page.getByRole("dialog", { name: "Edit Profile" });
+    await expect(profileEditor).toBeVisible();
+    await expect(profileEditor.locator('input[type="file"]')).toBeAttached();
+    await expect(profileEditor.getByRole("button", { name: "Change profile photo", exact: true })).toBeVisible();
     await expectNoA11yViolations(page, "edit profile");
     await page.getByLabel("Full Name", { exact: true }).fill("Unsubmitted changes");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Edit Profile", exact: true })).toBeFocused();
     await page.getByRole("button", { name: "Log out", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Log out?" })).toBeVisible();
-    await page.getByRole("button", { name: "Stay logged in" }).click();
+    const signOutDialog = page.getByRole("dialog", { name: "Log out?", exact: true });
+    await expect(signOutDialog).toBeVisible();
+    expect(await signOutDialog.evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
+    await expect(signOutDialog.getByRole("button", { name: "Log out", exact: true })).toBeVisible();
+    await signOutDialog.getByRole("button", { name: "Stay logged in", exact: true }).click();
     await expect(page.getByRole("button", { name: "Log out", exact: true })).toBeFocused();
   });
 
@@ -284,8 +312,9 @@ test.describe("Accessibility (axe-core)", () => {
           })
         : route.continue(),
     );
-    const draft = page.getByLabel("Add a comment", { exact: true });
-    await expect(page.locator("#comment-help")).toHaveText("0/1000");
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    const draft = page.getByRole("textbox", { name: "Add a comment", exact: true });
+    await expect(page.getByRole("main").locator("#comment-help")).toHaveText("0/1000");
     await draft.fill("Keep this comment through the outage");
     await page.getByRole("button", { name: "Post comment", exact: true }).click();
     await expect(page.getByRole("main").getByRole("alert")).toContainText("Your comment wasn’t added");
@@ -296,17 +325,25 @@ test.describe("Accessibility (axe-core)", () => {
     await expect(draft).toHaveValue("");
     await expect(page.getByRole("list").filter({ hasText: "Keep this comment through the outage" })).toBeVisible();
     await page.goto("/upload");
-    await page.getByLabel("Post text (required)", { exact: true }).fill("A day outside");
-    await page.getByLabel("Photo (optional)", { exact: true }).setInputFiles({
-      name: "boat.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==",
-        "base64",
-      ),
-    });
+    await expect(page.getByRole("textbox", { name: "Caption", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Choose photo", exact: true }).click();
+    await page
+      .getByRole("main")
+      .getByLabel("Choose photo", { exact: true })
+      .setInputFiles({
+        name: "boat.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+    const caption = page.getByRole("textbox", { name: "Caption", exact: true });
+    await expect(caption).toBeVisible();
+    await caption.fill("A day outside");
+    await expect(page.getByText(/\(required\)/)).toHaveCount(0);
     await page.getByRole("button", { name: "Publish post", exact: true }).click();
-    const description = page.getByLabel("Photo description (required with a photo)", { exact: true });
+    const description = page.getByRole("textbox", { name: "Photo description", exact: true });
     await expect(description).toBeFocused();
     await expect(description).toHaveAttribute("aria-invalid", "true");
     await description.fill("A red boat on a lake");
@@ -377,8 +414,10 @@ test.describe("Accessibility (axe-core)", () => {
   }) => {
     await logIn(page);
     await page.goto(`/post/${postId}`);
-    await expect(page.locator("#comment-draft")).toHaveCount(1);
-    const draft = page.getByLabel("Add a comment", { exact: true });
+    await expect(page.getByRole("textbox", { name: "Add a comment", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Add a comment", exact: true })).toHaveCount(1);
+    const draft = page.getByRole("textbox", { name: "Add a comment", exact: true });
     await draft.fill("Keep this draft while I log in again");
     const revoked = await request.post(`${apiOrigin}/api/auth/logout`, {
       headers: { Authorization: `Bearer ${fixtureApiToken}` },

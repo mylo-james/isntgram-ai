@@ -140,13 +140,21 @@ describe("apiClient", () => {
       ),
     );
 
-    const result = await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+    const result = await apiClient.updateProfile({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
     expect(result.username).toBe("newuser");
 
     const req = getLastRequest();
     expect(req.method).toBe("PUT");
     expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/profile");
-    await expect(readRequestJson(req)).resolves.toEqual({ fullName: "New Name", username: "newuser" });
+    await expect(readRequestJson(req)).resolves.toEqual({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
   });
 
   it("adds CSRF header for state-changing requests when cookie is present", async () => {

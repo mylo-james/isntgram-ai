@@ -100,7 +100,11 @@ export const apiClient = {
     );
   },
 
-  async updateProfile(data: { fullName: string; username: string }): Promise<PrivateUserProfile> {
+  async updateProfile(data: {
+    fullName: string;
+    username: string;
+    profilePictureUploadId?: string;
+  }): Promise<PrivateUserProfile> {
     return unwrap<PrivateUserProfile>(
       client.PUT("/users/profile", {
         body: data,

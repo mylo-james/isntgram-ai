@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
-import { signOut } from "next-auth/react";
-import Button from "@/components/ui/Button";
-import Dialog from "@/components/ui/Dialog";
 import ErrorNotice from "@/components/ui/ErrorNotice";
 import { userError } from "@/lib/user-error";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -15,7 +12,7 @@ interface ProfileActionsProps {
   profile: PublicUserProfile;
   currentUser?: Session["user"] | null;
   isOwnProfile: boolean;
-  onProfileUpdated?: (profile: { fullName: string; username: string }) => void;
+  onProfileUpdated?: (profile: { fullName: string; username: string; profilePictureUrl?: string }) => void;
   isFollowing?: boolean | null;
   followStatus?: "unresolved" | "known" | "error";
   onFollowChange?: (isFollowing: boolean) => void;
@@ -34,10 +31,12 @@ export default function ProfileActions({
 }: ProfileActionsProps) {
   const [hydrated, setHydrated] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
+  const [editInitial, setEditInitial] = useState({
+    fullName: profile.fullName,
+    username: profile.username,
+    profilePictureUrl: profile.profilePictureUrl,
+  });
   const [followError, setFollowError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -50,11 +49,19 @@ export default function ProfileActions({
     try {
       if (currentUser?.id) {
         const me = await apiClient.getMyProfile();
-        setEditInitial({ fullName: me.fullName, username: me.username });
+        setEditInitial({
+          fullName: me.fullName,
+          username: me.username,
+          profilePictureUrl: me.profilePictureUrl,
+        });
       }
     } catch {
       // If fetch fails, keep existing initial values
-      setEditInitial({ fullName: profile.fullName, username: profile.username });
+      setEditInitial({
+        fullName: profile.fullName,
+        username: profile.username,
+        profilePictureUrl: profile.profilePictureUrl,
+      });
     } finally {
       setIsEditOpen(true);
     }
@@ -99,14 +106,19 @@ export default function ProfileActions({
     return res.available || normalized === profile.username; // allow unchanged
   };
 
-  const submitEdit = async (values: { fullName: string; username: string }) => {
+  const submitEdit = async (values: { fullName: string; username: string; profilePictureUploadId?: string }) => {
     if (!currentUser?.id) return;
     const updated = await apiClient.updateProfile({
       fullName: values.fullName.trim(),
       username: values.username.trim().toLowerCase(),
+      ...(values.profilePictureUploadId ? { profilePictureUploadId: values.profilePictureUploadId } : {}),
     });
     setIsEditOpen(false);
-    onProfileUpdated?.({ fullName: updated.fullName, username: updated.username });
+    onProfileUpdated?.({
+      fullName: updated.fullName,
+      username: updated.username,
+      profilePictureUrl: updated.profilePictureUrl,
+    });
     router.refresh();
     if (updated.username !== profile.username) {
       router.push(`/${updated.username}`);
@@ -121,70 +133,13 @@ export default function ProfileActions({
     );
   }
 
-  const handleSignOut = async () => {
-    if (isSigningOut) return;
-    setIsSigningOut(true);
-    try {
-      await apiClient.logout().catch((error) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.error("Logout API error:", error);
-        }
-      });
-
-      await signOut({
-        redirect: false,
-        callbackUrl: "/login",
-      });
-    } finally {
-      router.push("/login");
-      setIsSigningOut(false);
-    }
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isOwnProfile ? (
         <>
-          <button
-            type="button"
-            onClick={handleEditProfile}
-            disabled={!hydrated || isSigningOut}
-            className="ui-secondary"
-          >
+          <button type="button" onClick={handleEditProfile} disabled={!hydrated} className="ui-secondary">
             Edit Profile
           </button>
-
-          <button
-            type="button"
-            onClick={() => setConfirmSignOut(true)}
-            disabled={!hydrated || isSigningOut}
-            aria-label="Log out"
-            className="ui-quiet text-gray-700"
-          >
-            Log out
-          </button>
-
-          <Dialog
-            open={confirmSignOut}
-            onClose={() => {
-              if (!isSigningOut) setConfirmSignOut(false);
-            }}
-            aria-labelledby="logout-title"
-            contentClassName="w-full max-w-sm rounded-2xl bg-white p-6"
-          >
-            <h2 id="logout-title" className="text-lg font-semibold">
-              Log out?
-            </h2>
-            <p className="my-4">You can log in again to return to your account.</p>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" disabled={isSigningOut} onClick={() => setConfirmSignOut(false)}>
-                Stay logged in
-              </Button>
-              <Button loading={isSigningOut} onClick={() => void handleSignOut()}>
-                Log out
-              </Button>
-            </div>
-          </Dialog>
           <EditProfileModal
             open={isEditOpen}
             onClose={() => setIsEditOpen(false)}

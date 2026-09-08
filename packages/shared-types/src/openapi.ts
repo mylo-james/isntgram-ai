@@ -529,6 +529,11 @@ export interface components {
     UpdateProfileDto: {
       fullName: string;
       username: string;
+      /**
+       * Format: uuid
+       * @description Owned image upload intent to use as this profile photo.
+       */
+      profilePictureUploadId?: string;
     };
     PostAuthorDto: {
       /** @example b6cf7a42-3f7a-4a7b-97a2-6c8a13d7b56e */

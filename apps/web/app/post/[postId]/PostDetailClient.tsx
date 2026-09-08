@@ -5,7 +5,7 @@ import { userError } from "@/lib/user-error";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient, type Comment, type PostItem } from "@/lib/api-client";
 import PostOptions from "@/components/posts/PostOptions";
@@ -27,11 +27,13 @@ export default function PostDetailClient({
   initialComments,
   initialCursor,
   initialCommentsError = false,
+  viewerId,
 }: {
   post: PostItem;
   initialComments: Comment[];
   initialCursor?: string;
   initialCommentsError?: boolean;
+  viewerId?: string;
 }) {
   const [likedByViewer, setLikedByViewer] = useState(Boolean(post.likedByViewer));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
@@ -44,12 +46,20 @@ export default function PostDetailClient({
   const [commentsLoadError, setCommentsLoadError] = useState(initialCommentsError);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
+  const [commentOpen, setCommentOpen] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [pendingCommentLikes, setPendingCommentLikes] = useState<Record<string, boolean>>({});
   const [failedReaction, setFailedReaction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!commentOpen) return;
+    commentInputRef.current?.focus();
+    commentInputRef.current?.scrollIntoView({ block: "center" });
+  }, [commentOpen]);
 
   const createdAtLabel = useMemo(() => formatDateLabel(post.createdAt), [post.createdAt]);
 
@@ -65,8 +75,11 @@ export default function PostDetailClient({
   const commentsChronological = useMemo(() => {
     const list = comments ?? [];
     if (list.length === 0) return [];
-    return [...list].reverse();
-  }, [comments]);
+    return [
+      ...list.filter((comment) => comment.author.id === viewerId),
+      ...[...list].reverse().filter((comment) => comment.author.id !== viewerId),
+    ];
+  }, [comments, viewerId]);
 
   const handleToggleLike = async () => {
     if (isLiking) return;
@@ -95,10 +108,7 @@ export default function PostDetailClient({
   };
 
   const handleFocusComment = () => {
-    const input = commentInputRef.current;
-    if (!input) return;
-    input.focus();
-    input.scrollIntoView({ block: "center" });
+    setCommentOpen((open) => !open);
   };
 
   const handleLoadMoreComments = useCallback(async () => {
@@ -250,7 +260,7 @@ export default function PostDetailClient({
       ) : null}
 
       <div className="post-body">
-        <div className="post-actions">
+        <div className="post-actions justify-end">
           <button
             type="button"
             onClick={handleToggleLike}
@@ -273,8 +283,11 @@ export default function PostDetailClient({
           </button>
 
           <button
+            ref={commentButtonRef}
             type="button"
             aria-label="Comment"
+            aria-expanded={commentOpen}
+            aria-controls="comment-composer"
             title="Comment"
             onClick={handleFocusComment}
             className="ui-action post-action"
@@ -307,127 +320,133 @@ export default function PostDetailClient({
             retryLabel="Retry like"
           />
         ) : null}
-        {commentsChronological.length > 0 || commentsLoading || commentsLoadError ? (
-          <section className="mt-4 space-y-4 border-t border-gray-200 pt-4" aria-labelledby="comments-heading">
-            <h2 id="comments-heading" className="sr-only">
-              Comments ({commentCount})
-            </h2>
-            {commentsChronological.length > 0 ? (
-              <ul className="space-y-2">
-                {commentsChronological.map((comment) => (
-                  <li key={comment.id} className="flex items-start justify-between gap-3 text-sm text-gray-800">
-                    <div className="min-w-0">
-                      <Link href={`/${comment.author.username}`} className="font-semibold text-gray-900">
-                        {comment.author.username}
-                      </Link>{" "}
-                      {comment.content}
-                      {error && failedReaction === comment.id ? (
-                        <ErrorNotice
-                          key={error}
-                          message={error}
-                          onRetry={() => void handleToggleCommentLike(comment.id)}
-                          pending={Boolean(pendingCommentLikes[comment.id])}
-                          retryLabel="Retry comment like"
-                        />
-                      ) : null}
-                      {comment.likeCount ? (
-                        <div className="mt-1 text-xs text-gray-500">{comment.likeCount} likes</div>
-                      ) : null}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCommentLike(comment.id)}
-                      disabled={Boolean(pendingCommentLikes[comment.id])}
-                      aria-pressed={Boolean(comment.likedByViewer)}
-                      aria-label={comment.likedByViewer ? "Unlike comment" : "Like comment"}
-                      className={[
-                        "ui-action shrink-0 transition-transform duration-150 active:scale-95",
-                        pendingCommentLikes[comment.id] ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
-                      ].join(" ")}
-                    >
-                      <HeartIcon
-                        filled={Boolean(comment.likedByViewer)}
-                        className={comment.likedByViewer ? "h-4 w-4 text-[#ed4956]" : "h-4 w-4 text-[#262626]"}
-                      />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {commentsLoading ? <p className="text-sm text-gray-500">Loading...</p> : null}
-
-            {commentsLoadError ? (
-              <ErrorNotice
-                message="Comments couldn’t load. Earlier comments are still here. Try again."
-                onRetry={() => void handleLoadMoreComments()}
-                pending={commentsLoading}
-                retryLabel="Retry comments"
-              />
-            ) : null}
-            {commentsCursor && !commentsLoadError ? (
-              <button
-                type="button"
-                onClick={handleLoadMoreComments}
-                disabled={commentsLoading}
-                className="ui-secondary"
-              >
-                {commentsLoading ? "Loading..." : "Load more comments"}
-              </button>
-            ) : null}
-          </section>
-        ) : null}
-
-        <div className="mt-4 border-t border-gray-200 pt-3">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleSubmitComment();
-            }}
-            className="space-y-3"
-          >
-            <label htmlFor="comment-draft" className="sr-only">
-              Add a comment
-            </label>
-            <textarea
-              id="comment-draft"
-              ref={commentInputRef}
-              value={commentDraft}
-              onChange={(event) => setCommentDraft(event.target.value)}
-              placeholder="Add a comment..."
-              aria-invalid={Boolean(commentError)}
-              aria-describedby={commentError ? "comment-help comment-error" : "comment-help"}
-              className="ui-field min-h-24"
-              maxLength={1000}
-              disabled={isSubmittingComment}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <section
+          className={
+            commentOpen || commentsChronological.length > 0 || commentsLoading || commentsLoadError
+              ? "mt-4 space-y-4 border-t border-gray-200 pt-4"
+              : ""
+          }
+          aria-labelledby="comments-heading"
+        >
+          <h2 id="comments-heading" className="sr-only">
+            Comments ({commentCount})
+          </h2>
+          <div id="comment-composer" hidden={!commentOpen} className="mb-4">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmitComment();
+              }}
+              className="space-y-3"
+            >
+              <label htmlFor="comment-draft" className="sr-only">
+                Add a comment
+              </label>
+              <div className="flex items-start gap-2">
+                <textarea
+                  id="comment-draft"
+                  ref={commentInputRef}
+                  value={commentDraft}
+                  onChange={(event) => setCommentDraft(event.target.value)}
+                  placeholder="Add a comment..."
+                  aria-invalid={Boolean(commentError)}
+                  aria-describedby={commentError ? "comment-help comment-error" : "comment-help"}
+                  className="ui-field min-w-0 flex-1"
+                  rows={2}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+                      setCommentOpen(false);
+                      commentButtonRef.current?.focus();
+                    }
+                  }}
+                  maxLength={1000}
+                  disabled={isSubmittingComment}
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmittingComment || commentDraft.trim().length === 0}
+                  className="ui-primary"
+                  aria-label={isSubmittingComment ? "Posting comment" : "Post comment"}
+                >
+                  {isSubmittingComment ? "Posting..." : "Post"}
+                </button>
+              </div>
               <p id="comment-help" className="text-xs text-gray-600">
                 {commentDraft.length}/1000
               </p>
-              <button
-                type="submit"
-                disabled={isSubmittingComment || commentDraft.trim().length === 0}
-                className="ui-primary"
-                aria-label={isSubmittingComment ? "Posting comment" : "Post comment"}
-              >
-                {isSubmittingComment ? "Posting..." : "Post"}
-              </button>
-            </div>
-          </form>
+            </form>
 
-          {commentError ? (
+            {commentError ? (
+              <ErrorNotice
+                id="comment-error"
+                key={commentError}
+                message={commentError}
+                onRetry={() => void handleSubmitComment()}
+                pending={isSubmittingComment}
+                retryLabel="Try posting comment again"
+              />
+            ) : null}
+          </div>
+          {commentsChronological.length > 0 ? (
+            <ul className="space-y-2">
+              {commentsChronological.map((comment) => (
+                <li key={comment.id} className="flex items-start justify-between gap-3 text-sm text-gray-800">
+                  <div className="min-w-0">
+                    <Link href={`/${comment.author.username}`} className="font-semibold text-gray-900">
+                      {comment.author.username}
+                    </Link>{" "}
+                    {comment.content}
+                    {error && failedReaction === comment.id ? (
+                      <ErrorNotice
+                        key={error}
+                        message={error}
+                        onRetry={() => void handleToggleCommentLike(comment.id)}
+                        pending={Boolean(pendingCommentLikes[comment.id])}
+                        retryLabel="Retry comment like"
+                      />
+                    ) : null}
+                    {comment.likeCount ? (
+                      <div className="mt-1 text-xs text-gray-500">{comment.likeCount} likes</div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCommentLike(comment.id)}
+                    disabled={Boolean(pendingCommentLikes[comment.id])}
+                    aria-pressed={Boolean(comment.likedByViewer)}
+                    aria-label={comment.likedByViewer ? "Unlike comment" : "Like comment"}
+                    className={[
+                      "ui-action shrink-0 transition-transform duration-150 active:scale-95",
+                      pendingCommentLikes[comment.id] ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
+                    ].join(" ")}
+                  >
+                    <HeartIcon
+                      filled={Boolean(comment.likedByViewer)}
+                      className={comment.likedByViewer ? "h-4 w-4 text-[#ed4956]" : "h-4 w-4 text-[#262626]"}
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {commentsLoading ? <p className="text-sm text-gray-500">Loading...</p> : null}
+
+          {commentsLoadError ? (
             <ErrorNotice
-              id="comment-error"
-              key={commentError}
-              message={commentError}
-              onRetry={() => void handleSubmitComment()}
-              pending={isSubmittingComment}
-              retryLabel="Try posting comment again"
+              message="Comments couldn’t load. Earlier comments are still here. Try again."
+              onRetry={() => void handleLoadMoreComments()}
+              pending={commentsLoading}
+              retryLabel="Retry comments"
             />
           ) : null}
-        </div>
+          {commentsCursor && !commentsLoadError ? (
+            <button type="button" onClick={handleLoadMoreComments} disabled={commentsLoading} className="ui-secondary">
+              {commentsLoading ? "Loading..." : "Load more comments"}
+            </button>
+          ) : null}
+        </section>
       </div>
 
       {menuOpen ? <PostOptions postId={post.id} open={menuOpen} onClose={() => setMenuOpen(false)} /> : null}

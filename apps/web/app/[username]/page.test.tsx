@@ -4,6 +4,7 @@ import UserProfilePage, { generateMetadata } from "./page";
 
 jest.mock("next/navigation", () => ({
   usePathname: () => "/testuser",
+  useRouter: () => ({ push: jest.fn() }),
   notFound: jest.fn(),
   redirect: jest.fn(),
 }));

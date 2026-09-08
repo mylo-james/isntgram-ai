@@ -207,6 +207,7 @@ export class PostsService {
               id: prepared.uploadId,
               ownerId: authorId,
               postId: IsNull(),
+              profilePictureUserId: IsNull(),
               expiresAt: MoreThan(new Date()),
             },
             {
@@ -524,7 +525,7 @@ export class PostsService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
     };
   }
 

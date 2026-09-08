@@ -186,6 +186,25 @@ describe('PostsService', () => {
     };
   };
 
+  it('projects canonical author avatar URLs in post DTOs', () => {
+    const { service, mediaService } = makeService();
+    const canonical =
+      'http://127.0.0.1:48333/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    const display =
+      'https://phone.example:9444/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    mediaService.toDisplayUrl.mockReturnValue(display);
+
+    expect(
+      (service as any).toAuthorDto({
+        ...makeAuthor('1'),
+        profilePictureUrl: canonical,
+      }),
+    ).toMatchObject({
+      profilePictureUrl: display,
+    });
+    expect(mediaService.toDisplayUrl).toHaveBeenCalledWith(canonical);
+  });
+
   describe('verified photo publication', () => {
     const prepared = {
       uploadId: 'upload-1',

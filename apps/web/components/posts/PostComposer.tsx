@@ -12,6 +12,7 @@ import { userError } from "@/lib/user-error";
 
 const DIRECT_UPLOAD_TIMEOUT_MS = 15_000;
 const PUBLICATION_TIMEOUT_MS = 30_000;
+const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const parsedMaxUploadBytes = Number(process.env.NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES);
@@ -128,20 +129,25 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
   const handleSubmit = async () => {
     if (!isClientReady || busyRef.current) return;
     const draft = content.trim();
-    if (!draft) {
-      setError("Write something before posting.");
+    if (!file) {
+      setError("Choose a photo before writing your caption.");
       return;
     }
     if (uncertainAttempt) {
       setError("Resolve the earlier photo post before creating another one.");
       return;
     }
-    if (file && !mediaAltText.trim()) {
+    if (!draft) {
+      setError("Write a caption before posting.");
+      document.getElementById("post-content")?.focus();
+      return;
+    }
+    if (!mediaAltText.trim()) {
       setError("Add a photo description so people can understand the photo without seeing it.");
       document.getElementById("post-description")?.focus();
       return;
     }
-    if (file && file.size > MAX_UPLOAD_BYTES) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       setError(
         `This photo is too large. Choose an image up to ${formatBytes(MAX_UPLOAD_BYTES)}. Your text is still here.`,
       );
@@ -151,10 +157,6 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
     setIsSubmitting(true);
     setError(null);
     try {
-      if (!file) {
-        await publish(draft);
-        return;
-      }
       if (file.size > MAX_UPLOAD_BYTES) throw new Error(`Image is too large (max ${formatBytes(MAX_UPLOAD_BYTES)})`);
       const presign = await apiClient.createUploadUrl({
         fileName: file.name,
@@ -216,44 +218,52 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
       className="social-surface p-4 sm:p-6"
     >
       <div className="mb-5">
-        <label htmlFor="post-content" className="mb-2 block font-medium">
-          Post text (required)
-        </label>
-        <textarea
-          id="post-content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-          maxLength={2000}
-          className="ui-field min-h-32"
-          disabled={composerDisabled}
-          aria-invalid={Boolean(error && !content.trim())}
-          aria-describedby={error ? "post-content-help post-composer-error" : "post-content-help"}
-        />
-        <p id="post-content-help" className="mt-2 text-sm text-gray-600">
-          {content.length}/2000
-        </p>
-      </div>
-      <div className="mb-5">
-        <label htmlFor="post-image" className="mb-2 block font-medium">
-          Photo (optional)
-        </label>
         <input
           ref={fileInputRef}
           id="post-image"
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          className="ui-field"
+          hidden
           disabled={composerDisabled}
-          aria-describedby="post-image-help"
+          aria-label="Choose photo"
           onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
+            const selectedFile = e.target.files?.[0];
+            if (!selectedFile) return;
+            if (!SUPPORTED_IMAGE_TYPES.has(selectedFile.type)) {
+              setError("This photo format isn’t supported. Choose a JPEG, PNG, WebP, or GIF.");
+              e.currentTarget.value = "";
+              return;
+            }
+            if (selectedFile.size > MAX_UPLOAD_BYTES) {
+              setError(
+                `This photo is too large. Choose an image up to ${formatBytes(MAX_UPLOAD_BYTES)}. Your text is still here.`,
+              );
+              e.currentTarget.value = "";
+              return;
+            }
+            setFile(selectedFile);
             setMediaAltText("");
+            setError(null);
           }}
         />
-        <p id="post-image-help" className="mt-2 text-sm text-gray-600">
-          JPEG, PNG, WebP, or GIF · {formatBytes(MAX_UPLOAD_BYTES)} max.
-        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          className={file ? "" : "min-h-48 w-full flex-col gap-3 rounded-xl border-dashed bg-gray-50"}
+          disabled={composerDisabled}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M12 16V4m0 0 4 4m-4-4L8 8M5 14v5h14v-5" />
+          </svg>
+          <span>Choose photo</span>
+        </Button>
       </div>
       {file ? (
         <div className="mb-5">
@@ -291,8 +301,27 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
               </svg>
             </Button>
           </div>
+          <div className="mb-5">
+            <label htmlFor="post-content" className="mb-2 block font-medium">
+              Caption
+            </label>
+            <textarea
+              id="post-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+              maxLength={2000}
+              className="ui-field min-h-32"
+              disabled={composerDisabled}
+              aria-invalid={Boolean(error && !content.trim())}
+              aria-describedby={error ? "post-content-help post-composer-error" : "post-content-help"}
+            />
+            <p id="post-content-help" className="mt-2 text-sm text-gray-600">
+              {content.length}/2000
+            </p>
+          </div>
           <label htmlFor="post-description" className="mb-2 block font-medium">
-            Photo description (required with a photo)
+            Photo description
           </label>
           <textarea
             id="post-description"

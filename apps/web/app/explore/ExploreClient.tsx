@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { postDescription, postLinkLabel } from "@/lib/post-description";
 import Link from "next/link";
 import { apiClient, type PostItem, type UserSearchItem } from "@/lib/api-client";
+import { useInfiniteScroll } from "@/components/ui/useInfiniteScroll";
 
 function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -27,6 +28,7 @@ export default function ExploreClient({
   const [nextCursor, setNextCursor] = useState<string | undefined>(initialCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const paginationRequestRef = useRef(false);
 
   const [searchRetry, setSearchRetry] = useState(0);
   const [query, setQuery] = useState("");
@@ -93,8 +95,9 @@ export default function ExploreClient({
   );
 
   const handleLoadMore = useCallback(async () => {
-    if (!nextCursor || isLoadingMore) return;
+    if (!nextCursor || isLoadingMore || paginationRequestRef.current) return;
 
+    paginationRequestRef.current = true;
     setIsLoadingMore(true);
     setError(null);
 
@@ -105,9 +108,15 @@ export default function ExploreClient({
     } catch (err) {
       setError(userError(err, "More photos couldn’t load. Your earlier results are still here. Try again."));
     } finally {
+      paginationRequestRef.current = false;
       setIsLoadingMore(false);
     }
   }, [isLoadingMore, nextCursor]);
+  const paginationBoundaryRef = useInfiniteScroll({
+    cursor: nextCursor,
+    disabled: Boolean(error),
+    onLoadMore: handleLoadMore,
+  });
 
   return (
     <div className="px-4 py-6">
@@ -239,9 +248,12 @@ export default function ExploreClient({
           <ErrorNotice key={error} message={error} onRetry={() => void handleLoadMore()} pending={isLoadingMore} />
         ) : null}
         {nextCursor && !error ? (
-          <button className="ui-secondary mt-5" onClick={() => void handleLoadMore()} disabled={isLoadingMore}>
-            Load more photos
-          </button>
+          <>
+            <div ref={paginationBoundaryRef} aria-hidden="true" />
+            <button className="ui-secondary mt-5" onClick={() => void handleLoadMore()} disabled={isLoadingMore}>
+              Load more photos
+            </button>
+          </>
         ) : null}
 
         {isLoadingMore ? <p className="mt-6 text-center text-sm text-gray-500">Loading...</p> : null}

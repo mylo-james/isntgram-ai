@@ -2,6 +2,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Brand from "@/components/ui/Brand";
+import SignOutButton from "@/components/auth/SignOutButton";
 
 function Icon({ path, className }: { path: string; className?: string }) {
   return (
@@ -94,6 +95,13 @@ export default function LegacyNav({
                 )}
               </li>
             ))}
+            <li className="min-w-0 flex-1 sm:flex-auto">
+              <SignOutButton
+                iconOnly
+                variant="outline"
+                className="nav-item min-h-16 min-w-11 px-1 py-2 sm:min-h-11 sm:px-3"
+              />
+            </li>
           </ul>
         </nav>
       </div>

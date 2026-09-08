@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
+import { MediaService } from '../media/media.service';
 
 jest.mock('argon2');
 
@@ -33,6 +34,10 @@ describe('AuthService', () => {
             signAsync: jest.fn().mockResolvedValue('jwt-token'),
           },
         },
+        {
+          provide: MediaService,
+          useValue: { toDisplayUrl: jest.fn((value) => value) },
+        },
       ],
     }).compile();
 
@@ -43,6 +48,34 @@ describe('AuthService', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('projects canonical avatar URLs in safe authentication responses', () => {
+    const media = (
+      service as unknown as { mediaService: { toDisplayUrl: jest.Mock } }
+    ).mediaService;
+    const canonical =
+      'http://127.0.0.1:48333/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    const display =
+      'https://phone.example:9444/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    media.toDisplayUrl.mockReturnValue(display);
+
+    expect(
+      service.toSafeUser({
+        id: '1',
+        email: 'user@example.com',
+        username: 'user',
+        fullName: 'User',
+        profilePictureUrl: canonical,
+        bio: null,
+        postsCount: 0,
+        followerCount: 0,
+        followingCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as User),
+    ).toMatchObject({ profilePictureUrl: display });
+    expect(media.toDisplayUrl).toHaveBeenCalledWith(canonical);
   });
 
   describe('register', () => {

@@ -43,7 +43,10 @@ const comment = (id: string, content: string) => ({
 });
 
 describe("PostDetailClient", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: jest.fn() });
+  });
 
   it("exposes a complete post date and omits invalid semantic dates", () => {
     const datedPost = { ...post, createdAt: "2026-01-15T12:00:00.000Z" } as unknown as PostItem;
@@ -70,7 +73,6 @@ describe("PostDetailClient", () => {
     await waitFor(() => expect(screen.getByText(/your like wasn’t changed/i)).toBeInTheDocument());
     expect(screen.getByText("3 likes")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlike" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Add a comment" })).toHaveAttribute("aria-invalid", "false");
     expect(screen.getByRole("alert")).toHaveTextContent(/your like wasn’t changed/i);
   });
 
@@ -143,6 +145,7 @@ describe("PostDetailClient", () => {
       .mockResolvedValueOnce(comment("created", "new comment"))
       .mockRejectedValueOnce(new Error("unavailable"));
     render(<PostDetailClient post={post as unknown as PostItem} initialComments={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Comment" }));
     const input = screen.getByRole("textbox", { name: "Add a comment" });
 
     fireEvent.change(input, { target: { value: "  new comment  " } });
@@ -158,6 +161,42 @@ describe("PostDetailClient", () => {
     expect(input).toHaveValue("keep this draft");
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveAttribute("aria-describedby", "comment-help comment-error");
+  });
+
+  it("reveals and focuses the editor above viewer comments, then closes it with Escape", async () => {
+    render(
+      <PostDetailClient
+        post={post as unknown as PostItem}
+        viewerId="viewer"
+        initialComments={[
+          { ...comment("other-first", "other first") } as unknown as Comment,
+          {
+            ...comment("mine", "my comment"),
+            author: { id: "viewer", username: "me", fullName: "Me" },
+          } as unknown as Comment,
+          { ...comment("other-last", "other last") } as unknown as Comment,
+        ]}
+      />,
+    );
+
+    const commentButton = screen.getByRole("button", { name: "Comment" });
+    expect(commentButton.parentElement).toHaveClass("justify-end");
+    expect(screen.queryByRole("textbox", { name: "Add a comment" })).not.toBeInTheDocument();
+
+    fireEvent.click(commentButton);
+    const input = screen.getByRole("textbox", { name: "Add a comment" });
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(commentButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      expect.stringContaining("my comment"),
+      expect.stringContaining("other last"),
+      expect.stringContaining("other first"),
+    ]);
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "Add a comment" })).not.toBeInTheDocument();
+    expect(commentButton).toHaveFocus();
+    expect(commentButton).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows copied only after the clipboard accepts the current post URL", async () => {

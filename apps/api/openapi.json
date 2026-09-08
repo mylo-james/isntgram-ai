@@ -1803,6 +1803,11 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 30
+          },
+          "profilePictureUploadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owned image upload intent to use as this profile photo."
           }
         },
         "required": ["fullName", "username"]

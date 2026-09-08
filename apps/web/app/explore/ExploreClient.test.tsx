@@ -149,7 +149,7 @@ describe("ExploreClient search", () => {
     expect(screen.getByRole("link", { name: "one One User" }).closest("ul")).not.toHaveAttribute("aria-live");
   });
 
-  it("excludes media-less records and appends a requested page through the visible terminal state", async () => {
+  it("excludes media-less records and appends when its pagination boundary enters view", async () => {
     mockGetExplore.mockResolvedValueOnce({ items: [post("two", "/two.jpg")], nextCursor: undefined });
 
     render(<ExploreClient initialItems={[post("one", "/one.jpg"), post("text-only")]} initialCursor="next-page" />);
@@ -157,9 +157,13 @@ describe("ExploreClient search", () => {
     expect(screen.getByRole("link", { name: "View post by author: Post one" })).toHaveAttribute("href", "/post/one");
     expect(screen.queryByRole("link", { name: "View post by author: Post two" })).not.toBeInTheDocument();
 
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Load more photos" })));
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
     await waitFor(() => expect(mockGetExplore).toHaveBeenCalledWith({ cursor: "next-page" }));
+    expect(mockGetExplore).toHaveBeenCalledTimes(1);
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "View post by author: Post two" })).toHaveAttribute("href", "/post/two"),
     );
@@ -172,13 +176,15 @@ describe("ExploreClient search", () => {
     );
     render(<ExploreClient initialItems={[post("one", "/one.jpg")]} initialCursor="next-page" />);
 
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Load more photos" })));
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
 
     await waitFor(() =>
       expect(
         screen.getByText("More photos couldn’t load. Your earlier results are still here. Try again."),
       ).toBeInTheDocument(),
     );
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
+    expect(mockGetExplore).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("link", { name: "View post by author: Post one" })).toHaveAttribute("href", "/post/one");
   });
   it("retries the same search explicitly and clears results without stale responses", async () => {

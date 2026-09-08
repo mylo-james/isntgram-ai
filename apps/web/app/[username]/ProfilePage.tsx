@@ -6,7 +6,7 @@ import { userError } from "@/lib/user-error";
 import { postDescription, postLinkLabel } from "@/lib/post-description";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
 
@@ -14,6 +14,7 @@ import { apiClient, type PublicUserProfile, type PostItem } from "@/lib/api-clie
 import Button from "@/components/ui/Button";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import ProfileActions from "./components/ProfileActions";
+import { useInfiniteScroll } from "@/components/ui/useInfiniteScroll";
 
 interface ProfilePageProps {
   username: string;
@@ -41,6 +42,7 @@ export default function ProfilePage({
   const [postsError, setPostsError] = useState<string | null>(
     initialPostsError ? "Posts couldn’t load. Try again." : null,
   );
+  const postsRequestRef = useRef(false);
   const [isFollowing, setIsFollowing] = useState<boolean | null>(initialIsFollowing ?? null);
   const [followStatus, setFollowStatus] = useState<"unresolved" | "known" | "error">(
     typeof initialIsFollowing === "boolean" ? "known" : "unresolved",
@@ -100,8 +102,13 @@ export default function ProfilePage({
     void refreshFollowStatus();
   }, [currentUser, isOwnProfile, initialIsFollowing, refreshFollowStatus]);
 
-  const handleProfileUpdated = (updated: { fullName: string; username: string }) => {
-    setProfile((prev) => ({ ...prev, fullName: updated.fullName, username: updated.username }));
+  const handleProfileUpdated = (updated: { fullName: string; username: string; profilePictureUrl?: string }) => {
+    setProfile((prev) => ({
+      ...prev,
+      fullName: updated.fullName,
+      username: updated.username,
+      profilePictureUrl: updated.profilePictureUrl,
+    }));
   };
 
   const handleFollowChange = (next: boolean) => {
@@ -115,19 +122,29 @@ export default function ProfilePage({
   };
 
   const loadMorePosts = useCallback(async () => {
-    if ((!postsCursor && !postsError) || postsLoading) return;
+    if ((!postsCursor && !postsError) || postsLoading || postsRequestRef.current) return;
     try {
+      postsRequestRef.current = true;
       setPostsLoading(true);
       setPostsError(null);
       const response = await apiClient.getUserPosts(username, { cursor: postsCursor });
-      setPosts((prev) => [...prev, ...response.items]);
+      setPosts((prev) => {
+        const knownIds = new Set(prev.map((post) => post.id));
+        return [...prev, ...response.items.filter((post) => !knownIds.has(post.id))];
+      });
       setPostsCursor(response.nextCursor);
     } catch (err) {
       setPostsError(userError(err, "More posts couldn’t load. The posts already shown are still here. Try again."));
     } finally {
+      postsRequestRef.current = false;
       setPostsLoading(false);
     }
   }, [postsCursor, postsLoading, postsError, username]);
+  const paginationBoundaryRef = useInfiniteScroll({
+    cursor: postsCursor,
+    disabled: Boolean(postsError),
+    onLoadMore: loadMorePosts,
+  });
 
   if (!profile) {
     return (
@@ -269,14 +286,17 @@ export default function ProfilePage({
           ) : null}
 
           {postsCursor && !postsError ? (
-            <button
-              type="button"
-              onClick={loadMorePosts}
-              disabled={postsLoading}
-              className="ui-action mx-auto mt-5 border border-gray-400"
-            >
-              {postsLoading ? "Loading..." : "Load more"}
-            </button>
+            <>
+              <div ref={paginationBoundaryRef} aria-hidden="true" />
+              <button
+                type="button"
+                onClick={loadMorePosts}
+                disabled={postsLoading}
+                className="ui-action mx-auto mt-5 border border-gray-400"
+              >
+                {postsLoading ? "Loading..." : "Load more"}
+              </button>
+            </>
           ) : null}
         </div>
       </div>

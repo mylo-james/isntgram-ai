@@ -10,6 +10,21 @@ const mockApiClient = {
   getFollowStatus: jest.fn(),
 };
 
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  constructor(private readonly callback: IntersectionObserverCallback) {
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  disconnect = jest.fn();
+  observe = jest.fn();
+
+  trigger() {
+    this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
+}
+
 jest.mock("@/lib/api-client", () => ({
   __esModule: true,
   apiClient: mockApiClient,
@@ -145,6 +160,8 @@ describe("ProfilePage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    MockIntersectionObserver.instances = [];
+    Object.defineProperty(window, "IntersectionObserver", { configurable: true, value: MockIntersectionObserver });
     mockUseRouter = (jest.requireMock("next/navigation") as { useRouter: jest.Mock }).useRouter;
     mockUseRouter.mockReturnValue({
       push: mockPush,
@@ -225,20 +242,24 @@ describe("ProfilePage", () => {
     expect(screen.getByTestId("is-following")).toHaveTextContent("null");
   });
 
-  it("loads more posts when nextCursor is present", async () => {
+  it("loads more posts when its pagination boundary enters view", async () => {
     mockApiClient.getUserPosts.mockResolvedValueOnce({
-      items: [createPost("p2", "Second post")],
+      items: [createPost("p1", "First post"), createPost("p2", "Second post")],
       nextCursor: undefined,
     } as never);
 
     render(<ProfilePage {...baseProps} initialPosts={[createPost("p1", "First post")]} initialCursor="cursor-1" />);
 
-    const loadMore = screen.getByRole("button", { name: /load more/i });
-    fireEvent.click(loadMore);
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
     await waitFor(() =>
       expect(mockApiClient.getUserPosts).toHaveBeenLastCalledWith("testuser", { cursor: "cursor-1" }),
     );
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("link", { name: /View post by testuser: First post/ })).toHaveLength(1);
     await waitFor(() =>
       expect(screen.getByRole("link", { name: /View post by testuser: Second post/ })).toBeInTheDocument(),
     );
@@ -264,14 +285,20 @@ describe("ProfilePage", () => {
     expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
   });
 
-  it("shows an error message when loading more posts fails", async () => {
+  it("keeps profile posts and stops automatic retries when an observer page fails", async () => {
     mockApiClient.getUserPosts.mockRejectedValueOnce(new Error("More posts failed"));
 
     render(<ProfilePage {...baseProps} initialPosts={[createPost("p1", "First post")]} initialCursor="cursor-1" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
     await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
   });
 
@@ -359,5 +386,6 @@ describe("ProfilePage", () => {
 
   afterEach(async () => {
     await flushEffects();
+    Reflect.deleteProperty(window, "IntersectionObserver");
   });
 });

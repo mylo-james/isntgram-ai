@@ -35,13 +35,15 @@ const ORPHAN_REASONS = new Set([
   'publication_verification_failed',
   'db_binding_failed',
   'post_transaction_failed',
+  'profile_transaction_failed',
 ]);
 
 type OrphanReason =
   | 'publication_write_uncertain'
   | 'publication_verification_failed'
   | 'db_binding_failed'
-  | 'post_transaction_failed';
+  | 'post_transaction_failed'
+  | 'profile_transaction_failed';
 
 export type PreparedMedia = {
   uploadId: string;
@@ -189,8 +191,8 @@ export class MediaService {
   ): Promise<PreparedMedia> {
     this.assertStorageConfigured();
     const upload = await this.getOwnedUpload(userId, uploadId);
-    if (upload.postId) {
-      throw new ConflictException('Media upload is already bound to a post');
+    if (upload.postId || upload.profilePictureUserId) {
+      throw new ConflictException('Media upload is already in use');
     }
     if (upload.expiresAt.getTime() <= Date.now()) {
       throw new BadRequestException('Media upload intent has expired');
@@ -263,6 +265,16 @@ export class MediaService {
     } finally {
       client.destroy();
     }
+  }
+
+  getPublishedUrl(upload: MediaUpload): string | undefined {
+    if (
+      !upload.publishedKey ||
+      !upload.publishedKey.startsWith(`published/${upload.ownerId}/`)
+    ) {
+      return undefined;
+    }
+    return this.toPublicUrl(upload.publishedKey);
   }
 
   async verifyBoundPublication(userId: string, uploadId: string) {

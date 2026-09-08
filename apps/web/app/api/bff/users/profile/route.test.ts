@@ -31,7 +31,7 @@ describe("profile update BFF", () => {
       new Request("http://local", {
         method: "PUT",
         headers: { "content-type": "application/json", "x-request-id": "profile-id" },
-        body: JSON.stringify({ username: "taken" }),
+        body: JSON.stringify({ username: "taken", profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000" }),
       }),
     );
     expect(response.status).toBe(409);
@@ -40,7 +40,7 @@ describe("profile update BFF", () => {
     expect(internalApi.PUT).toHaveBeenCalledWith(
       "/api/users/profile",
       expect.objectContaining({
-        body: { username: "taken" },
+        body: { username: "taken", profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000" },
         headers: { Authorization: "Bearer token", "x-request-id": "profile-id" },
       }),
     );

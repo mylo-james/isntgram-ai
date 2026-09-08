@@ -3,9 +3,10 @@
 import { userError } from "@/lib/user-error";
 import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { NotificationItem, NotificationsResponse } from "@isntgram-ai/shared-types";
 import { apiClient } from "@/lib/api-client";
+import { useInfiniteScroll } from "@/components/ui/useInfiniteScroll";
 
 interface NotificationsClientProps {
   initialNotifications: NotificationsResponse;
@@ -64,13 +65,15 @@ export default function NotificationsClient({
   const [loadError, setLoadError] = useState<LoadError>(initialLoadError ? "initial" : null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const requestInFlightRef = useRef(false);
 
   const loadNotifications = useCallback(async () => {
-    if (isLoading) return;
+    if (isLoading || requestInFlightRef.current) return;
 
     const cursor = loadError === "initial" ? undefined : nextCursor;
     if (loadError !== "initial" && !cursor) return;
 
+    requestInFlightRef.current = true;
     setIsLoading(true);
     try {
       const response = await apiClient.getNotifications(cursor ? { cursor } : undefined);
@@ -89,9 +92,15 @@ export default function NotificationsClient({
       );
       setLoadError(cursor ? "more" : "initial");
     } finally {
+      requestInFlightRef.current = false;
       setIsLoading(false);
     }
   }, [isLoading, loadError, nextCursor]);
+  const paginationBoundaryRef = useInfiniteScroll({
+    cursor: nextCursor,
+    disabled: Boolean(loadError),
+    onLoadMore: loadNotifications,
+  });
 
   if (loadError === "initial" && items.length === 0) {
     return (
@@ -166,14 +175,17 @@ export default function NotificationsClient({
       ) : null}
 
       {nextCursor && !loadError ? (
-        <button
-          type="button"
-          onClick={() => void loadNotifications()}
-          disabled={isLoading}
-          className="ui-secondary mt-5"
-        >
-          {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
-        </button>
+        <>
+          <div ref={paginationBoundaryRef} aria-hidden="true" />
+          <button
+            type="button"
+            onClick={() => void loadNotifications()}
+            disabled={isLoading}
+            className="ui-secondary mt-5"
+          >
+            {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
+          </button>
+        </>
       ) : null}
     </section>
   );
