@@ -252,6 +252,7 @@ export class CuratedDemoService {
           !upload ||
           post.authorId !== seed.id ||
           post.content !== photo.caption ||
+          (post.mediaAltText != null && post.mediaAltText !== photo.altText) ||
           post.mediaUrl !== expectedUrl ||
           upload.ownerId !== seed.id ||
           upload.postId !== seedPost.id ||

@@ -1,5 +1,12 @@
-import { IsString, MinLength, MaxLength, Matches } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
 export class UpdateProfileDto {
@@ -22,4 +29,12 @@ export class UpdateProfileDto {
       'Username can only contain lowercase letters, numbers, and underscores',
   })
   username!: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Owned image upload intent to use as this profile photo.',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'Profile photo upload must be a UUID' })
+  profilePictureUploadId?: string;
 }

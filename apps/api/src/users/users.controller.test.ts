@@ -123,7 +123,11 @@ describe('UsersController', () => {
         fullName: 'New Name',
       };
       (mockUsersService.updateProfile as jest.Mock).mockResolvedValue(updated);
-      const body = { fullName: 'New Name', username: 'newname' };
+      const body = {
+        fullName: 'New Name',
+        username: 'newname',
+        profilePictureUploadId: '550e8400-e29b-41d4-a716-446655440000',
+      };
       const req = { user: { userId: '1' } } as unknown as Request & {
         user: AuthUser;
       };
@@ -134,6 +138,7 @@ describe('UsersController', () => {
       expect(usersService.updateProfile).toHaveBeenCalledWith('1', {
         fullName: 'New Name',
         username: 'newname',
+        profilePictureUploadId: '550e8400-e29b-41d4-a716-446655440000',
       });
     });
   });

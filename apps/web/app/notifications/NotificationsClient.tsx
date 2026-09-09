@@ -1,9 +1,12 @@
 "use client";
 
+import { userError } from "@/lib/user-error";
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { NotificationItem, NotificationsResponse } from "@isntgram-ai/shared-types";
 import { apiClient } from "@/lib/api-client";
+import { useInfiniteScroll } from "@/components/ui/useInfiniteScroll";
 
 interface NotificationsClientProps {
   initialNotifications: NotificationsResponse;
@@ -60,73 +63,100 @@ export default function NotificationsClient({
   const [items, setItems] = useState<NotificationItem[]>(initialNotifications.items);
   const [nextCursor, setNextCursor] = useState<string | undefined>(initialNotifications.nextCursor);
   const [loadError, setLoadError] = useState<LoadError>(initialLoadError ? "initial" : null);
+  const [requestError, setRequestError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const requestInFlightRef = useRef(false);
 
   const loadNotifications = useCallback(async () => {
-    if (isLoading) return;
+    if (isLoading || requestInFlightRef.current) return;
 
     const cursor = loadError === "initial" ? undefined : nextCursor;
     if (loadError !== "initial" && !cursor) return;
 
+    requestInFlightRef.current = true;
     setIsLoading(true);
     try {
       const response = await apiClient.getNotifications(cursor ? { cursor } : undefined);
       setItems((previous) => mergeNotifications(previous, response.items));
       setNextCursor(response.nextCursor);
       setLoadError(null);
-    } catch {
+      setRequestError(null);
+    } catch (error) {
+      setRequestError(
+        userError(
+          error,
+          cursor
+            ? "We couldn’t load more notifications. Your earlier notifications are still here."
+            : "We couldn’t load your notifications. Please try again.",
+        ),
+      );
       setLoadError(cursor ? "more" : "initial");
     } finally {
+      requestInFlightRef.current = false;
       setIsLoading(false);
     }
   }, [isLoading, loadError, nextCursor]);
+  const paginationBoundaryRef = useInfiniteScroll({
+    cursor: nextCursor,
+    disabled: Boolean(loadError),
+    onLoadMore: loadNotifications,
+  });
 
   if (loadError === "initial" && items.length === 0) {
     return (
-      <div className="mt-4 rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
-        <p>We couldn&apos;t load your notifications. Please try again.</p>
-        <button
-          type="button"
-          onClick={() => void loadNotifications()}
-          disabled={isLoading}
-          className="mt-3 rounded-sm border border-red-300 bg-white px-3 py-1.5 font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isLoading ? "Retrying..." : "Retry notifications"}
-        </button>
-      </div>
+      <ErrorNotice
+        message={requestError ?? "We couldn’t load your notifications. Please try again."}
+        onRetry={() => void loadNotifications()}
+        pending={isLoading}
+        retryLabel="Retry notifications"
+      />
     );
   }
 
   return (
-    <section className="mt-4" aria-live="polite">
+    <section className="mt-4">
+      <p role="status" className="sr-only">
+        {isLoading ? "Loading notifications…" : ""}
+      </p>
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">No notifications yet.</p>
+        <div className="social-surface p-6 text-gray-700">
+          <p>No activity yet.</p>
+          <Link href="/feed" className="ui-quiet mt-3">
+            Home
+          </Link>
+        </div>
       ) : (
-        <ul className="space-y-3" aria-label="Notifications">
+        <ul className="notification-list" aria-label="Notifications">
           {items.map((notification) => {
             const actor = notification.actor;
             const time = timeAgoLabel(notification.createdAt);
 
             return (
               <li key={notification.id}>
-                <Link
-                  href={notificationTarget(notification)}
-                  className="flex items-center gap-3 rounded-sm border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50"
-                >
+                <Link href={notificationTarget(notification)} className="notification-item">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={actor.profilePictureUrl ?? "/assets/default-avatar.svg"}
-                    alt={actor.username}
+                    alt=""
                     className="h-10 w-10 rounded-full object-cover"
                   />
                   <div className="min-w-0 flex-1 text-sm text-gray-800">
                     <span className="font-semibold text-gray-900">{actor.username}</span>{" "}
                     <span>{notificationAction(notification)}</span>{" "}
-                    {time ? <span className="text-gray-500">{time}</span> : null}
+                    {time ? (
+                      <time
+                        className="text-gray-600"
+                        dateTime={notification.createdAt}
+                        title={new Date(notification.createdAt).toLocaleString()}
+                      >
+                        <span aria-hidden="true">{time}</span>
+                        <span className="sr-only">{new Date(notification.createdAt).toLocaleString()}</span>
+                      </time>
+                    ) : null}
                   </div>
                   {notification.type !== "follow" && notification.postMediaUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={notification.postMediaUrl} alt="" className="h-10 w-10 rounded-sm object-cover" />
+                    <img src={notification.postMediaUrl} alt="" className="h-11 w-11 rounded-lg object-cover" />
                   ) : null}
                 </Link>
               </li>
@@ -136,22 +166,26 @@ export default function NotificationsClient({
       )}
 
       {loadError === "more" ? (
-        <div className="mt-4" role="alert">
-          <p className="text-sm text-red-600">
-            We couldn&apos;t load more notifications. Your earlier notifications are still here.
-          </p>
-        </div>
+        <ErrorNotice
+          message={requestError ?? "We couldn’t load more notifications. Your earlier notifications are still here."}
+          onRetry={() => void loadNotifications()}
+          pending={isLoading}
+          retryLabel="Retry load more"
+        />
       ) : null}
 
-      {nextCursor ? (
-        <button
-          type="button"
-          onClick={() => void loadNotifications()}
-          disabled={isLoading}
-          className="mt-4 rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
-        </button>
+      {nextCursor && !loadError ? (
+        <>
+          <div ref={paginationBoundaryRef} aria-hidden="true" />
+          <button
+            type="button"
+            onClick={() => void loadNotifications()}
+            disabled={isLoading}
+            className="ui-secondary mt-5"
+          >
+            {isLoading ? "Loading..." : loadError === "more" ? "Retry load more" : "Load more"}
+          </button>
+        </>
       ) : null}
     </section>
   );

@@ -43,7 +43,7 @@ export default defineConfig({
       command: command({
         NODE_ENV: "test", HOST: "127.0.0.1", PORT: "4011",
         JWT_SECRET: "test_jwt_secret_for_e2e_only", JWT_EXPIRES_IN: "7d",
-        CORS_ORIGIN: webOrigin, DEMO_ENABLED: "false", AI_PROVIDER: "mock",
+        CORS_ORIGIN: webOrigin, DEMO_ENABLED: "false",
         METRICS_ENABLED: "false", REQUEST_LOGGING: "false",
       }, "dist/main.js", []),
       cwd: path.join(root, "apps/api"), url: `${apiOrigin}/api/ready`,
@@ -55,7 +55,7 @@ export default defineConfig({
         NEXTAUTH_URL: webOrigin, NEXT_PUBLIC_APP_URL: webOrigin,
         NEXTAUTH_SECRET: "test_secret_for_e2e_only", AUTH_SECRET: "test_secret_for_e2e_only",
         NEXT_PUBLIC_API_URL: apiOrigin, INTERNAL_API_URL: apiOrigin,
-        NEXT_PUBLIC_DEMO_ENABLED: "false", AI_PROVIDER: "mock",
+        NEXT_PUBLIC_DEMO_ENABLED: "false",
       }, "node_modules/next/dist/bin/next", ["start", "--hostname", "127.0.0.1", "--port", "3100"]),
       cwd: path.join(root, "apps/web"), url: `${webOrigin}/login`,
       reuseExistingServer: false, timeout: 60_000, stdout: "ignore", stderr: "pipe",

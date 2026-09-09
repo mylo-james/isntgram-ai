@@ -1,3 +1,4 @@
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import FeedClient from "./FeedClient";
@@ -33,14 +34,12 @@ async function requestWithinDeadline<T>(request: (signal: AbortSignal) => Promis
 function FeedLoadError() {
   return (
     <section className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6" aria-live="polite">
-      <div role="alert" className="rounded-sm border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">
-        <p>We couldn&apos;t load your feed. Please try again.</p>
-        {/* A native anchor deliberately reloads the server page instead of reusing stale client props. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- retry must force a document navigation. */}
-        <a href="/feed" className="mt-3 inline-block font-medium underline">
-          Retry feed
-        </a>
-      </div>
+      <h1 className="page-heading mb-4">Home</h1>
+      <ErrorNotice message="We couldn’t load your feed. Please try again." />
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- force a fresh server request. */}
+      <a className="ui-action mt-3 border border-gray-400" href="/feed">
+        Retry feed
+      </a>
     </section>
   );
 }
@@ -51,7 +50,7 @@ export default async function FeedPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
@@ -66,7 +65,7 @@ export default async function FeedPage() {
   }
 
   if (feedResponse?.response.status === 401) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   if (feedResponse?.response.ok && isFeedResponse(feedResponse.data)) {
@@ -75,7 +74,16 @@ export default async function FeedPage() {
 
   if (!initialFeed) {
     return (
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
+        <LegacyNav
+          avatarSrc="/assets/default-avatar.svg"
+          profileHref={session.user.username ? `/${session.user.username}` : "/feed"}
+        />
         <FeedLoadError />
       </main>
     );
@@ -100,7 +108,12 @@ export default async function FeedPage() {
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <FeedClient initialFeed={initialFeed} />
       </main>
     </>

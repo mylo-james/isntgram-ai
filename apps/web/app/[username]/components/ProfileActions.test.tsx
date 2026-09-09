@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush, refresh: jest.fn() }) }));
-jest.mock("next-auth/react", () => ({ signOut: jest.fn() }));
 jest.mock("@/lib/api-client", () => ({
   __esModule: true,
   apiClient: {
@@ -46,7 +45,6 @@ import ProfileActions from "./ProfileActions";
 const { apiClient: mockApiClient } = jest.requireMock("@/lib/api-client") as {
   apiClient: Record<string, jest.Mock>;
 };
-const { signOut: mockSignOut } = jest.requireMock("next-auth/react") as { signOut: jest.Mock };
 
 const profile = {
   id: "profile-1",
@@ -129,7 +127,7 @@ describe("ProfileActions follow state", () => {
     render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile={false} isFollowing={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Follow" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update this follow/i));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/follow status wasn’t changed/i));
     expect(screen.getByRole("button", { name: "Follow" })).toBeEnabled();
   });
 
@@ -166,60 +164,5 @@ describe("ProfileActions follow state", () => {
     );
     expect(screen.getByRole("region", { name: "Edit profile" })).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalledWith("/changed");
-  });
-
-  it("calls the API logout then clears the client session and routes to login", async () => {
-    mockApiClient.logout.mockResolvedValue(undefined);
-    mockSignOut.mockResolvedValue(undefined);
-    render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
-
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ redirect: false, callbackUrl: "/login" }));
-    expect(mockApiClient.logout).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith("/login");
-  });
-
-  it("waits for API logout before client sign-out and waits for sign-out before navigation", async () => {
-    let resolveLogout: (() => void) | undefined;
-    let resolveSignOut: (() => void) | undefined;
-    mockApiClient.logout.mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveLogout = resolve;
-      }),
-    );
-    mockSignOut.mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveSignOut = resolve;
-      }),
-    );
-    render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
-    await waitFor(() => expect(mockApiClient.logout).toHaveBeenCalledTimes(1));
-    expect(mockSignOut).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalledWith("/login");
-
-    expect(resolveLogout).toBeDefined();
-    resolveLogout?.();
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ redirect: false, callbackUrl: "/login" }));
-    expect(mockPush).not.toHaveBeenCalledWith("/login");
-
-    expect(resolveSignOut).toBeDefined();
-    resolveSignOut?.();
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/login"));
-  });
-
-  it("still clears the client session and routes after a logout API failure", async () => {
-    jest.spyOn(console, "error").mockImplementation(() => undefined);
-    mockApiClient.logout.mockRejectedValue(new Error("logout unavailable"));
-    mockSignOut.mockResolvedValue(undefined);
-    render(<ProfileActions profile={profile} currentUser={currentUser} isOwnProfile />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
-
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ redirect: false, callbackUrl: "/login" }));
-    expect(mockApiClient.logout).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith("/login");
   });
 });

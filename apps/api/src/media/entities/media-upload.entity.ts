@@ -17,6 +17,7 @@ const MAX_MEDIA_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 @Entity('media_uploads')
 @Index(['ownerId'])
+@Index(['profilePictureUserId'])
 @Index(['pendingKey'], { unique: true })
 @Index(['postId'], { unique: true })
 @Check(
@@ -64,6 +65,12 @@ export class MediaUpload {
   @Column({ type: 'uuid', nullable: true })
   postId?: string | null;
 
+  // A completed upload has one durable purpose. Profile photos deliberately do
+  // not reuse postId: a user can replace their avatar while retaining the
+  // historical binding that prevents the old intent being published as a post.
+  @Column({ type: 'uuid', nullable: true })
+  profilePictureUserId?: string | null;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: 'ownerId' })
   owner!: User;
@@ -71,6 +78,10 @@ export class MediaUpload {
   @OneToOne(() => Post)
   @JoinColumn({ name: 'postId' })
   post?: Post | null;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'profilePictureUserId' })
+  profilePictureUser?: User | null;
 
   static readonly maxBytes = MAX_MEDIA_UPLOAD_BYTES;
 }

@@ -72,3 +72,285 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Shared social UI: persistent labels, comfortable targets and visible recovery. */
+@layer base {
+  body {
+    font-family: var(--font-geist-sans), Arial, sans-serif;
+  }
+  :where(button, a, input, textarea, select):focus-visible {
+    outline: 3px solid #185abd !important;
+    outline-offset: 3px;
+  }
+  :where(input, textarea, select) {
+    font-size: 16px !important;
+  }
+  :where(button, a, input, textarea) {
+    scroll-margin-block: 10rem;
+  }
+  :where(p, h1, h2, a) {
+    overflow-wrap: anywhere;
+  }
+  ::selection {
+    background: #dbeafe;
+    color: #172554;
+  }
+}
+@layer components {
+  .ui-action,
+  .ui-primary,
+  .ui-secondary,
+  .ui-quiet,
+  .ui-destructive {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      border-color 180ms ease;
+  }
+  .ui-primary {
+    @apply bg-blue-700 text-white hover:bg-blue-800;
+  }
+  .ui-secondary {
+    @apply border border-gray-300 bg-white text-gray-800 hover:border-gray-400 hover:bg-gray-50;
+  }
+  .ui-quiet {
+    @apply text-blue-800 hover:bg-blue-50;
+  }
+  .ui-destructive {
+    @apply bg-red-700 text-white hover:bg-red-800;
+  }
+  :is(.ui-action, .ui-primary, .ui-secondary, .ui-quiet, .ui-destructive):disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+  .ui-field {
+    @apply w-full rounded-xl border border-gray-500 bg-white px-4 py-3 text-base leading-relaxed text-gray-900 placeholder:text-gray-500;
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease;
+    caret-color: #1d4ed8;
+  }
+  .ui-field:hover {
+    border-color: #374151;
+  }
+  .ui-field:focus {
+    border-color: #1d4ed8;
+  }
+  .ui-field:disabled {
+    @apply bg-gray-50 text-gray-600;
+  }
+  .ui-field[aria-invalid="true"] {
+    @apply border-red-700;
+  }
+  .ui-field::file-selector-button {
+    @apply mr-3 min-h-11 rounded-lg border-0 bg-blue-50 px-3 text-sm font-medium text-blue-800;
+  }
+  .error-notice {
+    @apply my-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-relaxed text-red-900;
+  }
+  .error-notice > p {
+    @apply mb-3;
+  }
+  .error-notice .ui-quiet {
+    @apply text-red-900 hover:bg-red-100;
+  }
+  .page-heading {
+    @apply mb-6 text-2xl font-semibold tracking-tight text-gray-900;
+  }
+  .page-header {
+    @apply mb-6 flex min-h-11 items-center justify-between gap-4;
+  }
+  .page-header .page-heading {
+    margin-bottom: 0;
+  }
+  .social-surface {
+    @apply overflow-hidden rounded-2xl border border-gray-200 bg-white;
+  }
+  .post-body {
+    @apply px-4 pb-5 pt-2 sm:px-5;
+  }
+  .post-actions {
+    @apply flex items-center gap-1;
+  }
+  .post-action {
+    @apply min-w-11 rounded-xl px-2 hover:bg-gray-100;
+  }
+  .post-caption {
+    @apply mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800;
+  }
+  .quiet-link {
+    @apply justify-start px-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900;
+  }
+  .return-link {
+    @apply inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900;
+  }
+  .social-header {
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .social-nav {
+    border-top: 1px solid #e5e7eb;
+  }
+  .nav-item {
+    @apply rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+  .nav-item[aria-current="page"] {
+    @apply bg-blue-50 text-blue-800;
+  }
+  .brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-wordmark {
+    width: 116px;
+    height: auto;
+  }
+  .brand-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .auth-brand .brand-wordmark {
+    width: 156px;
+  }
+  .brand-motion {
+    @apply relative inline-flex h-11 w-11 shrink-0 items-center justify-center;
+  }
+  .notification-list {
+    @apply overflow-hidden rounded-2xl border border-gray-200 bg-white;
+  }
+  .notification-list > li + li {
+    @apply border-t border-gray-100;
+  }
+  .notification-item {
+    @apply flex items-center gap-3 px-4 py-4 hover:bg-gray-50;
+    transition: background-color 180ms ease;
+  }
+}
+@media (min-width: 640px) {
+  .social-nav {
+    border-top: 0;
+  }
+}
+@media (max-width: 759px) and (min-width: 640px) {
+  .brand-wordmark {
+    width: 100px;
+  }
+  .social-nav .nav-item {
+    padding-inline: 8px;
+  }
+}
+.circle-loader {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.circle-loader-arm {
+  position: absolute;
+  left: 37.5%;
+  top: 0;
+  width: 25%;
+  height: 100%;
+  animation: circle-turn 4s ease infinite;
+}
+.circle-loader-arm-0 {
+  --angle: 0deg;
+  --dot: #ef4444;
+}
+.circle-loader-arm-1 {
+  --angle: 45deg;
+  --dot: #eab308;
+}
+.circle-loader-arm-2 {
+  --angle: 90deg;
+  --dot: #22c55e;
+}
+.circle-loader-arm-3 {
+  --angle: 135deg;
+  --dot: #3b82f6;
+}
+.circle-loader-dot {
+  display: block;
+  width: 100%;
+  height: 25%;
+  border-radius: 50%;
+  opacity: 0.5;
+  background: var(--dot);
+  animation: circle-in 2s ease infinite alternate;
+}
+.circle-loader-reverse .circle-loader-dot {
+  animation-name: circle-out;
+}
+@keyframes circle-turn {
+  from {
+    transform: rotate(var(--angle));
+  }
+  to {
+    transform: rotate(calc(var(--angle) + 180deg));
+  }
+}
+@keyframes circle-in {
+  from {
+    transform: translateY(150%);
+  }
+  to {
+    transform: translateY(102%);
+  }
+}
+@keyframes circle-out {
+  from {
+    transform: translateY(150%);
+  }
+  to {
+    transform: translateY(200%);
+  }
+}
+.brand-mark .circle-loader-arm {
+  animation: none;
+  /* The original ease curve reaches this angle at its two-second open frame. */
+  transform: rotate(calc(var(--angle) + 144.43261deg));
+}
+.brand-mark .circle-loader-dot {
+  animation: none;
+  transform: translateY(102%);
+}
+.brand-mark .circle-loader-reverse .circle-loader-dot {
+  transform: translateY(200%);
+}
+/* Start at the original cycle's expanded, two-second frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .brand-link[data-animating="true"] .circle-loader-arm {
+    animation: circle-turn 4s ease -2s infinite;
+  }
+  .brand-link[data-animating="true"] .circle-loader-dot {
+    animation: circle-in 2s ease -2s infinite alternate;
+  }
+  .brand-link[data-animating="true"] .circle-loader-reverse .circle-loader-dot {
+    animation-name: circle-out;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circle-loader-arm {
+    animation: none !important;
+    transform: rotate(var(--angle));
+  }
+  .circle-loader-dot {
+    animation: none !important;
+    transform: translateY(102%);
+  }
+  .circle-loader-reverse .circle-loader-dot {
+    transform: translateY(200%);
+  }
+  .animate-spin,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+@media (max-width: 639px) {
+  .social-page {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  }
+}

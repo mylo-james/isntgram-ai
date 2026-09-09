@@ -35,9 +35,6 @@ docker compose -f docker-compose.prod.yml up --build
 - `S3_SECRET_ACCESS_KEY`
 - `S3_PUBLIC_BASE_URL`
 - `S3_ENDPOINT` (only for MinIO / local dev)
-- `AI_PROVIDER` (optional; `mock` or `openai`)
-- `OPENAI_API_KEY` (required when `AI_PROVIDER=openai`)
-- `OPENAI_MODEL` (optional)
 
 ### Database migrations
 

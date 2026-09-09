@@ -140,13 +140,21 @@ describe("apiClient", () => {
       ),
     );
 
-    const result = await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+    const result = await apiClient.updateProfile({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
     expect(result.username).toBe("newuser");
 
     const req = getLastRequest();
     expect(req.method).toBe("PUT");
     expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/profile");
-    await expect(readRequestJson(req)).resolves.toEqual({ fullName: "New Name", username: "newuser" });
+    await expect(readRequestJson(req)).resolves.toEqual({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
   });
 
   it("adds CSRF header for state-changing requests when cookie is present", async () => {
@@ -268,43 +276,6 @@ describe("apiClient", () => {
       });
     },
   );
-
-  it("rewrites a post draft", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      toResponse(
-        {
-          content: "Rewritten content.",
-          provider: "mock",
-        },
-        { status: 200 },
-      ),
-    );
-
-    const result = await apiClient.rewritePost({ content: "hello world" });
-    expect(result.content).toBe("Rewritten content.");
-
-    const req = getLastRequest();
-    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/ai/rewrite");
-  });
-
-  it("cancels the actual rewrite request when its caller aborts", async () => {
-    const controller = new AbortController();
-    (global.fetch as jest.Mock).mockImplementation(
-      (request: Request) =>
-        new Promise((_resolve, reject) => {
-          request.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
-            once: true,
-          });
-        }),
-    );
-    const pending = apiClient.rewritePost({ content: "Retain this draft" }, { signal: controller.signal });
-    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    const request = getLastRequest();
-    expect(await readRequestJson(request.clone())).toEqual({ content: "Retain this draft" });
-    controller.abort();
-    expect(request.signal.aborted).toBe(true);
-    await rejected;
-  });
 
   it("builds feed query parameters", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(

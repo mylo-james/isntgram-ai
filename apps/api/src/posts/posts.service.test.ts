@@ -186,6 +186,25 @@ describe('PostsService', () => {
     };
   };
 
+  it('projects canonical author avatar URLs in post DTOs', () => {
+    const { service, mediaService } = makeService();
+    const canonical =
+      'http://127.0.0.1:48333/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    const display =
+      'https://phone.example:9444/isntgram-v1-media/published/550e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-846655440000';
+    mediaService.toDisplayUrl.mockReturnValue(display);
+
+    expect(
+      (service as any).toAuthorDto({
+        ...makeAuthor('1'),
+        profilePictureUrl: canonical,
+      }),
+    ).toMatchObject({
+      profilePictureUrl: display,
+    });
+    expect(mediaService.toDisplayUrl).toHaveBeenCalledWith(canonical);
+  });
+
   describe('verified photo publication', () => {
     const prepared = {
       uploadId: 'upload-1',
@@ -199,11 +218,16 @@ describe('PostsService', () => {
       height: 3,
       frames: 1,
     };
-    const request = { content: 'A real photo', mediaUploadId: 'upload-1' };
+    const request = {
+      content: 'A real photo',
+      mediaUploadId: 'upload-1',
+      mediaAltText: 'A blue boat on a lake',
+    };
     const photo = {
       ...makePost('photo-1'),
       authorId: 'user-1',
       content: request.content,
+      mediaAltText: request.mediaAltText,
       mediaUrl: prepared.publishedUrl,
     };
     const setup = () => {
@@ -236,6 +260,7 @@ describe('PostsService', () => {
       expect(h.postRepository.create).toHaveBeenCalledWith({
         authorId: 'user-1',
         content: request.content,
+        mediaAltText: request.mediaAltText,
         mediaUrl: prepared.publishedUrl,
       });
       expect(h.mediaUploadRepository.update).toHaveBeenCalledWith(
@@ -273,6 +298,42 @@ describe('PostsService', () => {
       await expect(
         h.service.createPost('user-1', { ...request, content: 'Another post' }),
       ).rejects.toBeInstanceOf(ConflictException);
+      expect(h.dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it.each(['Changed description', '', undefined])(
+      'rejects a changed or cleared description: %s',
+      async (mediaAltText) => {
+        const h = setup();
+        h.mediaService.getOwnedUpload.mockResolvedValue({ postId: photo.id });
+        await expect(
+          h.service.createPost('user-1', { ...request, mediaAltText }),
+        ).rejects.toBeInstanceOf(ConflictException);
+        expect(h.dataSource.transaction).not.toHaveBeenCalled();
+        expect(h.mediaService.preparePublication).not.toHaveBeenCalled();
+      },
+    );
+    it('normalizes description whitespace for the original replay', async () => {
+      const h = setup();
+      h.mediaService.getOwnedUpload.mockResolvedValue({ postId: photo.id });
+      await expect(
+        h.service.createPost('user-1', {
+          ...request,
+          mediaAltText: `  ${request.mediaAltText}  `,
+        }),
+      ).resolves.toMatchObject({
+        id: photo.id,
+        mediaAltText: request.mediaAltText,
+      });
+    });
+    it('rejects a description without photo authority', async () => {
+      const h = setup();
+      await expect(
+        h.service.createPost('user-1', {
+          content: 'Caption',
+          mediaAltText: 'A boat',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
       expect(h.dataSource.transaction).not.toHaveBeenCalled();
     });
 

@@ -34,10 +34,6 @@ export type NotificationActor = Schemas["NotificationActorDto"];
 export type NotificationItem = Schemas["NotificationDto"];
 export type NotificationsResponse = Schemas["NotificationsResponseDto"];
 
-export type AiRewriteRequest = Schemas["AiRewriteRequestDto"];
-export type AiRewriteResponse = Schemas["AiRewriteResponseDto"];
-export type AiRewriteTone = NonNullable<AiRewriteRequest["tone"]>;
-
 export type FollowStatus = Schemas["FollowStatusDto"];
 
 export type UserSearchItem = Schemas["UserSearchItemDto"];
@@ -49,5 +45,3 @@ export type UploadUrlResponse = Schemas["UploadUrlDto"];
 export type ApiError = Schemas["ApiErrorDto"];
 
 export * from "./username-policy";
-
-export type AiCapabilities = Schemas["AiCapabilitiesDto"];

@@ -10,7 +10,6 @@ import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { FollowsModule } from './follows/follows.module';
 import { MediaModule } from './media/media.module';
-import { AiModule } from './ai/ai.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -80,7 +79,6 @@ function getFeatureModules() {
     FollowsModule,
     NotificationsModule,
     MediaModule,
-    AiModule,
   ];
 }
 

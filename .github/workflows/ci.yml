@@ -214,15 +214,33 @@ jobs:
         run: npx playwright install chromium --with-deps
         if: steps.cache-playwright.outputs.cache-hit != 'true'
 
+      - name: Start disposable photo storage
+        run: |
+          curl --fail --location --retry 3 https://github.com/seaweedfs/seaweedfs/releases/download/4.45/linux_amd64.tar.gz -o "$RUNNER_TEMP/seaweedfs.tar.gz"
+          echo "c408894668aeaa74d4f251e20b350fd72195cbe596ddc3f48658709714f7be36  $RUNNER_TEMP/seaweedfs.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/seaweedfs-bin"
+          tar -xzf "$RUNNER_TEMP/seaweedfs.tar.gz" -C "$RUNNER_TEMP/seaweedfs-bin" weed
+          E2E_WEED_BIN="$RUNNER_TEMP/seaweedfs-bin/weed" bash scripts/e2e-storage.sh > "$RUNNER_TEMP/e2e-storage.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/e2e-storage.pid"
+          node apps/api/scripts/bootstrap-e2e-storage.cjs
+
       - name: 🌐 E2E Tests
         run: pnpm run test:e2e
 
       - name: 📊 Upload Playwright Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+
+      - name: Stop disposable photo storage
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/e2e-storage.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/e2e-storage.pid")" || true
+          fi
 
   # 4. PRODUCTION BUILD - Container build and security
   production-build:

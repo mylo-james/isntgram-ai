@@ -1,7 +1,4 @@
 import type {
-  AiCapabilities,
-  AiRewriteRequest,
-  AiRewriteResponse,
   ApiPaths,
   Comment,
   CommentsResponse,
@@ -103,7 +100,11 @@ export const apiClient = {
     );
   },
 
-  async updateProfile(data: { fullName: string; username: string }): Promise<PrivateUserProfile> {
+  async updateProfile(data: {
+    fullName: string;
+    username: string;
+    profilePictureUploadId?: string;
+  }): Promise<PrivateUserProfile> {
     return unwrap<PrivateUserProfile>(
       client.PUT("/users/profile", {
         body: data,
@@ -232,19 +233,6 @@ export const apiClient = {
     return unwrap<AuthLogoutResponse>(client.POST("/auth/logout"));
   },
 
-  async getAiCapabilities(): Promise<AiCapabilities> {
-    return unwrap<AiCapabilities>(client.GET("/ai/capabilities", { cache: "no-store" }));
-  },
-
-  async rewritePost(data: AiRewriteRequest, options?: { signal?: AbortSignal }): Promise<AiRewriteResponse> {
-    return unwrap<AiRewriteResponse>(
-      client.POST("/ai/rewrite", {
-        body: data,
-        signal: options?.signal,
-      }),
-    );
-  },
-
   async getFollowStatus(username: string): Promise<FollowStatus> {
     return unwrap<FollowStatus>(
       client.GET("/follows/{username}/status", {
@@ -297,8 +285,6 @@ export const apiClient = {
   },
 };
 export type {
-  AiRewriteRequest,
-  AiRewriteResponse,
   PublicUserProfile,
   PrivateUserProfile,
   FeedResponse,

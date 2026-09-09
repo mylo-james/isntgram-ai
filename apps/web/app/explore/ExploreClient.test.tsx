@@ -128,7 +128,7 @@ describe("ExploreClient search", () => {
 
     fireEvent.change(input, { target: { value: "failure" } });
     await act(async () => jest.advanceTimersByTime(200));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/search failed/i));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/people couldn’t load/i));
   });
 
   it("announces the returned search result count without making the result links a live region", async () => {
@@ -149,28 +149,59 @@ describe("ExploreClient search", () => {
     expect(screen.getByRole("link", { name: "one One User" }).closest("ul")).not.toHaveAttribute("aria-live");
   });
 
-  it("excludes media-less records and appends a sentinel page through the visible terminal state", async () => {
+  it("excludes media-less records and appends when its pagination boundary enters view", async () => {
     mockGetExplore.mockResolvedValueOnce({ items: [post("two", "/two.jpg")], nextCursor: undefined });
 
     render(<ExploreClient initialItems={[post("one", "/one.jpg"), post("text-only")]} initialCursor="next-page" />);
 
-    expect(screen.getByRole("link", { name: "View post 1" })).toHaveAttribute("href", "/post/one");
-    expect(screen.queryByRole("link", { name: "View post 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View post by author: Post one" })).toHaveAttribute("href", "/post/one");
+    expect(screen.queryByRole("link", { name: "View post by author: Post two" })).not.toBeInTheDocument();
 
-    await act(async () => MockIntersectionObserver.instances[0].trigger());
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
     await waitFor(() => expect(mockGetExplore).toHaveBeenCalledWith({ cursor: "next-page" }));
-    await waitFor(() => expect(screen.getByRole("link", { name: "View post 2" })).toHaveAttribute("href", "/post/two"));
-    expect(screen.getByText("Yay! You have seen it all")).toBeInTheDocument();
+    expect(mockGetExplore).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "View post by author: Post two" })).toHaveAttribute("href", "/post/two"),
+    );
+    expect(screen.getByText("You’ve seen all available photos.")).toBeInTheDocument();
   });
 
-  it("retains prior explore tiles and exposes a page error when a sentinel page fails", async () => {
-    mockGetExplore.mockRejectedValueOnce(new Error("Explore page failed"));
+  it("retains prior explore tiles and exposes a page error when a requested page fails", async () => {
+    mockGetExplore.mockRejectedValueOnce(
+      new Error("More photos couldn’t load. Your earlier results are still here. Try again."),
+    );
     render(<ExploreClient initialItems={[post("one", "/one.jpg")]} initialCursor="next-page" />);
 
-    await act(async () => MockIntersectionObserver.instances[0].trigger());
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
 
-    await waitFor(() => expect(screen.getByText("Explore page failed")).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "View post 1" })).toHaveAttribute("href", "/post/one");
+    await waitFor(() =>
+      expect(
+        screen.getByText("More photos couldn’t load. Your earlier results are still here. Try again."),
+      ).toBeInTheDocument(),
+    );
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
+    expect(mockGetExplore).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: "View post by author: Post one" })).toHaveAttribute("href", "/post/one");
+  });
+  it("retries the same search explicitly and clears results without stale responses", async () => {
+    mockSearchUsers
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ items: [{ id: "one", username: "one", fullName: "One" }] });
+    render(<ExploreClient initialItems={[]} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /search users/i }), { target: { value: "one" } });
+    await act(async () => jest.advanceTimersByTime(200));
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await act(async () => jest.advanceTimersByTime(200));
+    expect(mockSearchUsers).toHaveBeenNthCalledWith(2, { q: "one", limit: 8 });
+    expect(screen.getByRole("link", { name: "one One" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await act(async () => jest.advanceTimersByTime(200));
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.getByRole("textbox", { name: /search users/i })).toHaveValue("");
+    expect(screen.queryByRole("link", { name: "one One" })).not.toBeInTheDocument();
   });
 });

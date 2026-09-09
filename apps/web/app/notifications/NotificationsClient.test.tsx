@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { NotificationItem } from "@isntgram-ai/shared-types";
+import { ApiRequestError } from "@/lib/api-error";
 
 jest.mock("@/lib/api-client", () => ({
   apiClient: {
@@ -27,8 +28,29 @@ function notification(id: string, type: NotificationItem["type"] = "like", postI
   };
 }
 
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  constructor(private readonly callback: IntersectionObserverCallback) {
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  disconnect = jest.fn();
+  observe = jest.fn();
+
+  trigger() {
+    this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
+}
+
 describe("NotificationsClient", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    MockIntersectionObserver.instances = [];
+    Object.defineProperty(window, "IntersectionObserver", { configurable: true, value: MockIntersectionObserver });
+  });
+
+  afterEach(() => Reflect.deleteProperty(window, "IntersectionObserver"));
 
   it("keeps an initial load failure distinct from an empty inbox and retries it", async () => {
     mockApiClient.getNotifications.mockResolvedValueOnce({
@@ -37,7 +59,7 @@ describe("NotificationsClient", () => {
     });
     render(<NotificationsClient initialNotifications={{ items: [], nextCursor: undefined }} initialLoadError />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/couldn't load your notifications/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/couldn’t load your notifications/i);
     expect(screen.queryByText(/no notifications yet/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /retry notifications/i }));
@@ -45,13 +67,19 @@ describe("NotificationsClient", () => {
     expect(mockApiClient.getNotifications).toHaveBeenCalledWith(undefined);
   });
 
-  it("retains earlier items and offers a retry when a later page fails", async () => {
+  it("retains earlier items and stops automatic retries when a later observer page fails", async () => {
     const first = notification("first", "follow");
     mockApiClient.getNotifications.mockRejectedValueOnce(new Error("offline"));
     render(<NotificationsClient initialNotifications={{ items: [first], nextCursor: "cursor-2" }} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/earlier notifications are still here/i));
+    expect(mockApiClient.getNotifications).toHaveBeenCalledTimes(1);
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
+    expect(mockApiClient.getNotifications).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText("actor-first")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry load more/i })).toBeEnabled();
@@ -65,6 +93,16 @@ describe("NotificationsClient", () => {
     await waitFor(() => expect(screen.getByText("actor-second")).toBeInTheDocument());
     expect(mockApiClient.getNotifications).toHaveBeenNthCalledWith(1, { cursor: "cursor-2" });
     expect(mockApiClient.getNotifications).toHaveBeenNthCalledWith(2, { cursor: "cursor-2" });
+  });
+
+  it("retains notifications and exposes session recovery when pagination rejects the session", async () => {
+    mockApiClient.getNotifications.mockRejectedValueOnce(new ApiRequestError("Unauthorized", 401));
+    render(<NotificationsClient initialNotifications={{ items: [notification("first")], nextCursor: "cursor-2" }} />);
+    fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Your session has expired"));
+    expect(screen.getByText("actor-first")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Log in (new tab)" })).toHaveAttribute("href", "/login?reauth=1");
+    expect(screen.getByRole("button", { name: /retry load more/i })).toBeEnabled();
   });
 
   it("keeps page order while deduplicating repeated notification IDs", async () => {

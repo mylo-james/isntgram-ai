@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createTestUser, expectOnFeed, registerViaApi } from "./helpers/test-utils";
+import { createTestUser, expectOnFeed, registerViaApi, publishPhotoViaUi } from "./helpers/test-utils";
 
 test.describe("Demo experience", () => {
   test("demo user is full-access, seeded, and isolated", async ({ page, request }) => {
@@ -24,15 +24,15 @@ test.describe("Demo experience", () => {
     await expect(page.getByRole("heading", { name: /^notifications$/i })).toBeVisible({ timeout: 15000 });
     const notificationLinks = page.locator("main ul li a");
     await expect(notificationLinks.first()).toBeVisible({ timeout: 15000 });
+    const notificationHref = await notificationLinks.first().getAttribute("href");
+    expect(notificationHref).toMatch(/^\/(post\/[a-f0-9-]+|[a-z0-9_]+)$/);
     await notificationLinks.first().click();
-    await expect(page).toHaveURL(/\/(post\/|demo_seed_)/, { timeout: 15000 });
+    await expect(page).toHaveURL(new URL(notificationHref as string, page.url()).href);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     // Demo user can post
     const postContent = `E2E demo post ${Date.now()}`;
-    await page.goto("/upload");
-    await page.getByPlaceholder("Share your latest idea, update, or insight...").fill(postContent);
-    await page.getByRole("button", { name: /^post$/i }).click();
-    await expectOnFeed(page);
+    await publishPhotoViaUi(page, postContent);
     const postCard = page.locator("article").filter({ hasText: postContent }).first();
     await expect(postCard).toBeVisible({ timeout: 15000 });
 
@@ -42,10 +42,11 @@ test.describe("Demo experience", () => {
 
     // Demo user can comment
     const commentContent = `Nice post ${Date.now()}`;
-    await postCard.getByRole("link", { name: /view all/i }).click();
+    await postCard.getByRole("link", { name: "Comment", exact: true }).click();
     await page.waitForURL(/\/post\//, { timeout: 15000 });
-    await page.getByPlaceholder("Add a comment...").fill(commentContent);
-    await page.getByRole("button", { name: /^post$/i }).click();
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    await page.getByRole("textbox", { name: "Add a comment", exact: true }).fill(commentContent);
+    await page.getByRole("button", { name: "Post comment", exact: true }).click();
     await expect(page.getByText(commentContent).first()).toBeVisible({ timeout: 15000 });
 
     // Demo user can edit profile
@@ -117,6 +118,6 @@ test.describe("Demo experience", () => {
 
     // Demo user cannot access real users (isolation)
     await page.goto(`/${otherUser.username}`);
-    await expect(page.getByText(/this page could not be found/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "Page not found", exact: true })).toBeVisible({ timeout: 15000 });
   });
 });

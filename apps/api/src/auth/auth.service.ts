@@ -16,6 +16,7 @@ import {
 } from '@isntgram-ai/shared-types';
 import { JwtPayload } from './jwt.types';
 import { PrivateUserProfileDto } from '../users/dto/private-user-profile.dto';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly mediaService: MediaService,
   ) {}
 
   private normalizeEmail(value: string): string {
@@ -46,7 +48,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
       bio: user.bio,
       postCount: user.postsCount ?? 0,
       followerCount: user.followerCount ?? 0,

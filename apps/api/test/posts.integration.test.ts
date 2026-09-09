@@ -17,6 +17,8 @@ import { Follow } from '../src/follows/entities/follow.entity';
 import { Notification } from '../src/notifications/entities/notification.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
+import { MediaUpload } from '../src/media/entities/media-upload.entity';
+import { MediaService } from '../src/media/media.service';
 import { PostsService } from '../src/posts/posts.service';
 import { AuthService } from '../src/auth/auth.service';
 
@@ -60,6 +62,7 @@ describe('Posts Integration Tests', () => {
             CommentLike,
             Follow,
             Notification,
+            MediaUpload,
           ],
           synchronize: true,
         }),
@@ -119,6 +122,10 @@ describe('Posts Integration Tests', () => {
       return;
     }
     // Ensure tests are isolated.
+    await app
+      .get<Repository<MediaUpload>>(getRepositoryToken(MediaUpload))
+      .clear();
+    jest.restoreAllMocks();
     await notificationRepository.clear();
     await commentLikeRepository.clear();
     await commentRepository.clear();
@@ -162,6 +169,100 @@ describe('Posts Integration Tests', () => {
       postRepository.create({ authorId, content, mediaUrl }),
     );
   }
+
+  it('round-trips descriptions through publication, replay, detail, feed, explore and profile', async () => {
+    const author = await createActor('description_author');
+    const reader = await createActor('description_reader');
+    const uploads = app.get<Repository<MediaUpload>>(
+      getRepositoryToken(MediaUpload),
+    );
+    const intent = await uploads.save(
+      uploads.create({
+        ownerId: author.user.id,
+        pendingKey: 'pending/test-description',
+        expectedBytes: 100,
+        expectedContentType: 'image/png',
+        expiresAt: new Date(Date.now() + 60000),
+      }),
+    );
+    const media = app.get(MediaService);
+    const preparation = jest
+      .spyOn(media, 'preparePublication')
+      .mockResolvedValue({
+        uploadId: intent.id,
+        ownerId: author.user.id,
+        publishedKey: 'published/description',
+        publishedUrl: 'http://localhost/description.png',
+        checksum: 'a'.repeat(64),
+        contentType: 'image/png',
+        bytes: 100,
+        width: 10,
+        height: 10,
+        frames: 1,
+      });
+    const payload = {
+      content: 'A day outside',
+      mediaUploadId: intent.id,
+      mediaAltText: '  A red boat on a lake  ',
+    };
+    const published = await request(app.getHttpServer())
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${author.token}`)
+      .send(payload)
+      .expect(201);
+    expect(published.body.mediaAltText).toBe('A red boat on a lake');
+    expect(
+      (await postRepository.findOneByOrFail({ id: published.body.id }))
+        .mediaAltText,
+    ).toBe('A red boat on a lake');
+    const replay = await request(app.getHttpServer())
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${author.token}`)
+      .send(payload)
+      .expect(201);
+    expect(replay.body.id).toBe(published.body.id);
+    expect(preparation).toHaveBeenCalledTimes(1);
+    for (const mediaAltText of ['Different description', '', undefined]) {
+      await request(app.getHttpServer())
+        .post('/api/posts')
+        .set('Authorization', `Bearer ${author.token}`)
+        .send({ ...payload, mediaAltText })
+        .expect(409);
+    }
+    await request(app.getHttpServer())
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${author.token}`)
+      .send({ ...payload, content: 'Different caption' })
+      .expect(409);
+    await followRepository.save(
+      followRepository.create({
+        followerId: reader.user.id,
+        followingId: author.user.id,
+      }),
+    );
+    for (const endpoint of [
+      '/api/posts/feed',
+      '/api/posts/explore',
+      '/api/posts/user/description_author',
+    ]) {
+      const response = await request(app.getHttpServer())
+        .get(endpoint)
+        .set('Authorization', `Bearer ${reader.token}`)
+        .expect(200);
+      expect(
+        response.body.items.find((post: Post) => post.id === published.body.id)
+          ?.mediaAltText,
+      ).toBe('A red boat on a lake');
+    }
+    const detail = await request(app.getHttpServer())
+      .get(`/api/posts/${published.body.id}`)
+      .set('Authorization', `Bearer ${reader.token}`)
+      .expect(200);
+    expect(detail.body.mediaAltText).toBe('A red boat on a lake');
+    expect(
+      await postRepository.count({ where: { authorId: author.user.id } }),
+    ).toBe(1);
+  });
 
   it('should create posts and populate feed for followers', async () => {
     await request(app.getHttpServer())

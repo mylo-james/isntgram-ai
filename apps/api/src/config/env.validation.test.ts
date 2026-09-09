@@ -5,19 +5,17 @@ describe('validateEnv', () => {
     expect(validateEnv({ JWT_SECRET: 'test-secret' })).toMatchObject({
       JWT_SECRET: 'test-secret',
       NODE_ENV: 'development',
-      AI_PROVIDER: 'mock',
     });
   });
 
   it.each([
     [{}, /JWT_SECRET/],
     [{ JWT_SECRET: 'test', METRICS_ENABLED: 'perhaps' }, /METRICS_ENABLED/],
-    [{ JWT_SECRET: 'test', AI_PROVIDER: 'unsupported' }, /AI_PROVIDER/],
   ])('rejects invalid declared input %#', (input, message) => {
     expect(() => validateEnv(input)).toThrow(message);
   });
 
-  it('requires production connection fields and an OpenAI key only in their applicable modes', () => {
+  it('requires production connection fields without an AI provider or key', () => {
     expect(() =>
       validateEnv({ JWT_SECRET: 'test', NODE_ENV: 'production' }),
     ).toThrow('CORS_ORIGIN');
@@ -28,9 +26,6 @@ describe('validateEnv', () => {
         CORS_ORIGIN: 'http://127.0.0.1:4320',
       }),
     ).toThrow('DATABASE_URL');
-    expect(() =>
-      validateEnv({ JWT_SECRET: 'test', AI_PROVIDER: 'openai' }),
-    ).toThrow('OPENAI_API_KEY');
 
     expect(
       validateEnv({
@@ -38,10 +33,8 @@ describe('validateEnv', () => {
         NODE_ENV: 'production',
         CORS_ORIGIN: 'https://example.test',
         DATABASE_URL: 'postgresql://example.test/db',
-        AI_PROVIDER: 'openai',
-        OPENAI_API_KEY: 'synthetic-key',
       }),
-    ).toMatchObject({ NODE_ENV: 'production', AI_PROVIDER: 'openai' });
+    ).toMatchObject({ NODE_ENV: 'production' });
   });
 
   it.each([

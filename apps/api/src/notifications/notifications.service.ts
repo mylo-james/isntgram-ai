@@ -89,7 +89,11 @@ export class NotificationsService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: projectMediaUrl(
+        user.profilePictureUrl,
+        this.configService.get<string>('S3_PUBLIC_BASE_URL'),
+        this.configService.get<string>('S3_DISPLAY_BASE_URL'),
+      ),
     };
   }
 

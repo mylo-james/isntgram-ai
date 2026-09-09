@@ -144,12 +144,18 @@ export class PostsService {
       throw new BadRequestException('Use a verified upload to attach a photo');
     }
 
+    const mediaAltText = dto.mediaAltText?.trim() || undefined;
+    if (mediaAltText && !dto.mediaUploadId)
+      throw new BadRequestException(
+        'A photo description requires a photo upload',
+      );
     let prepared: PreparedMedia | undefined;
     if (dto.mediaUploadId) {
       const replay = await this.getMediaReplay(
         authorId,
         dto.mediaUploadId,
         dto.content,
+        mediaAltText,
       );
       if (replay) {
         if (fixturePostId && replay.id !== fixturePostId)
@@ -168,6 +174,7 @@ export class PostsService {
             authorId,
             dto.mediaUploadId,
             dto.content,
+            mediaAltText,
           );
           if (replay) {
             if (fixturePostId && replay.id !== fixturePostId)
@@ -187,6 +194,7 @@ export class PostsService {
           ...(fixturePostId ? { id: fixturePostId } : {}),
           authorId,
           content: dto.content,
+          mediaAltText,
           mediaUrl: prepared?.publishedUrl,
         });
         // INSERT refuses a fixed-ID collision. save() would update that row.
@@ -199,6 +207,7 @@ export class PostsService {
               id: prepared.uploadId,
               ownerId: authorId,
               postId: IsNull(),
+              profilePictureUserId: IsNull(),
               expiresAt: MoreThan(new Date()),
             },
             {
@@ -229,6 +238,7 @@ export class PostsService {
           authorId,
           dto.mediaUploadId,
           dto.content,
+          mediaAltText,
         );
         if (replay) {
           if (fixturePostId && replay.id !== fixturePostId)
@@ -247,6 +257,7 @@ export class PostsService {
     ownerId: string,
     uploadId: string,
     content: string,
+    mediaAltText?: string,
   ): Promise<PostDto | undefined> {
     const upload = await this.mediaService.getOwnedUpload(ownerId, uploadId);
     if (!upload.postId) return undefined;
@@ -254,7 +265,11 @@ export class PostsService {
       where: { id: upload.postId, authorId: ownerId },
       relations: ['author'],
     });
-    if (!post || post.content !== content) {
+    if (
+      !post ||
+      post.content !== content ||
+      (post.mediaAltText?.trim() || undefined) !== mediaAltText
+    ) {
       throw new ConflictException(
         'Media upload is already attached to another post',
       );
@@ -469,6 +484,7 @@ export class PostsService {
     return {
       id: post.id,
       content: post.content,
+      mediaAltText: post.mediaAltText || undefined,
       mediaUrl: this.mediaService.toDisplayUrl(post.mediaUrl),
       likeCount: post.likeCount ?? 0,
       commentCount: post.commentCount ?? 0,
@@ -509,7 +525,7 @@ export class PostsService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
     };
   }
 

@@ -7,6 +7,7 @@ import {
   loginViaApi,
   loginViaUi,
   registerViaApi,
+  publishPhotoViaUi,
 } from "./helpers/test-utils";
 
 test.describe("Feed + Profile smoke", () => {
@@ -22,11 +23,7 @@ test.describe("Feed + Profile smoke", () => {
     await loginViaUi(page, userA);
     await expectOnFeed(page);
 
-    await page.goto("/upload");
-    const composer = page.getByPlaceholder("Share your latest idea, update, or insight...");
-    await composer.fill(postA);
-    await page.getByRole("button", { name: "Post" }).click();
-    await page.waitForURL(/\/feed$/, { timeout: 15000 });
+    await publishPhotoViaUi(page, postA);
     await expect(page.locator("article").filter({ hasText: postA }).first()).toBeVisible({ timeout: 15000 });
 
     await page.goto(`/${userB.username}`);

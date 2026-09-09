@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 const apiBaseUrl = process.env.E2E_API_URL || "http://127.0.0.1:3001";
 
@@ -9,7 +10,7 @@ export type TestUser = {
   password: string;
 };
 
-const uniqueId = (label: string) => `${label}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const uniqueId = (label: string) => `${label}_${Date.now().toString(36)}_${randomUUID().slice(0, 8)}`;
 const normalizeId = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
 export const createTestUser = (label = "user"): TestUser => {
@@ -92,4 +93,39 @@ export const loginViaUi = async (page: Page, user: TestUser, options?: { navigat
 export const expectOnFeed = async (page: Page) => {
   await page.waitForURL(/\/feed$/, { timeout: 15000 });
   await expect(page.getByRole("navigation")).toBeVisible();
+};
+
+/** Exercise the real presign, browser PUT, API decoder, and post binding. */
+export const publishPhotoViaUi = async (page: Page, content: string) => {
+  await page.goto("/upload");
+  await expect(page.getByRole("textbox", { name: "Caption", exact: true })).toHaveCount(0);
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Choose photo", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "blue-pixel.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEklEQVQImWNwqzjhVnGCAUIBACiuBhkeMwAsAAAAAElFTkSuQmCC",
+      "base64",
+    ),
+  });
+  await page.getByRole("textbox", { name: "Caption", exact: true }).fill(content);
+  await page.getByRole("textbox", { name: "Photo description" }).fill("A blue square used to test photo publishing.");
+  const published = page.waitForResponse(
+    (response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/bff/posts",
+  );
+  await page.getByRole("button", { name: "Publish post", exact: true }).click();
+  const response = await published;
+  expect(response.status(), await response.text()).toBe(201);
+  const post = (await response.json()) as { id: string; mediaUrl: string; content: string };
+  expect(post.content).toBe(content);
+  expect(post.mediaUrl).toContain("/published/");
+  const photo = await page.request.get(post.mediaUrl);
+  expect(photo.ok()).toBe(true);
+  expect(photo.headers()["content-type"]).toContain("image/png");
+  expect((await photo.body()).length).toBeGreaterThan(0);
+  await expectOnFeed(page);
+  return post;
 };

@@ -43,7 +43,10 @@ const comment = (id: string, content: string) => ({
 });
 
 describe("PostDetailClient", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: jest.fn() });
+  });
 
   it("exposes a complete post date and omits invalid semantic dates", () => {
     const datedPost = { ...post, createdAt: "2026-01-15T12:00:00.000Z" } as unknown as PostItem;
@@ -67,11 +70,10 @@ describe("PostDetailClient", () => {
     await waitFor(() => expect(screen.getByText("3 likes")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: "Unlike" }));
-    await waitFor(() => expect(screen.getByText("offline")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/your like wasn’t changed/i)).toBeInTheDocument());
     expect(screen.getByText("3 likes")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlike" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Add a comment" })).toHaveAttribute("aria-invalid", "false");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/your like wasn’t changed/i);
   });
 
   it("uses the current cursor for manual comments pagination and renders chronological order", async () => {
@@ -107,15 +109,15 @@ describe("PostDetailClient", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /load more comments/i }));
-    await waitFor(() => expect(screen.getByText("comments unavailable")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/comments couldn’t load/i)).toBeInTheDocument());
     expect(screen.getByText("first comment")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /load more comments/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /retry comments/i })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole("button", { name: /load more comments/i }));
+    fireEvent.click(screen.getByRole("button", { name: /retry comments/i }));
     await waitFor(() => expect(mockApi.getComments).toHaveBeenCalledTimes(2));
     expect(screen.getByText("first comment")).toBeInTheDocument();
     expect(screen.getByText("second comment")).toBeInTheDocument();
-    expect(screen.queryByText("comments unavailable")).not.toBeInTheDocument();
+    expect(screen.queryByText(/comments couldn’t load/i)).not.toBeInTheDocument();
   });
 
   it("uses the server comment reaction state and restores it after an unlike failure", async () => {
@@ -133,7 +135,7 @@ describe("PostDetailClient", () => {
     expect(screen.getByText("4 likes")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Unlike comment" }));
-    await waitFor(() => expect(screen.getByText("reaction unavailable")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/comment like wasn’t changed/i)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Unlike comment" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("4 likes")).toBeInTheDocument();
   });
@@ -143,21 +145,58 @@ describe("PostDetailClient", () => {
       .mockResolvedValueOnce(comment("created", "new comment"))
       .mockRejectedValueOnce(new Error("unavailable"));
     render(<PostDetailClient post={post as unknown as PostItem} initialComments={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Comment" }));
     const input = screen.getByRole("textbox", { name: "Add a comment" });
 
     fireEvent.change(input, { target: { value: "  new comment  " } });
-    fireEvent.click(screen.getByRole("button", { name: "Post" }));
+    fireEvent.click(screen.getByRole("button", { name: "Post comment" }));
     await waitFor(() => expect(mockApi.createComment).toHaveBeenCalledWith("post-1", { content: "new comment" }));
     expect(input).toHaveValue("");
-    expect(screen.getByText("Comments: 2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comments (2)" })).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "keep this draft" } });
-    fireEvent.click(screen.getByRole("button", { name: "Post" }));
+    fireEvent.click(screen.getByRole("button", { name: "Post comment" }));
     const feedback = await screen.findByRole("alert");
-    expect(feedback).toHaveTextContent("unavailable");
+    expect(feedback).toHaveTextContent("Your comment wasn’t added");
     expect(input).toHaveValue("keep this draft");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input).toHaveAttribute("aria-describedby", feedback.id);
+    expect(input).toHaveAttribute("aria-describedby", "comment-help comment-error");
+  });
+
+  it("reveals and focuses the editor above viewer comments, then closes it with Escape", async () => {
+    render(
+      <PostDetailClient
+        post={post as unknown as PostItem}
+        viewerId="viewer"
+        initialComments={[
+          { ...comment("other-first", "other first") } as unknown as Comment,
+          {
+            ...comment("mine", "my comment"),
+            author: { id: "viewer", username: "me", fullName: "Me" },
+          } as unknown as Comment,
+          { ...comment("other-last", "other last") } as unknown as Comment,
+        ]}
+      />,
+    );
+
+    const commentButton = screen.getByRole("button", { name: "Comment" });
+    expect(commentButton.parentElement).toHaveClass("justify-end");
+    expect(screen.queryByRole("textbox", { name: "Add a comment" })).not.toBeInTheDocument();
+
+    fireEvent.click(commentButton);
+    const input = screen.getByRole("textbox", { name: "Add a comment" });
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(commentButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      expect.stringContaining("my comment"),
+      expect.stringContaining("other last"),
+      expect.stringContaining("other first"),
+    ]);
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "Add a comment" })).not.toBeInTheDocument();
+    expect(commentButton).toHaveFocus();
+    expect(commentButton).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows copied only after the clipboard accepts the current post URL", async () => {
@@ -168,7 +207,7 @@ describe("PostDetailClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/post\/post-1$/));
   });
 

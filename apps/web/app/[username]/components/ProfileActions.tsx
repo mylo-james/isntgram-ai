@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
-import { signOut } from "next-auth/react";
-import { RiLogoutBoxRLine } from "react-icons/ri";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import { apiClient, type PublicUserProfile } from "@/lib/api-client";
 
@@ -12,7 +12,7 @@ interface ProfileActionsProps {
   profile: PublicUserProfile;
   currentUser?: Session["user"] | null;
   isOwnProfile: boolean;
-  onProfileUpdated?: (profile: { fullName: string; username: string }) => void;
+  onProfileUpdated?: (profile: { fullName: string; username: string; profilePictureUrl?: string }) => void;
   isFollowing?: boolean | null;
   followStatus?: "unresolved" | "known" | "error";
   onFollowChange?: (isFollowing: boolean) => void;
@@ -31,9 +31,12 @@ export default function ProfileActions({
 }: ProfileActionsProps) {
   const [hydrated, setHydrated] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editInitial, setEditInitial] = useState({ fullName: profile.fullName, username: profile.username });
+  const [editInitial, setEditInitial] = useState({
+    fullName: profile.fullName,
+    username: profile.username,
+    profilePictureUrl: profile.profilePictureUrl,
+  });
   const [followError, setFollowError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -46,17 +49,26 @@ export default function ProfileActions({
     try {
       if (currentUser?.id) {
         const me = await apiClient.getMyProfile();
-        setEditInitial({ fullName: me.fullName, username: me.username });
+        setEditInitial({
+          fullName: me.fullName,
+          username: me.username,
+          profilePictureUrl: me.profilePictureUrl,
+        });
       }
     } catch {
       // If fetch fails, keep existing initial values
-      setEditInitial({ fullName: profile.fullName, username: profile.username });
+      setEditInitial({
+        fullName: profile.fullName,
+        username: profile.username,
+        profilePictureUrl: profile.profilePictureUrl,
+      });
     } finally {
       setIsEditOpen(true);
     }
   };
 
   const handleFollowToggle = async () => {
+    if (isFollowLoading) return;
     if (!currentUser) {
       router.push("/login");
       return;
@@ -79,7 +91,7 @@ export default function ProfileActions({
         onFollowChange?.(response.isFollowing);
       }
     } catch (error) {
-      setFollowError("We couldn't update this follow. Please try again.");
+      setFollowError(userError(error, "Your follow status wasn’t changed. Try again."));
       if (process.env.NODE_ENV !== "production") {
         console.error("Error following user:", error);
       }
@@ -94,14 +106,19 @@ export default function ProfileActions({
     return res.available || normalized === profile.username; // allow unchanged
   };
 
-  const submitEdit = async (values: { fullName: string; username: string }) => {
+  const submitEdit = async (values: { fullName: string; username: string; profilePictureUploadId?: string }) => {
     if (!currentUser?.id) return;
     const updated = await apiClient.updateProfile({
       fullName: values.fullName.trim(),
       username: values.username.trim().toLowerCase(),
+      ...(values.profilePictureUploadId ? { profilePictureUploadId: values.profilePictureUploadId } : {}),
     });
     setIsEditOpen(false);
-    onProfileUpdated?.({ fullName: updated.fullName, username: updated.username });
+    onProfileUpdated?.({
+      fullName: updated.fullName,
+      username: updated.username,
+      profilePictureUrl: updated.profilePictureUrl,
+    });
     router.refresh();
     if (updated.username !== profile.username) {
       router.push(`/${updated.username}`);
@@ -110,59 +127,19 @@ export default function ProfileActions({
 
   if (!currentUser) {
     return (
-      <button
-        type="button"
-        onClick={() => router.push("/login")}
-        className="h-[30px] rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50"
-      >
+      <button type="button" onClick={() => router.push("/login")} className="ui-primary">
         Log In
       </button>
     );
   }
 
-  const handleSignOut = async () => {
-    if (isSigningOut) return;
-    setIsSigningOut(true);
-    try {
-      await apiClient.logout().catch((error) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.error("Logout API error:", error);
-        }
-      });
-
-      await signOut({
-        redirect: false,
-        callbackUrl: "/login",
-      });
-    } finally {
-      router.push("/login");
-      setIsSigningOut(false);
-    }
-  };
-
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {isOwnProfile ? (
         <>
-          <button
-            type="button"
-            onClick={handleEditProfile}
-            disabled={!hydrated || isSigningOut}
-            className="h-[30px] rounded-sm border border-[#dbdbdb] bg-white px-3 text-sm font-semibold text-[#262626] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="button" onClick={handleEditProfile} disabled={!hydrated} className="ui-secondary">
             Edit Profile
           </button>
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={!hydrated || isSigningOut}
-            aria-label="Log out"
-            className="rounded-sm p-1 text-[#262626] hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RiLogoutBoxRLine className="h-5 w-5" aria-hidden="true" focusable="false" />
-          </button>
-
           <EditProfileModal
             open={isEditOpen}
             onClose={() => setIsEditOpen(false)}
@@ -178,12 +155,7 @@ export default function ProfileActions({
             onClick={handleFollowToggle}
             disabled={!hydrated || isFollowLoading || (followStatus !== "known" && followStatus !== "error")}
             aria-describedby={followError ? "follow-error" : undefined}
-            className={[
-              "h-[30px] rounded-sm px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
-              isFollowing
-                ? "border border-[#dbdbdb] bg-white text-[#262626] hover:bg-gray-50"
-                : "bg-[#0095f6] text-white hover:bg-[#1877f2]",
-            ].join(" ")}
+            className={["ui-action", isFollowing ? "ui-secondary" : "ui-primary"].join(" ")}
           >
             {isFollowLoading
               ? "Updating..."
@@ -198,9 +170,15 @@ export default function ProfileActions({
                       : "Follow"}
           </button>
           {followError ? (
-            <p id="follow-error" className="mt-1 text-xs text-red-600" role="alert">
-              {followError}
-            </p>
+            <div id="follow-error">
+              <ErrorNotice
+                key={followError}
+                message={followError}
+                onRetry={() => void handleFollowToggle()}
+                pending={isFollowLoading}
+                retryLabel="Retry follow"
+              />
+            </div>
           ) : null}
         </div>
       )}

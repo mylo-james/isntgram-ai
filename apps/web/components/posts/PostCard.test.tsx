@@ -51,12 +51,18 @@ describe("PostCard", () => {
         post={{ ...basePost, author: { ...basePost.author, profilePictureUrl: "https://example.com/avatar.jpg" } }}
       />,
     );
-    expect(screen.getByAltText("Jane Thompson")).toHaveAttribute("src", "https://example.com/avatar.jpg");
+    expect(document.querySelector('img[src="https://example.com/avatar.jpg"]')).toHaveAttribute(
+      "src",
+      "https://example.com/avatar.jpg",
+    );
   });
 
   it("renders post media when mediaUrl is present", () => {
     render(<PostCard post={{ ...basePost, mediaUrl: "https://cdn.example.com/post.jpg" }} />);
-    expect(screen.getByAltText("Post media")).toHaveAttribute("src", "https://cdn.example.com/post.jpg");
+    expect(screen.getByAltText("Photo attached to a post by jane")).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/post.jpg",
+    );
   });
 
   it("renders a semantic posted date with a short visible label and full accessible context", () => {
@@ -102,12 +108,12 @@ describe("PostCard", () => {
   });
 
   it("rolls back a failed optimistic unlike and reports the error", async () => {
-    (apiClient.unlikePost as jest.Mock).mockRejectedValueOnce(new Error("Like service unavailable"));
+    (apiClient.unlikePost as jest.Mock).mockRejectedValueOnce(new Error("Your like wasn’t changed. Try again."));
     render(<PostCard post={{ ...basePost, likedByViewer: true, likeCount: 1 }} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Unlike" }));
-    expect(screen.getByText("0 likes")).toBeInTheDocument();
-    await screen.findByText("Like service unavailable");
+    expect(screen.queryByText("0 likes")).not.toBeInTheDocument();
+    await screen.findByText("Your like wasn’t changed. Try again.");
     expect(screen.getByRole("button", { name: "Unlike" })).toBeEnabled();
     expect(screen.getByText("1 like")).toBeInTheDocument();
   });
@@ -147,7 +153,7 @@ describe("PostCard", () => {
     const newest = screen.getByText("newest");
     expect(oldest.compareDocumentPosition(newest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("link", { name: "old-user" })).toHaveAttribute("href", "/old-user");
-    expect(screen.getByRole("link", { name: /view all 2 comments/i })).toHaveAttribute("href", "/post/post-1");
+    expect(screen.getByRole("link", { name: "Comment" })).toHaveAttribute("href", "/post/post-1");
   });
 
   it("dismisses the menu and provides temporary clipboard feedback", async () => {
@@ -158,11 +164,11 @@ describe("PostCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
     expect(screen.getByRole("dialog", { name: "Post options" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/post/post-1`);
     act(() => jest.advanceTimersByTime(1200));
     expect(screen.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog", { name: "Post options" })).not.toBeInTheDocument();
     jest.useRealTimers();
   });

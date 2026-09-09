@@ -96,6 +96,39 @@ describe('NotificationsService', () => {
     expect(qb.getMany).toHaveBeenCalledTimes(1);
   });
 
+  it('projects a canonical actor avatar URL in notification output without mutating the actor', async () => {
+    const owner = '550e8400-e29b-41d4-a716-446655440000';
+    const object = '660e8400-e29b-41d4-a716-846655440000';
+    const canonical = `http://127.0.0.1:48333/isntgram-v1-media/published/${owner}/${object}`;
+    const item = {
+      ...notification('z', '2025-01-03'),
+      actor: {
+        id: 'actor',
+        username: 'actor',
+        fullName: 'Actor',
+        profilePictureUrl: canonical,
+      },
+    };
+    const { service } = makeService(
+      [item],
+      'sqlite',
+      'https://phone.example:9444/isntgram-v1-media',
+    );
+
+    await expect(
+      service.getNotifications('recipient', false, {}),
+    ).resolves.toMatchObject({
+      items: [
+        {
+          actor: {
+            profilePictureUrl: `https://phone.example:9444/isntgram-v1-media/published/${owner}/${object}`,
+          },
+        },
+      ],
+    });
+    expect(item.actor.profilePictureUrl).toBe(canonical);
+  });
+
   it('rejects malformed cursors before querying and adapts valid SQLite cursor timestamps', async () => {
     const { service, qb } = makeService([]);
     await expect(

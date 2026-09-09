@@ -38,14 +38,18 @@ describe("FeedClient", () => {
     Reflect.deleteProperty(window, "IntersectionObserver");
   });
 
-  it("fetches only for an intersecting sentinel, appends the page, and reaches the terminal state", async () => {
+  it("loads the next page when the pagination boundary enters view, without duplicate requests", async () => {
     getFeed.mockResolvedValue({ items: [{ id: "second" }], nextCursor: undefined });
     render(<FeedClient initialFeed={feedWith("first", "cursor-1")} />);
 
     await act(async () => observerCallback?.([{ isIntersecting: false }]));
     expect(getFeed).not.toHaveBeenCalled();
-    await act(async () => observerCallback?.([{ isIntersecting: true }]));
+    await act(async () => {
+      observerCallback?.([{ isIntersecting: true }]);
+      observerCallback?.([{ isIntersecting: true }]);
+    });
     await waitFor(() => expect(getFeed).toHaveBeenCalledWith({ cursor: "cursor-1" }));
+    expect(getFeed).toHaveBeenCalledTimes(1);
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
     expect(screen.getByText("You're all caught up.")).toBeInTheDocument();
@@ -56,13 +60,21 @@ describe("FeedClient", () => {
     render(<FeedClient initialFeed={feedWith("first", "cursor-1")} />);
 
     await act(async () => observerCallback?.([{ isIntersecting: true }]));
-    await waitFor(() => expect(screen.getByText("offline")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
+    await act(async () => observerCallback?.([{ isIntersecting: true }]));
+    expect(getFeed).toHaveBeenCalledTimes(1);
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
   });
 
+  it("keeps the manual load control when IntersectionObserver is unavailable", () => {
+    Reflect.deleteProperty(window, "IntersectionObserver");
+    render(<FeedClient initialFeed={feedWith("first", "cursor-1")} />);
+    expect(screen.getByRole("button", { name: "Load more posts" })).toBeEnabled();
+  });
+
   it("renders a valid empty feed distinctly from a failed page request", () => {
     render(<FeedClient initialFeed={{ items: [], nextCursor: undefined }} />);
-    expect(screen.getByText(/your feed is empty/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No posts yet" })).toBeInTheDocument();
   });
 });

@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const profileRequest = internalApi
@@ -41,6 +41,7 @@ export default async function NotificationsPage() {
     .catch(() => undefined);
 
   const [profileResult, notificationsResult] = await Promise.all([profileRequest, notificationsRequest]);
+  if (notificationsResult?.response.status === 401) redirect("/login?reauth=1");
   const notifications = notificationsResult?.data;
   const initialLoadError = !notificationsResult?.response.ok || !isNotificationsPayload(notifications);
   const initialNotifications = isNotificationsPayload(notifications)
@@ -58,9 +59,14 @@ export default async function NotificationsPage() {
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-          <h1 className="text-sm font-semibold text-gray-800">Notifications</h1>
+          <h1 className="page-heading">Notifications</h1>
           <NotificationsClient initialNotifications={initialNotifications} initialLoadError={initialLoadError} />
         </div>
       </main>

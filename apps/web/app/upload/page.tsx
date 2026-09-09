@@ -10,7 +10,7 @@ export default async function UploadPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const { data, response } = await internalApi.GET("/api/users/me", {
@@ -25,7 +25,12 @@ export default async function UploadPage() {
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <UploadClient />
       </main>
     </>
