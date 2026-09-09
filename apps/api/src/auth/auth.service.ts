@@ -1,6 +1,8 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,6 +19,7 @@ import {
 import { JwtPayload } from './jwt.types';
 import { PrivateUserProfileDto } from '../users/dto/private-user-profile.dto';
 import { MediaService } from '../media/media.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +28,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly mediaService: MediaService,
+    @Optional() private readonly configService?: ConfigService,
   ) {}
 
   private normalizeEmail(value: string): string {
@@ -71,6 +75,9 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<PrivateUserProfileDto> {
+    if (['preview', 'production'].includes(this.configService?.get<string>('DEPLOYMENT_ENV') ?? '')) {
+      throw new ForbiddenException('Public deployment accepts temporary demo sessions only');
+    }
     return this.registerRecord(dto);
   }
 

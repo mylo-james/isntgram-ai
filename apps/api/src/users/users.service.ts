@@ -193,13 +193,17 @@ export class UsersService {
           }
           return savedUser;
         });
+        await this.mediaService.completeUploadReservation(
+          id,
+          prepared.uploadId,
+        );
         return this.toPrivateProfileDto(saved);
       }
       const saved = await this.userRepository.save(user);
       return this.toPrivateProfileDto(saved);
     } catch (error) {
       if (prepared) {
-        this.mediaService.recordOrphan(prepared, 'profile_transaction_failed');
+        await this.mediaService.recordOrphan(prepared, 'profile_transaction_failed');
       }
       if (isUniqueConstraintError(error)) {
         throw new ConflictException('Username already taken');

@@ -1,0 +1,178 @@
+name: Isntgram staged deployment
+on:
+  workflow_dispatch:
+    inputs:
+      target: { required: true, type: choice, options: [preview, production] }
+      operation: { required: true, type: choice, options: [stage, promote] }
+      source_sha: { required: true, type: string }
+      stage_run_id: { required: false, type: string }
+permissions: { contents: read, actions: read, checks: read }
+concurrency:
+  group: isntgram-maintenance-${{ inputs.target }}
+  cancel-in-progress: false
+jobs:
+  release:
+    if: vars.ISNTGRAM_DEPLOYMENT_ENABLED == 'true'
+    environment: ${{ inputs.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      TARGET: ${{ inputs.target }}
+      STAGE_RUN_ID: ${{ inputs.stage_run_id }}
+      CONFIG_REVISION: ${{ vars.ISNTGRAM_CONFIG_REVISION }}
+      API_PROJECT_ID: ${{ vars.ISNTGRAM_API_PROJECT_ID }}
+      WEB_PROJECT_ID: ${{ vars.ISNTGRAM_WEB_PROJECT_ID }}
+      API_ORIGIN: ${{ vars.ISNTGRAM_API_ORIGIN }}
+      API_ALIAS: ${{ vars.ISNTGRAM_API_ALIAS }}
+      WEB_ALIAS: ${{ vars.ISNTGRAM_WEB_ALIAS }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      GITHUB_TOKEN: ${{ github.token }}
+      VERCEL_TELEMETRY_DISABLED: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { ref: '${{ github.sha }}', persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with: { version: 9.12.3 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24.20.0, cache: pnpm }
+      - name: Validate candidate and existing source checks
+        run: |
+          node scripts/release-receipt.cjs identity
+          node scripts/release-receipt.cjs check-ci
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - run: pnpm install --frozen-lockfile
+      - name: Verify local candidate and build order
+        if: inputs.operation == 'stage'
+        run: |
+          pnpm run contracts:check
+          pnpm run lint:all
+          pnpm run type-check
+          pnpm run build:all
+          node --test scripts/release-receipt.test.cjs
+      - name: Install pinned native deployment CLI
+        run: npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-audit --no-fund vercel@59.14.0
+      - name: Select native PostgreSQL client
+        env: { PG_CLIENT_MAJOR: '${{ vars.PG_CLIENT_MAJOR }}' }
+        run: |
+          [[ "$PG_CLIENT_MAJOR" =~ ^(16|17|18)$ ]] || exit 1
+          test -x "/usr/lib/postgresql/$PG_CLIENT_MAJOR/bin/pg_dump"
+          echo "/usr/lib/postgresql/$PG_CLIENT_MAJOR/bin" >> "$GITHUB_PATH"
+      - name: Resolve accepted API source before production backup
+        if: inputs.operation == 'stage' && inputs.target == 'production'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          EXPECTED_DEPLOYED_RECORD: ${{ vars.ISNTGRAM_DEPLOYED_RECORD }}
+        run: |
+          "$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel" inspect "$API_ALIAS" --json --token="$VERCEL_TOKEN" > accepted-api.json
+          node -e 'const d=require("./accepted-api.json"),f=require("fs"),m=d.meta||{},r=require("./scripts/release-receipt.cjs").maintenanceRecord(process.env.EXPECTED_DEPLOYED_RECORD);if(r.releaseState==="promotion-pending")throw Error("Previous promotion outcome requires reconciliation");if((d.projectId||d.project?.id)!==process.env.API_PROJECT_ID||m.deploymentSourceSha!==r.sourceSha||(d.uid||d.id)!==r.apiDeploymentId||m.deploymentConfigRevision!==r.configRevision||!/^[a-f0-9]{40}$/.test(m.deploymentSourceSha)||!/^[A-Za-z0-9._-]{1,128}$/.test(m.deploymentConfigRevision||""))throw Error("Accepted API provenance unavailable");f.appendFileSync(process.env.GITHUB_ENV,`BACKUP_DEPLOYED_SHA=${m.deploymentSourceSha}\nBACKUP_CONFIG_REVISION=${m.deploymentConfigRevision}\n`)'
+      - name: Production pre-migration snapshot
+        if: inputs.operation == 'stage' && inputs.target == 'production'
+        env:
+          NODE_ENV: production
+          ISNTGRAM_DEPLOYED_SHA: ${{ env.BACKUP_DEPLOYED_SHA }}
+          BACKUP_TOOL_SHA: ${{ github.sha }}
+          DEPLOYED_API_CONFIG_REVISION: ${{ env.BACKUP_CONFIG_REVISION }}
+          DEPLOYMENT_ENV: ${{ inputs.target }}
+          DEPLOYMENT_TARGET_ID: ${{ vars.DEPLOYMENT_TARGET_ID }}
+          DATABASE_DIRECT_URL: ${{ secrets.BACKUP_DATABASE_DIRECT_URL }}
+          DATABASE_SSL: 'true'
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_REGION: ${{ vars.S3_REGION }}
+          S3_BACKUP_BUCKET: ${{ vars.S3_BACKUP_BUCKET }}
+          S3_PUBLISHED_BUCKET: ${{ vars.S3_PUBLISHED_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_ENCRYPTION_KEY_BASE64: ${{ secrets.BACKUP_ENCRYPTION_KEY_BASE64 }}
+        run: pnpm --filter api deployment:backup
+      - name: Apply compatible recorded migrations
+        if: inputs.operation == 'stage'
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_ENV: ${{ inputs.target }}
+          DEPLOYMENT_TARGET_ID: ${{ vars.DEPLOYMENT_TARGET_ID }}
+          DATABASE_DIRECT_URL: ${{ secrets.MIGRATION_DATABASE_DIRECT_URL }}
+          DATABASE_SSL: 'true'
+        run: node apps/api/dist/run-migrations.js
+      - name: Confirm environment cleanup before admission
+        if: inputs.operation == 'stage'
+        env:
+          NODE_ENV: production
+          ALLOW_PROD_MAINTENANCE: 'true'
+          DEPLOYMENT_ENV: ${{ inputs.target }}
+          DEPLOYMENT_TARGET_ID: ${{ vars.DEPLOYMENT_TARGET_ID }}
+          DATABASE_DIRECT_URL: ${{ secrets.CLEANUP_DATABASE_DIRECT_URL }}
+          DATABASE_SSL: 'true'
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_REGION: ${{ vars.S3_REGION }}
+          S3_PENDING_BUCKET: ${{ vars.S3_PENDING_BUCKET }}
+          S3_PUBLISHED_BUCKET: ${{ vars.S3_PUBLISHED_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.CLEANUP_S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.CLEANUP_S3_SECRET_ACCESS_KEY }}
+        run: pnpm --filter api demo:cleanup
+      - name: Build and stage API, then web, without canonical aliases
+        if: inputs.operation == 'stage'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_DIRECT_URL: ${{ secrets.MIGRATION_DATABASE_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          vc="$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel"
+          flags=()
+          if [ "$TARGET" = production ]; then flags+=(--prod); fi
+          for unit in api web; do
+            if [ "$unit" = api ]; then export VERCEL_PROJECT_ID="$API_PROJECT_ID"; alias="$API_ALIAS"; else export VERCEL_PROJECT_ID="$WEB_PROJECT_ID"; alias="$WEB_ALIAS"; fi
+            test -n "$alias"
+            "$vc" inspect "$alias" --json --token="$VERCEL_TOKEN" > "$unit-previous-inspection.json"
+            node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1]));if((d.projectId||d.project?.id)!==process.env.VERCEL_PROJECT_ID)throw Error("Wrong previous project");fs.writeFileSync(process.argv[2],JSON.stringify({deploymentId:d.uid||d.id}))' "$unit-previous-inspection.json" "$unit-previous.json"
+            node scripts/release-receipt.cjs config "$unit" > "$unit-config.json"
+            "$vc" pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
+            "$vc" build --yes "${flags[@]}" --token="$VERCEL_TOKEN"
+            find .vercel/output -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 > "$unit-artifact.txt"
+            "$vc" deploy --prebuilt --yes --skip-domain "${flags[@]}" --meta "deploymentSourceSha=$SOURCE_SHA" --meta "deploymentConfigRevision=$CONFIG_REVISION" --token="$VERCEL_TOKEN" > "$unit-url.txt"
+            "$vc" inspect "$(tail -n1 "$unit-url.txt")" --wait --json --token="$VERCEL_TOKEN" > "$unit-inspection.json"
+            node scripts/release-receipt.cjs config "$unit" > "$unit-config-after.json"
+            cmp "$unit-config.json" "$unit-config-after.json"
+            node scripts/release-receipt.cjs unit "$unit" "$unit-inspection.json" "$unit-artifact.txt" "$unit-config.json" "$unit-previous.json" "$unit-receipt.json"
+          done
+          node scripts/release-receipt.cjs create
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: inputs.operation == 'stage'
+        with: { name: isntgram-release-receipt, path: isntgram-release-receipt.json, retention-days: 30, if-no-files-found: error }
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        if: inputs.operation == 'promote'
+        with: { name: isntgram-release-receipt, run-id: '${{ inputs.stage_run_id }}', github-token: '${{ github.token }}' }
+      - name: Reconcile source, schema, configuration and aliases before explicit promotion
+        if: inputs.operation == 'promote'
+        env:
+          PROMOTION_ENABLED: ${{ vars.ISNTGRAM_PROMOTION_ENABLED }}
+          MAINTENANCE_RECORD_TOKEN: ${{ secrets.MAINTENANCE_RECORD_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_DIRECT_URL: ${{ secrets.MIGRATION_DATABASE_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          test "$PROMOTION_ENABLED" = true
+          test -n "$MAINTENANCE_RECORD_TOKEN"
+          vc="$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel"
+          node scripts/release-receipt.cjs promotion
+          for unit in api web; do
+            if [ "$unit" = api ]; then export VERCEL_PROJECT_ID="$API_PROJECT_ID"; alias="$API_ALIAS"; else export VERCEL_PROJECT_ID="$WEB_PROJECT_ID"; alias="$WEB_ALIAS"; fi
+            "$vc" inspect "$alias" --json --token="$VERCEL_TOKEN" > "$unit-current.json"
+            node -e 'const fs=require("fs"),r=require("./isntgram-release-receipt.json")[process.argv[1]],d=JSON.parse(fs.readFileSync(process.argv[2]));if((d.uid||d.id)!==r.previousDeploymentId||(d.projectId||d.project?.id)!==r.projectId)throw Error("Canonical target changed")' "$unit" "$unit-current.json"
+            deployment_id="$(node -e 'process.stdout.write(require("./isntgram-release-receipt.json")[process.argv[1]].deploymentId)' "$unit")"
+            "$vc" inspect "$deployment_id" --wait --json --token="$VERCEL_TOKEN" > "$unit-inspection.json"
+            node scripts/release-receipt.cjs inspection "$unit" "$unit-inspection.json"
+          done
+          node scripts/release-receipt.cjs record-maintenance promotion-pending
+          for unit in api web; do
+            if [ "$unit" = api ]; then export VERCEL_PROJECT_ID="$API_PROJECT_ID"; alias="$API_ALIAS"; health=/api/ready; else export VERCEL_PROJECT_ID="$WEB_PROJECT_ID"; alias="$WEB_ALIAS"; health=/health; fi
+            deployment_id="$(node -e 'process.stdout.write(require("./isntgram-release-receipt.json")[process.argv[1]].deploymentId)' "$unit")"
+            if [ "$TARGET" = production ]; then "$vc" promote "$deployment_id" --yes --token="$VERCEL_TOKEN"; else "$vc" alias set "$deployment_id" "$alias" --token="$VERCEL_TOKEN"; fi
+            curl --fail --show-error --silent --max-time 15 "https://$alias$health" > "$unit-canonical-health.json"
+            node -e 'if(!["ok","ready"].includes(require("./"+process.argv[1]).status))throw Error("Canonical health failed")' "$unit-canonical-health.json"
+            "$vc" inspect "$alias" --wait --json --token="$VERCEL_TOKEN" > "$unit-promoted-inspection.json"
+            node scripts/release-receipt.cjs inspection "$unit" "$unit-promoted-inspection.json"
+            if [ "$unit" = api ]; then node scripts/release-receipt.cjs record-maintenance api-serving; fi
+          done
+          node scripts/release-receipt.cjs record-maintenance pair-healthy

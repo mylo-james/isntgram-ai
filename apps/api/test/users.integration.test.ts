@@ -64,7 +64,8 @@ describe('Users Integration Tests', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    await app.init();
+    // Keep one loopback listener for the suite; Supertest must not close it per request.
+    await app.listen(0, '127.0.0.1');
   });
 
   beforeEach(async () => {

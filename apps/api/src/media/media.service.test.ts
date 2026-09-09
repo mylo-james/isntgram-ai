@@ -20,6 +20,7 @@ import { Repository } from 'typeorm';
 import { MediaUpload } from './entities/media-upload.entity';
 import { SharpMediaImageProcessor } from './media-image';
 import { MediaService } from './media.service';
+import { AdmissionService } from '../common/admission/admission.service';
 
 const config = {
   S3_BUCKET: 'isntgram-v1-media',
@@ -55,6 +56,8 @@ function repository(found: MediaUpload | null = null) {
     save: jest.fn(async (value: unknown) => value as MediaUpload),
     insert: jest.fn(async (value: unknown) => value as MediaUpload),
     findOne: jest.fn(async () => found),
+    update: jest.fn(async () => ({ affected: 1 })),
+    manager: { query: jest.fn(async () => undefined) },
   };
 }
 
@@ -105,6 +108,14 @@ describe('MediaService', () => {
         {
           provide: getRepositoryToken(MediaUpload),
           useValue: mediaRepository,
+        },
+        {
+          provide: AdmissionService,
+          useValue: {
+            reserveUpload: jest.fn(),
+            releaseUpload: jest.fn(),
+            completeUpload: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -270,9 +281,11 @@ describe('MediaService', () => {
     const destroy = jest
       .spyOn(S3Client.prototype, 'destroy')
       .mockImplementation();
+    const mediaRepository = repository(upload());
     const service = new MediaService(
       new ConfigService(config),
-      repository(upload()) as unknown as Repository<MediaUpload>,
+      mediaRepository as unknown as Repository<MediaUpload>,
+      { isDeploymentMode: jest.fn(() => true) } as unknown as AdmissionService,
     );
 
     const prepared = await service.preparePublication(
@@ -316,9 +329,11 @@ describe('MediaService', () => {
         height: 1,
         frames: 1,
       });
+    const mediaRepository = repository(upload());
     const service = new MediaService(
       new ConfigService(config),
-      repository(upload()) as unknown as Repository<MediaUpload>,
+      mediaRepository as unknown as Repository<MediaUpload>,
+      { isDeploymentMode: jest.fn(() => true) } as unknown as AdmissionService,
     );
 
     await expect(
@@ -456,9 +471,11 @@ describe('MediaService', () => {
       ContentType: 'image/jpeg',
       Body: chunks(Buffer.from('four')),
     });
+    const mediaRepository = repository(upload());
     const service = new MediaService(
       new ConfigService(config),
-      repository(upload()) as unknown as Repository<MediaUpload>,
+      mediaRepository as unknown as Repository<MediaUpload>,
+      { isDeploymentMode: jest.fn(() => true) } as unknown as AdmissionService,
     );
     await expect(
       service.preparePublication(input.userId, 'upload-id'),
@@ -466,7 +483,7 @@ describe('MediaService', () => {
     expect(send).toHaveBeenCalledTimes(2);
 
     const logger = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    const record = service.recordOrphan(
+    const record = await service.recordOrphan(
       {
         uploadId: 'upload-id',
         ownerId: input.userId,
@@ -488,6 +505,15 @@ describe('MediaService', () => {
       reason: 'db_binding_failed',
     });
     expect(logger).toHaveBeenCalledWith(JSON.stringify(record));
+    expect(mediaRepository.manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO media_deletion_intents'),
+      [
+        'test',
+        'upload-id',
+        'published/owner/object',
+        'db_binding_failed',
+      ],
+    );
   });
 
   it('uses one absolute five-second deadline while waiting for pending GET headers', async () => {

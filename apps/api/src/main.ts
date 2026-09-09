@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
+import { assertDeploymentTarget } from './common/deployment/target';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -9,6 +11,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get('NODE_ENV', 'development');
+  const deploymentEnvironment = configService.get<string>('DEPLOYMENT_ENV');
+  if (['preview', 'production'].includes(deploymentEnvironment ?? '')) {
+    await assertDeploymentTarget(
+      app.get(DataSource),
+      deploymentEnvironment!,
+      'api',
+    );
+  }
+  if (process.env.VERCEL === '1') {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
 
   // Security headers
   app.use(

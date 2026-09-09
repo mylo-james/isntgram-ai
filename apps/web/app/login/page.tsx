@@ -315,6 +315,7 @@ function LoginInner() {
                   <button
                     className="ui-secondary w-full"
                     onClick={handleDemoSignIn}
+                    data-portfolio-demo-sign-in
                     type="button"
                     disabled={controlsDisabled}
                   >
@@ -323,12 +324,17 @@ function LoginInner() {
                 ) : null}
               </form>
 
-              <div className="text-sm text-center">
+              {process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true" ? (
+                <p className="text-sm text-center text-gray-600">
+                  This public demo lasts 48 hours. Your uploads are temporary;
+                  private recovery copies expire after 7 days.
+                </p>
+              ) : <div className="text-sm text-center">
                 <span className="text-gray-600">Don&apos;t have an account? </span>
                 <Link className="ui-quiet font-semibold" href="/register">
                   Sign up
                 </Link>
-              </div>
+              </div>}
             </div>
           </div>
 

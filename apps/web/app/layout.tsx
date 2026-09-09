@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import PortfolioBridge from "@/components/demo/PortfolioBridge";
 import SessionProvider from "@/components/providers/SessionProvider";
 
 const geistSans = localFont({
@@ -42,7 +43,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>{children}<PortfolioBridge /></SessionProvider>
       </body>
     </html>
   );

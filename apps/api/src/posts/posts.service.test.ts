@@ -108,6 +108,7 @@ describe('PostsService', () => {
         .fn()
         .mockResolvedValue({ id: 'upload-1', ownerId: 'user-1' }),
       preparePublication: jest.fn(),
+      completeUploadReservation: jest.fn(),
       recordOrphan: jest.fn(),
       toDisplayUrl: jest.fn((value) => value),
     };
@@ -412,6 +413,27 @@ describe('PostsService', () => {
         prepared,
         'post_transaction_failed',
       );
+    });
+
+    it('waits for the durable orphan intent before returning a transaction failure', async () => {
+      const h = setup();
+      const failure = new Error('database write failure');
+      let persist!: () => void;
+      h.userRepository.increment.mockRejectedValue(failure);
+      h.mediaService.recordOrphan.mockImplementation(
+        () => new Promise<void>((resolve) => { persist = resolve; }),
+      );
+
+      const result = h.service.createPost('user-1', request);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(h.mediaService.recordOrphan).toHaveBeenCalledWith(
+        prepared,
+        'post_transaction_failed',
+      );
+      expect(h.mediaService.completeUploadReservation).not.toHaveBeenCalled();
+
+      persist();
+      await expect(result).rejects.toBe(failure);
     });
   });
 

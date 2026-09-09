@@ -20,6 +20,8 @@ import { HttpLoggingInterceptor } from './common/interceptors/http-logging.inter
 import { validateEnv } from './config/env.validation';
 import { getPostgresSslOptions } from './config/postgres-ssl';
 import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
+import { AdmissionModule } from './common/admission/admission.module';
+import { AdmissionGuard } from './common/admission/admission.guard';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -103,6 +105,7 @@ function getThrottlerOptions() {
       validate: validateEnv,
     }),
     ThrottlerModule.forRoot(getThrottlerOptions()),
+    AdmissionModule,
     MetricsModule,
     ...getDatabaseModules(),
     ...getFeatureModules(),
@@ -110,6 +113,10 @@ function getThrottlerOptions() {
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useExisting: AdmissionGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: UserThrottlerGuard,

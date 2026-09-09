@@ -1,7 +1,15 @@
+import portfolioEmbed from "./portfolio-embed-config.cjs";
+const portfolioOrigin = portfolioEmbed.portfolioEmbedOrigin(process.env);
 /** @type {import('next').NextConfig} */
 const defaultMediaHosts = "localhost:9000,127.0.0.1:9000,cdn.isntgram.ai,picsum.photos";
-const rawMediaHosts = process.env.NEXT_PUBLIC_MEDIA_HOSTS || defaultMediaHosts;
-const localMedia = process.env.NODE_ENV === "development" && process.env.ISNTGRAM_LOCAL_MEDIA === "true";
+const deploymentEnv = process.env.DEPLOYMENT_ENV || "development";
+const rawMediaHosts = process.env.NEXT_PUBLIC_MEDIA_HOSTS || (deploymentEnv === "development" ? defaultMediaHosts : "");
+if (["preview", "production"].includes(deploymentEnv) && !rawMediaHosts) {
+  throw new Error("Public deployments require exact NEXT_PUBLIC_MEDIA_HOSTS");
+}
+const isolatedLocalTest = deploymentEnv === "local-test" && process.env.NEXT_PUBLIC_APP_URL === "http://127.0.0.1:4520" && portfolioOrigin === "http://127.0.0.1:4510";
+if (deploymentEnv === "local-test" && !isolatedLocalTest) throw new Error("Invalid isolated browser-test origins");
+const localMedia = isolatedLocalTest || (process.env.NODE_ENV === "development" && process.env.ISNTGRAM_LOCAL_MEDIA === "true");
 const configuredAppOrigin = process.env.NEXT_PUBLIC_APP_URL;
 let allowedDevOrigins;
 if (localMedia && configuredAppOrigin?.startsWith("https:")) {
@@ -38,7 +46,12 @@ const mediaPatterns = rawMediaHosts
   .filter(Boolean);
 
 const nextConfig = {
+  devIndicators: portfolioOrigin ? false : undefined,
   turbopack: {},
+  env: {
+    NEXT_PUBLIC_PORTFOLIO_ORIGIN: portfolioOrigin,
+    NEXT_PUBLIC_DEPLOYMENT_DEMO: ["preview", "production", "local-test"].includes(deploymentEnv) ? "true" : "false",
+  },
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   images: {
     // Local published bytes already pass the API decoder. Let the browser load
@@ -52,7 +65,7 @@ const nextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          ...portfolioEmbed.portfolioFrameHeaders(portfolioOrigin),
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],

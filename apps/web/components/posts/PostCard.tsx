@@ -92,7 +92,7 @@ export default function PostCard({ post }: { post: PostItem }) {
               {initials || "U"}
             </div>
           )}
-          <span className="break-all text-sm font-semibold text-gray-800">{post.author.username}</span>
+          <span className="min-w-0 truncate text-sm font-semibold text-gray-800">{post.author.username}</span>
         </Link>
 
         <div className="flex items-center gap-3">

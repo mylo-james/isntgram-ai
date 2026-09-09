@@ -100,7 +100,9 @@ export default function DemoBanner() {
     : "Demo session";
 
   const subtitle =
-    process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "curated"
+    process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true"
+      ? "Your demo and uploads expire after 48 hours. Private recovery copies expire after 7 days."
+      : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "curated"
       ? "Curated examples use fictional profiles and credited photographs. Session access expires; demo data is retained for review."
       : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "community"
         ? "A fictional community with generated avatars and credited photos. Your account is temporary."
@@ -116,11 +118,12 @@ export default function DemoBanner() {
   };
 
   return (
-    <div ref={containerRef} className="fixed left-0 right-0 top-0 z-[200] border-b border-amber-200 bg-amber-50">
+    <div ref={containerRef} className="demo-session-banner fixed left-0 right-0 top-0 z-[200] border-b border-amber-200 bg-amber-50">
       <div className="mx-auto flex max-w-5xl items-start justify-between gap-3 px-4 py-2 sm:items-center">
         <div>
-          <p className="text-sm font-semibold text-amber-950">{title}</p>
-          <p className="text-xs text-amber-800">{subtitle}</p>
+          <div className="demo-full-description"><p className="text-sm font-semibold text-amber-950">{title}</p>
+          <p className="text-xs text-amber-800">{subtitle}</p></div>
+          <p className="demo-compact-description hidden text-xs text-amber-950">{remainingLabel === "now" ? "This demo has expired." : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "community" ? "Temporary demo. Fictional community." : "Demo session. Temporary access."}</p>
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {remainingLabel === "now" ? (

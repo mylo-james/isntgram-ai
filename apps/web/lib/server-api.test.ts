@@ -4,7 +4,7 @@ jest.mock("next/headers", () => ({ headers: jest.fn(), cookies: jest.fn() }));
 jest.mock("next-auth/jwt", () => ({ getToken: jest.fn() }));
 
 import { getToken } from "next-auth/jwt";
-import { getApiAccessToken, getRequestId } from "./server-api";
+import { getApiAccessToken, getRequestId, signedVisitorHeaders } from "./server-api";
 
 const { headers: mockHeaders, cookies: mockCookies } = jest.requireMock("next/headers") as {
   headers: jest.Mock;
@@ -84,5 +84,21 @@ describe("server API request boundary", () => {
     mockHeaders.mockResolvedValueOnce(new Headers());
     await expect(getRequestId()).resolves.toBe("generated-request-id");
     randomUUID.mockRestore();
+  });
+
+  it("signs only Vercel's provider-owned visitor address for the exact API method and path", () => {
+    const previousVercel = process.env.VERCEL;
+    const previousSecret = process.env.BFF_PROXY_SECRET;
+    process.env.VERCEL = "1";
+    process.env.BFF_PROXY_SECRET = "b".repeat(32);
+    const signed = signedVisitorHeaders(
+      new Headers({ "x-vercel-forwarded-for": "198.51.100.3" }),
+      "POST",
+      "/api/auth/demo",
+    ) as Record<string, string>;
+    expect(signed["x-isntgram-client-address"]).toBe("198.51.100.3");
+    expect(signed["x-isntgram-client-signature"]).toMatch(/^[a-f0-9]{64}$/);
+    process.env.VERCEL = previousVercel;
+    process.env.BFF_PROXY_SECRET = previousSecret;
   });
 });

@@ -229,10 +229,19 @@ export class PostsService {
           throw new NotFoundException('Post not found after creation');
         return loaded;
       });
+      // The durable claim is committed before the reservation can be consumed.
+      // A process crash between these calls leaves a conservative reservation
+      // for maintenance reconciliation rather than accepting extra uploads.
+      if (prepared) {
+        await this.mediaService.completeUploadReservation(
+          authorId,
+          prepared.uploadId,
+        );
+      }
       return this.toPostDto(created, { previewComments: [] });
     } catch (error) {
       if (prepared)
-        this.mediaService.recordOrphan(prepared, 'post_transaction_failed');
+        await this.mediaService.recordOrphan(prepared, 'post_transaction_failed');
       if (error instanceof MediaClaimLost && dto.mediaUploadId) {
         const replay = await this.getMediaReplay(
           authorId,

@@ -23,6 +23,14 @@ class EnvironmentVariables {
   DATABASE_URL?: string;
 
   @IsOptional()
+  @IsString()
+  DATABASE_DIRECT_URL?: string;
+
+  @IsOptional()
+  @IsIn(['development', 'preview', 'production'])
+  DEPLOYMENT_ENV?: string;
+
+  @IsOptional()
   @IsIn(['true', 'false'])
   DATABASE_SSL?: string;
 
@@ -75,6 +83,14 @@ class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  S3_PENDING_BUCKET?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_PUBLISHED_BUCKET?: string;
+
+  @IsOptional()
+  @IsString()
   S3_REGION?: string;
 
   @IsOptional()
@@ -124,6 +140,26 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   THROTTLER_LIMIT?: string;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  TRUST_PROXY?: string;
+
+  @IsOptional()
+  @IsString()
+  CLEANUP_STALE_AFTER_SECONDS?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMISSION_LEASE_SECONDS?: string;
+
+  @IsOptional()
+  @IsString()
+  UPLOAD_RESERVATION_SECONDS?: string;
+
+  @IsOptional()
+  @IsString()
+  BFF_PROXY_SECRET?: string;
 }
 
 function formatEnvErrors(errors: ReturnType<typeof validateSync>): string {
@@ -157,6 +193,15 @@ export function validateEnv(config: Record<string, unknown>) {
     }
     if (!env.DATABASE_URL) {
       throw new Error('DATABASE_URL must be set in production');
+    }
+  }
+
+  if (env.DEPLOYMENT_ENV === 'preview' || env.DEPLOYMENT_ENV === 'production') {
+    if (env.DEMO_ENABLED !== 'true' || Number(env.DEMO_TTL_HOURS ?? '48') !== 48) {
+      throw new Error('Public deployment admission requires DEMO_ENABLED=true and DEMO_TTL_HOURS=48');
+    }
+    if (!env.BFF_PROXY_SECRET || env.BFF_PROXY_SECRET.length < 32) {
+      throw new Error('Public deployment admission requires BFF_PROXY_SECRET with at least 32 characters');
     }
   }
 
