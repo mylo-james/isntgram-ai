@@ -27,6 +27,7 @@ describe('UsersService', () => {
   const mockUserRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
+    createQueryBuilder: jest.fn(),
   } as unknown as jest.Mocked<Repository<User>>;
   const mockMediaRepository = { update: jest.fn() };
   const mockDataSource = {
@@ -62,6 +63,40 @@ describe('UsersService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('searchUsers', () => {
+    it('projects avatar URLs for phone-view search results', async () => {
+      const canonical = 'http://127.0.0.1:48333/media/published/avatar';
+      const display = 'https://phone-preview.example/media/published/avatar';
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest
+          .fn()
+          .mockResolvedValue([{ ...mockUser, profilePictureUrl: canonical }]),
+      };
+      mockUserRepository.createQueryBuilder.mockReturnValue(qb as never);
+      mockMediaService.toDisplayUrl.mockImplementation((value) =>
+        value === canonical ? display : value,
+      );
+      const result = await service.searchUsers(true, { q: 'test', limit: 10 });
+      expect(result.items).toEqual([
+        {
+          id: mockUser.id,
+          username: mockUser.username,
+          fullName: mockUser.fullName,
+          profilePictureUrl: display,
+        },
+      ]);
+      expect(mockMediaService.toDisplayUrl).toHaveBeenCalledWith(canonical);
+      expect(qb.where).toHaveBeenCalledWith('user.isDemoUser = :viewerIsDemo', {
+        viewerIsDemo: true,
+      });
+    });
   });
 
   describe('findByUsername', () => {

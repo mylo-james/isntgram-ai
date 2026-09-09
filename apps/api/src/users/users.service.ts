@@ -240,7 +240,7 @@ export class UsersService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
     }));
 
     return { items };

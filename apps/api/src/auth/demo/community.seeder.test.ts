@@ -84,6 +84,19 @@ describe('Saved fictional demo community', () => {
         mediaUrl: '/own-photo.jpg',
       }),
     );
+    // Visitor activity must contribute to counts after a repair pass.
+    await database.getRepository(Comment).insert({
+      postId: communityId(first.key),
+      authorId: visitor.id,
+      content: 'A visitor comment',
+    });
+    await database
+      .getRepository(Like)
+      .insert({ postId: communityId(first.key), userId: visitor.id });
+    await database.getRepository(Follow).insert({
+      followerId: visitor.id,
+      followingId: communityId(`user:${first.authorKey}`),
+    });
     const commentsBefore = await database.getRepository(Comment).count();
     const likesBefore = await database.getRepository(Like).count();
     const followsBefore = await database.getRepository(Follow).count();
@@ -113,6 +126,40 @@ describe('Saved fictional demo community', () => {
         await database.getRepository(Comment).countBy({ postId: post.id }),
       );
     }
+  });
+
+  it('uses bounded bulk reads and no writes when an existing community is complete', async () => {
+    const users = database.getRepository(User);
+    await new CommunitySeeder(users).ensureCommunity();
+    const queryLog = jest.spyOn(database.logger, 'logQuery');
+    try {
+      // A fresh service instance also stays fast after an application restart.
+      await new CommunitySeeder(users).ensureCommunity();
+      const queries = queryLog.mock.calls.map(([query]) => query);
+      expect(queries.length).toBeLessThanOrEqual(10);
+      expect(
+        queries.filter((query) => /^(INSERT|UPDATE|DELETE)/i.test(query)),
+      ).toEqual([]);
+    } finally {
+      queryLog.mockRestore();
+    }
+  });
+
+  it('repairs a missing seeded like without duplicating other engagement', async () => {
+    const users = database.getRepository(User);
+    const likes = database.getRepository(Like);
+    const entry = community.posts.find((post) => post.likedBy.length > 0)!;
+    const key = {
+      postId: communityId(entry.key),
+      userId: communityId(`user:${entry.likedBy[0]}`),
+    };
+    const seeder = new CommunitySeeder(users);
+    await seeder.ensureCommunity();
+    const count = await likes.count();
+    await likes.delete(key);
+    await seeder.ensureCommunity();
+    expect(await likes.count()).toBe(count);
+    expect(await likes.countBy(key)).toBe(1);
   });
 
   it('rolls back on a real username conflict without changing that account', async () => {
