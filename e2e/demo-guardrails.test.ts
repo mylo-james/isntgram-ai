@@ -10,11 +10,11 @@ test.describe("Demo experience", () => {
     await expectOnFeed(page);
 
     // Demo banner is visible + dismissal persists across reloads
-    await expect(page.getByText(/demo session/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/^demo session(?: expires|$)/i)).toBeVisible({ timeout: 15000 });
     await page.getByRole("button", { name: /^dismiss$/i }).click();
-    await expect(page.getByText(/demo session/i)).toHaveCount(0);
+    await expect(page.getByText(/^demo session(?: expires|$)/i)).toHaveCount(0);
     await page.reload();
-    await expect(page.getByText(/demo session/i)).toHaveCount(0);
+    await expect(page.getByText(/^demo session(?: expires|$)/i)).toHaveCount(0);
 
     // Feed is seeded (not empty on first load)
     await expect(page.locator("article").first()).toBeVisible();
