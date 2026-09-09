@@ -22,12 +22,21 @@ function identity(e = process.env) {
   );
   const webAlias = e.TARGET === "preview" ? "isntgram-preview.mjames.dev" : "isntgram.mjames.dev";
   let apiOrigin;
-  try { apiOrigin = new URL(e.API_ORIGIN); } catch { throw new Error("Release stopped: invalid API origin"); }
+  try {
+    apiOrigin = new URL(e.API_ORIGIN);
+  } catch {
+    throw new Error("Release stopped: invalid API origin");
+  }
   assert(
-    apiOrigin.protocol === "https:" && apiOrigin.origin === e.API_ORIGIN &&
-      !apiOrigin.username && !apiOrigin.password && !apiOrigin.port &&
+    apiOrigin.protocol === "https:" &&
+      apiOrigin.origin === e.API_ORIGIN &&
+      !apiOrigin.username &&
+      !apiOrigin.password &&
+      !apiOrigin.port &&
       /^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(apiOrigin.hostname) &&
-      e.API_ALIAS === apiOrigin.hostname && e.WEB_ALIAS === webAlias && e.API_ALIAS !== e.WEB_ALIAS,
+      e.API_ALIAS === apiOrigin.hostname &&
+      e.WEB_ALIAS === webAlias &&
+      e.API_ALIAS !== e.WEB_ALIAS,
     "canonical aliases differ from the selected API origin or web target",
   );
   return {
@@ -46,7 +55,8 @@ function identity(e = process.env) {
 function maintenanceRecord(value) {
   const r = typeof value === "string" ? JSON.parse(value) : value;
   assert(
-    r?.version === 1 && r.scope === "api" &&
+    r?.version === 1 &&
+      r.scope === "api" &&
       ["promotion-pending", "api-serving", "pair-healthy"].includes(r.releaseState) &&
       /^dpl_[A-Za-z0-9]+$/.test(r.apiDeploymentId || "") &&
       /^[a-f0-9]{40}$/.test(r.sourceSha || "") &&
@@ -59,9 +69,14 @@ async function recordMaintenance(current, env = process.env, request = fetch) {
   assert(env.MAINTENANCE_RECORD_TOKEN, "maintenance record credential is unavailable");
   const name = "ISNTGRAM_DEPLOYED_RECORD";
   const value = JSON.stringify(
-    maintenanceRecord({ version: 1, scope: "api", sourceSha: current.sourceSha,
-      configRevision: current.configRevision, apiDeploymentId: current.apiDeploymentId,
-      releaseState: current.releaseState }),
+    maintenanceRecord({
+      version: 1,
+      scope: "api",
+      sourceSha: current.sourceSha,
+      configRevision: current.configRevision,
+      apiDeploymentId: current.apiDeploymentId,
+      releaseState: current.releaseState,
+    }),
   );
   const url = `${env.GITHUB_API_URL || "https://api.github.com"}/repos/${current.repository}/environments/${current.environment}/variables/${name}`;
   const headers = {
@@ -190,33 +205,56 @@ async function github(path) {
   assert(r.ok, `GitHub evidence HTTP ${r.status}`);
   return r.json();
 }
-function schema() {
-  const result = execFileSync(
-    "psql",
-    [
-      "--no-psqlrc",
-      "-tA",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-c",
-      "SELECT json_agg(x ORDER BY x.timestamp) FROM (SELECT timestamp::text, name FROM migrations) x",
-    ],
-    { env: { ...process.env, PGDATABASE: process.env.DATABASE_DIRECT_URL }, encoding: "utf8" },
+function schema(env = process.env, run = execFileSync) {
+  assert(
+    typeof env.DATABASE_DIRECT_URL === "string" && env.DATABASE_DIRECT_URL.length > 0,
+    "database direct URL is unavailable",
   );
-  return JSON.parse(result.trim());
+  let result;
+  try {
+    result = run(
+      "psql",
+      [
+        "--no-psqlrc",
+        "--dbname",
+        env.DATABASE_DIRECT_URL,
+        "-tA",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        "SELECT json_agg(x ORDER BY x.timestamp) FROM (SELECT timestamp::text, name FROM migrations) x",
+      ],
+      { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+  } catch {
+    throw new Error("Release stopped: schema query failed");
+  }
+  try {
+    return JSON.parse(result.trim());
+  } catch {
+    throw new Error("Release stopped: schema query returned invalid data");
+  }
 }
 function requiredChecks(runs, sourceSha) {
   const required = [
-    ["Code Quality", "github-actions"], ["Coverage Gate", "github-actions"],
-    ["Integration Tests", "github-actions"], ["E2E Tests", "github-actions"],
-    ["Production Build", "github-actions"], ["Security Scans", "github-actions"],
-    ["CodeQL", "github-advanced-security"], ["gitleaks", "github-advanced-security"],
+    ["Code Quality", "github-actions"],
+    ["Coverage Gate", "github-actions"],
+    ["Integration Tests", "github-actions"],
+    ["E2E Tests", "github-actions"],
+    ["Production Build", "github-actions"],
+    ["Security Scans", "github-actions"],
+    ["CodeQL", "github-advanced-security"],
+    ["gitleaks", "github-advanced-security"],
   ];
   for (const [name, app] of required) {
     const run = runs.filter((x) => x.name === name).sort((a, b) => b.id - a.id)[0];
-    assert(run?.head_sha === sourceSha && run?.app?.slug === app &&
-      run.status === "completed" && run.conclusion === "success",
-      `required check ${name} has not passed`);
+    assert(
+      run?.head_sha === sourceSha &&
+        run?.app?.slug === app &&
+        run.status === "completed" &&
+        run.conclusion === "success",
+      `required check ${name} has not passed`,
+    );
   }
 }
 async function main() {
@@ -321,4 +359,14 @@ if (require.main === module)
     console.error(error.message);
     process.exitCode = 1;
   });
-module.exports = { identity, validate, inspect, metadata, hash, maintenanceRecord, recordMaintenance, requiredChecks };
+module.exports = {
+  identity,
+  validate,
+  inspect,
+  metadata,
+  hash,
+  maintenanceRecord,
+  recordMaintenance,
+  requiredChecks,
+  schema,
+};
