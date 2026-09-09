@@ -115,7 +115,7 @@ for (const [name, directoryOption, expectedDirectory] of [
         });
         assert.equal(result.status, 0, result.stderr);
         assert.ok(JSON.parse(result.stdout).globalConfig);
-        const processes = fs.readFileSync(marker, "utf8").trim().split("\n").map(JSON.parse);
+        const processes = fs.readFileSync(marker, "utf8").trim().split("\n").map((line) => JSON.parse(line));
         assert.equal(processes.length, 2, "both the launcher and Jest must retain the preload");
         const [parent, child] = processes;
         assert.notEqual(parent.pid, child.pid);
