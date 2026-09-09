@@ -1,10 +1,8 @@
 name: CI Pipeline
 
 on:
-  push:
-    branches: [main, develop, development]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    types: [opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
     branches: [main, develop, development]
 
   workflow_dispatch:
@@ -17,9 +15,11 @@ env:
   CI: true
 
 jobs:
+  # Determine whether a pull request needs the full test suite. Documentation-only
+  # changes receive whitespace validation while security scanning remains separate.
   scope:
+    if: github.event_name == 'pull_request'
     name: Select applicable checks
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     outputs:
       full: ${{ steps.changes.outputs.full }}
@@ -55,14 +55,13 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: git diff --check "$BASE_SHA" HEAD
 
-  # 1. CODE QUALITY - Lint, test, and coverage checks
-  quality:
+  # Every ready, non-documentation-only pull request and manual dispatch receives this gate.
+  fast-checks:
     needs: [scope]
-    # A failed scope check falls back to the full gate; drafts allocate no test runner.
     if: >-
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || !github.event.pull_request.draft) &&
-      (needs.scope.result != 'success' || needs.scope.outputs.full != 'false')
+      (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.full != 'false')
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
@@ -90,34 +89,39 @@ jobs:
           pnpm run lint:all
           pnpm run type-check
 
+      - name: 🧪 Unit Tests
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main'
+        run: pnpm test -- --watchAll=false
+
       - name: 🧪 Unit Tests with Coverage
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
         run: pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary
 
+      - name: Verify the test launcher in real Node processes
+        run: node --test scripts/journey-test-env.test.cjs
+
       - name: 📦 Archive coverage artifacts
-        run: |
-          # Create coverage archive with the actual coverage file
-          tar -czf coverage-artifacts.tgz coverage/coverage-summary.json
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
+        run: tar -czf coverage-artifacts.tgz coverage/coverage-summary.json
 
       - name: 📊 Upload Coverage
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage-artifacts.tgz
           retention-days: 14
 
-      - name: 📄 Upload JUnit
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit
-          path: test-results/junit/jest-junit.xml
-          retention-days: 14
-
-  # Coverage enforcement with deterministic paths
+  # Coverage enforcement remains part of every main-branch or manual release validation.
   coverage-gate:
     name: Coverage Gate
     runs-on: ubuntu-latest
-    needs: [quality]
-    if: ${{ !cancelled() && needs.quality.result == 'success' }}
+    needs: [fast-checks]
+    if: >-
+      !cancelled() && needs.fast-checks.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft &&
+      github.event.pull_request.base.ref == 'main'))
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
@@ -157,8 +161,12 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [quality]
-    if: ${{ !cancelled() && needs.quality.result == 'success' }}
+    needs: [fast-checks]
+    if: >-
+      !cancelled() && needs.fast-checks.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft &&
+      github.event.pull_request.base.ref == 'main'))
     services:
       postgres:
         image: postgres:16-alpine

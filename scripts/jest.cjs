@@ -11,6 +11,8 @@ try {
 const existingNodeOptions = env.NODE_OPTIONS ?? "";
 
 const splitArgs = (value) => {
+  // Match Node's NODE_OPTIONS grammar: double quotes, ASCII spaces, and
+  // backslash escapes inside double quotes only.
   const args = [];
   let current = "";
   let quote = null;
@@ -19,7 +21,8 @@ const splitArgs = (value) => {
     if (quote) {
       if (char === quote) {
         quote = null;
-      } else if (char === "\\" && i + 1 < value.length) {
+      } else if (char === "\\") {
+        if (i + 1 === value.length) throw new Error("Invalid escape in NODE_OPTIONS.");
         current += value[i + 1];
         i += 1;
       } else {
@@ -27,11 +30,11 @@ const splitArgs = (value) => {
       }
       continue;
     }
-    if (char === "'" || char === '"') {
+    if (char === '"') {
       quote = char;
       continue;
     }
-    if (/\s/.test(char)) {
+    if (char === " ") {
       if (current) {
         args.push(current);
         current = "";
@@ -40,6 +43,7 @@ const splitArgs = (value) => {
     }
     current += char;
   }
+  if (quote) throw new Error("Unterminated string in NODE_OPTIONS.");
   if (current) {
     args.push(current);
   }
@@ -47,8 +51,8 @@ const splitArgs = (value) => {
 };
 
 const escapeArg = (arg) => {
-  if (/[\\s"]/g.test(arg)) {
-    return `"${arg.replace(/"/g, '\\"')}"`;
+  if (/[\\ "]/.test(arg)) {
+    return `"${arg.replace(/[\\"]/g, "\\$&")}"`;
   }
   return arg;
 };
