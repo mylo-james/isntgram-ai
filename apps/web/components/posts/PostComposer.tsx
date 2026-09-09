@@ -67,7 +67,8 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
     }
 
     const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // Keep the browser-issued object URL in URI form at the image boundary.
+    setPreviewUrl(encodeURI(url));
     return () => URL.revokeObjectURL(url);
   }, [file]);
 

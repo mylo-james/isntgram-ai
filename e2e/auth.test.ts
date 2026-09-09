@@ -28,6 +28,7 @@ test.describe("Auth E2E", () => {
     await page.getByLabel(/password/i).fill("WrongPass123!");
     await page.getByRole("button", { name: /log in/i }).click();
 
-    await expect(page.getByText(/invalid credentials|login failed/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("alert").filter({ hasText: /email or password doesn.t match/i })).toBeVisible();
+    await expect(page.getByLabel(/email/i)).toHaveValue(user.email);
   });
 });

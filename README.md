@@ -110,6 +110,17 @@ pnpm run test -- --watchAll=false
 pnpm run test:e2e
 ```
 
+The browser posting tests use real, disposable photo storage. Install SeaweedFS 4.45 and start it in a separate
+terminal:
+
+```bash
+E2E_WEED_BIN=/path/to/weed bash scripts/e2e-storage.sh
+```
+
+Then run `node apps/api/scripts/bootstrap-e2e-storage.cjs` before `pnpm run test:e2e`. The test server uses port 9000,
+the `isntgram-e2e` bucket, and synthetic credentials defined in the test configuration. Stop it with Ctrl+C after
+testing. CI downloads the pinned release, checks its checksum, and starts and stops this storage automatically.
+
 ## Database + Migrations
 
 Migrations run automatically on API startup in **non-production** environments to keep local review flows simple. In

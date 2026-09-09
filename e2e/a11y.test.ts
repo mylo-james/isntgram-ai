@@ -143,7 +143,7 @@ test.describe("Accessibility (axe-core)", () => {
     await logo.evaluate((node) => node.getAnimations({ subtree: true }).forEach((animation) => animation.play()));
     await expect.poll(positions).not.toEqual(openPositions);
     await page.getByRole("heading", { name: "Log in", exact: true }).hover();
-    await page.waitForTimeout(4100);
+    await expect(logo).toHaveAttribute("data-animating", "false", { timeout: 5000 });
     expect(await positions()).toEqual(openPositions);
     await logo.focus();
     await expect.poll(positions).not.toEqual(openPositions);

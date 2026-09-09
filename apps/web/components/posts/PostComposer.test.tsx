@@ -70,6 +70,41 @@ describe("PostComposer", () => {
     expect(screen.getByLabelText("Photo description")).toHaveValue("A kept photo");
   });
 
+  it("previews browser-owned URLs and releases each replaced or removed photo", () => {
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = jest
+      .fn()
+      .mockReturnValueOnce("blob:http://localhost/first")
+      .mockReturnValueOnce("blob:http://localhost/second");
+    URL.revokeObjectURL = jest.fn();
+    const { unmount } = render(<PostComposer onPostCreated={jest.fn()} />);
+    try {
+      const first = photo("<script>alert(1)</script>.png");
+      choosePhoto(first);
+      expect(URL.createObjectURL).toHaveBeenCalledWith(first);
+      expect(screen.getByRole("img", { name: "Selected photo preview" })).toHaveAttribute(
+        "src",
+        "blob:http://localhost/first",
+      );
+
+      choosePhoto(photo("replacement.png"));
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:http://localhost/first");
+      expect(screen.getByRole("img", { name: "Selected photo preview" })).toHaveAttribute(
+        "src",
+        "blob:http://localhost/second",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:http://localhost/second");
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    } finally {
+      unmount();
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
+  });
+
   it("requires a photo before it allows a caption-only publication", async () => {
     render(<PostComposer onPostCreated={jest.fn()} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Publish post" })).toBeEnabled());
