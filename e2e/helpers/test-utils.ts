@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 const apiBaseUrl = process.env.E2E_API_URL || "http://127.0.0.1:3001";
 
@@ -9,7 +10,7 @@ export type TestUser = {
   password: string;
 };
 
-const uniqueId = (label: string) => `${label}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const uniqueId = (label: string) => `${label}_${Date.now().toString(36)}_${randomUUID().slice(0, 8)}`;
 const normalizeId = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
 export const createTestUser = (label = "user"): TestUser => {
