@@ -205,6 +205,20 @@ function schema() {
   );
   return JSON.parse(result.trim());
 }
+function requiredChecks(runs, sourceSha) {
+  const required = [
+    ["Code Quality", "github-actions"], ["Coverage Gate", "github-actions"],
+    ["Integration Tests", "github-actions"], ["E2E Tests", "github-actions"],
+    ["Production Build", "github-actions"], ["Security Scans", "github-actions"],
+    ["CodeQL", "github-advanced-security"], ["gitleaks", "github-advanced-security"],
+  ];
+  for (const [name, app] of required) {
+    const run = runs.filter((x) => x.name === name).sort((a, b) => b.id - a.id)[0];
+    assert(run?.head_sha === sourceSha && run?.app?.slug === app &&
+      run.status === "completed" && run.conclusion === "success",
+      `required check ${name} has not passed`);
+  }
+}
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "validate") {
@@ -229,20 +243,7 @@ async function main() {
   }
   if (command === "check-ci") {
     const r = await github(`commits/${current.sourceSha}/check-runs?per_page=100`);
-    for (const name of [
-      "Code Quality",
-      "Coverage Gate",
-      "Integration Tests",
-      "E2E Tests",
-      "Production Build",
-      "Security Scans",
-    ]) {
-      const run = r.check_runs.filter((x) => x.name === name).sort((a, b) => b.id - a.id)[0];
-      assert(
-        run?.app?.slug === "github-actions" && run.status === "completed" && run.conclusion === "success",
-        `required check ${name} has not passed`,
-      );
-    }
+    requiredChecks(r.check_runs, current.sourceSha);
     return;
   }
   if (command === "unit") {
@@ -320,4 +321,4 @@ if (require.main === module)
     console.error(error.message);
     process.exitCode = 1;
   });
-module.exports = { identity, validate, inspect, metadata, hash, maintenanceRecord, recordMaintenance };
+module.exports = { identity, validate, inspect, metadata, hash, maintenanceRecord, recordMaintenance, requiredChecks };

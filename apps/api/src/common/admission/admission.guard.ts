@@ -26,7 +26,7 @@ export class AdmissionGuard implements CanActivate {
     );
     const token =
       typeof request.headers?.authorization === 'string'
-        ? request.headers.authorization.match(/^Bearer\s+(.+)$/i)?.[1]
+        ? request.headers.authorization.match(/^Bearer\s+(\S+)$/i)?.[1]
         : undefined;
     let userId: string | undefined;
     if (token) {

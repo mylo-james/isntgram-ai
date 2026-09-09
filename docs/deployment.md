@@ -129,3 +129,10 @@ incomplete. Only after both canonical units pass does it become `pair-healthy`.
 Each transition writes and verifies one JSON record. Initial bootstrap must provide
 this complete record for the actual API deployment. These states do not authorize
 any provider operation or substitute for the workflow's actual outcome.
+
+Source qualification requires successful Code Quality, Coverage Gate, Integration
+Tests, E2E Tests, Production Build and Security Scans jobs, plus successful independent
+CodeQL and gitleaks results from GitHub Advanced Security for the exact source SHA.
+The latest result for each required name must pass. A successful scan job does not
+mean its separate security findings check passed; missing, skipped, pending and failed
+results all stop release. Deployment needs read-only check access for this verification.

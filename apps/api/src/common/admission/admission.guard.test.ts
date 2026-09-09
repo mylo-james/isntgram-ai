@@ -85,4 +85,19 @@ describe('AdmissionGuard', () => {
       address: '203.0.113.11',
     });
   });
+
+  it.each(['Bearer ' + ' '.repeat(16000), 'Bearer token with spaces'])(
+    'treats a whitespace-only or multi-part bearer value as unauthenticated',
+    async (authorization) => {
+      (admission.isDeploymentMode as jest.Mock).mockReturnValue(true);
+      await guard.canActivate(
+        context({ ip: '203.0.113.9', headers: { authorization } }),
+      );
+      expect(jwt.verifyAsync).not.toHaveBeenCalled();
+      expect(admission.admitApiRequest).toHaveBeenCalledWith({
+        userId: undefined,
+        address: '203.0.113.9',
+      });
+    },
+  );
 });

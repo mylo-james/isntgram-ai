@@ -6,7 +6,7 @@ on:
       operation: { required: true, type: choice, options: [stage, promote] }
       source_sha: { required: true, type: string }
       stage_run_id: { required: false, type: string }
-permissions: { contents: read, actions: read }
+permissions: { contents: read, actions: read, checks: read }
 concurrency:
   group: isntgram-maintenance-${{ inputs.target }}
   cancel-in-progress: false

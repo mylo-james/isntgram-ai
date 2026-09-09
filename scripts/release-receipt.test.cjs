@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { identity, inspect, metadata, maintenanceRecord, recordMaintenance } = require("./release-receipt.cjs");
+const { identity, inspect, metadata, maintenanceRecord, recordMaintenance, requiredChecks } = require("./release-receipt.cjs");
 
 const env = {
   SOURCE_SHA: "a".repeat(40),
@@ -170,4 +170,19 @@ test("partial API promotion never claims a completed pair in maintenance provena
   assert.equal(maintenanceRecord({ ...serving, releaseState: "pair-healthy" }).releaseState, "pair-healthy");
   for (const change of [{scope: "app"}, {releaseState: "accepted"}, {apiDeploymentId: ""}])
     assert.throws(() => maintenanceRecord({ ...serving, ...change }));
+});
+
+
+test("a successful scan job cannot override a failed independent security check", () => {
+  const names = ["Code Quality", "Coverage Gate", "Integration Tests", "E2E Tests", "Production Build", "Security Scans", "CodeQL", "gitleaks"];
+  const checks = names.map((name, i) => ({ id: i+1, name, head_sha: env.SOURCE_SHA,
+    app: {slug: i < 6 ? "github-actions" : "github-advanced-security"}, status: "completed", conclusion: "success" }));
+  assert.doesNotThrow(() => requiredChecks(checks, env.SOURCE_SHA));
+  for (const changed of [{conclusion: "failure"}, {conclusion: "skipped"}, {status: "in_progress"},
+    {head_sha: "b".repeat(40)}, {app:{slug:"foreign-app"}}]) {
+    const copy = structuredClone(checks); Object.assign(copy[6], changed);
+    assert.throws(() => requiredChecks(copy, env.SOURCE_SHA), /CodeQL/);
+  }
+  assert.throws(() => requiredChecks(checks.slice(0,6), env.SOURCE_SHA), /CodeQL/);
+  assert.throws(() => requiredChecks([...checks, {...checks[6], id:99, conclusion:"failure"}], env.SOURCE_SHA), /CodeQL/);
 });
