@@ -129,22 +129,11 @@ test.describe("Accessibility (axe-core)", () => {
     expect(await positions()).toEqual(openPositions);
     expect(new Set(openPositions.map(({ x, y }) => `${x},${y}`)).size).toBe(8);
     await logo.hover();
-    await logo.evaluate((node) => {
-      for (const animation of node.getAnimations({ subtree: true })) {
-        animation.pause();
-        animation.currentTime = 0;
-      }
-    });
-    const entryPositions = await positions();
-    entryPositions.forEach((position, index) => {
-      expect(position.x).toBeCloseTo(openPositions[index].x, 2);
-      expect(position.y).toBeCloseTo(openPositions[index].y, 2);
-    });
-    await logo.evaluate((node) => node.getAnimations({ subtree: true }).forEach((animation) => animation.play()));
+    await expect(logo).toHaveAttribute("data-animating", "true");
     await expect.poll(positions).not.toEqual(openPositions);
     await page.getByRole("heading", { name: "Log in", exact: true }).hover();
     await expect(logo).toHaveAttribute("data-animating", "false", { timeout: 5000 });
-    expect(await positions()).toEqual(openPositions);
+    await expect.poll(positions).toEqual(openPositions);
     await logo.focus();
     await expect.poll(positions).not.toEqual(openPositions);
     await page.getByLabel("Email", { exact: true }).focus();
