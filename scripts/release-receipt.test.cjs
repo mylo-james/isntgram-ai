@@ -10,7 +10,9 @@ const env = {
   CONFIG_REVISION: "r1",
   API_PROJECT_ID: "prj_api",
   WEB_PROJECT_ID: "prj_web",
-  API_ORIGIN: "https://api-preview.example",
+  API_ORIGIN: "https://isntgram-api-preview.vercel.app",
+  API_ALIAS: "isntgram-api-preview.vercel.app",
+  WEB_ALIAS: "isntgram-preview.mjames.dev",
 };
 const publicWeb = {
   DEPLOYMENT_ENV: "preview",
@@ -118,7 +120,7 @@ test("metadata digest changes for an ID/update change but ignores secret value c
 });
 
 test("maintenance source and configuration advance in one verified record", async () => {
-  const current = { repository: "owner/repo", environment: "preview", sourceSha: env.SOURCE_SHA, configRevision: "r2" };
+  const current = { repository: "owner/repo", environment: "preview", sourceSha: env.SOURCE_SHA, configRevision: "r2", apiDeploymentId: "dpl_apiNew", releaseState: "api-serving" };
   const calls = [];
   let value;
   const request = async (url, options) => {
@@ -132,7 +134,7 @@ test("maintenance source and configuration advance in one verified record", asyn
   await recordMaintenance(current, { MAINTENANCE_RECORD_TOKEN: "synthetic-only" }, request);
   assert.equal(calls.length, 2);
   assert.match(calls[0].url, /environments\/preview\/variables\/ISNTGRAM_DEPLOYED_RECORD$/);
-  assert.deepEqual(maintenanceRecord(value), { version: 1, sourceSha: env.SOURCE_SHA, configRevision: "r2" });
+  assert.deepEqual(maintenanceRecord(value), { version: 1, scope: "api", sourceSha: env.SOURCE_SHA, configRevision: "r2", apiDeploymentId: "dpl_apiNew", releaseState: "api-serving" });
   await assert.rejects(recordMaintenance(current, {}, request), /credential/);
   await assert.rejects(
     recordMaintenance(current, { MAINTENANCE_RECORD_TOKEN: "synthetic-only" }, async () => ({ status: 403 })),
@@ -145,4 +147,27 @@ test("maintenance source and configuration advance in one verified record", asyn
     /verification failed/,
   );
   assert.throws(() => maintenanceRecord({ version: 1, sourceSha: "short", configRevision: "r1" }));
+});
+
+
+test("binds exact target aliases and refuses crossed, changed or credential-bearing origins", () => {
+  const accepted = identity(env);
+  assert.equal(accepted.webAlias, "isntgram-preview.mjames.dev");
+  assert.equal(accepted.apiAlias, "isntgram-api-preview.vercel.app");
+  for (const changed of [
+    { WEB_ALIAS: env.API_ALIAS }, { API_ALIAS: env.WEB_ALIAS },
+    { WEB_ALIAS: "isntgram.mjames.dev" }, { API_ALIAS: "other.vercel.app" },
+    { API_ORIGIN: "https://user:password@isntgram-api-preview.vercel.app" },
+    { API_ORIGIN: env.API_ORIGIN + "/" }, { API_ORIGIN: "https://foreign.example" },
+  ]) assert.throws(() => identity({ ...env, ...changed }));
+  assert.doesNotThrow(() => identity({ ...env, TARGET: "production", WEB_ALIAS: "isntgram.mjames.dev" }));
+});
+test("partial API promotion never claims a completed pair in maintenance provenance", () => {
+  const serving = { version: 1, scope: "api", sourceSha: env.SOURCE_SHA, configRevision: "r2",
+    apiDeploymentId: "dpl_apiNew", releaseState: "api-serving" };
+  assert.equal(maintenanceRecord({ ...serving, releaseState: "promotion-pending" }).releaseState, "promotion-pending");
+  assert.equal(maintenanceRecord(serving).releaseState, "api-serving");
+  assert.equal(maintenanceRecord({ ...serving, releaseState: "pair-healthy" }).releaseState, "pair-healthy");
+  for (const change of [{scope: "app"}, {releaseState: "accepted"}, {apiDeploymentId: ""}])
+    assert.throws(() => maintenanceRecord({ ...serving, ...change }));
 });

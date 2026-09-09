@@ -37,7 +37,7 @@ jobs:
         env:
           RECORD: ${{ vars.ISNTGRAM_DEPLOYED_RECORD }}
         run: |
-          node -e 'const r=JSON.parse(process.env.RECORD||"null");if(r?.version!==1||!/^[a-f0-9]{40}$/.test(r.sourceSha||"")||!/^[A-Za-z0-9._-]{1,128}$/.test(r.configRevision||""))throw Error("Invalid deployed maintenance record");require("fs").appendFileSync(process.env.GITHUB_OUTPUT,`value=${r.sourceSha}\nconfig_revision=${r.configRevision}\n`)' 
+          node -e 'const r=JSON.parse(process.env.RECORD||"null");if(r?.version!==1||r.scope!=="api"||!["api-serving","pair-healthy"].includes(r.releaseState)||!/^dpl_[A-Za-z0-9]+$/.test(r.apiDeploymentId||"")||!/^[a-f0-9]{40}$/.test(r.sourceSha||"")||!/^[A-Za-z0-9._-]{1,128}$/.test(r.configRevision||""))throw Error("Invalid deployed maintenance record");require("fs").appendFileSync(process.env.GITHUB_OUTPUT,`value=${r.sourceSha}\nconfig_revision=${r.configRevision}\n`)'
 
   cleanup:
     needs: validate

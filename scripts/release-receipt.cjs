@@ -20,7 +20,20 @@ function identity(e = process.env) {
       e.API_PROJECT_ID !== e.WEB_PROJECT_ID,
     "missing or duplicate project/config identity",
   );
+  const webAlias = e.TARGET === "preview" ? "isntgram-preview.mjames.dev" : "isntgram.mjames.dev";
+  let apiOrigin;
+  try { apiOrigin = new URL(e.API_ORIGIN); } catch { throw new Error("Release stopped: invalid API origin"); }
+  assert(
+    apiOrigin.protocol === "https:" && apiOrigin.origin === e.API_ORIGIN &&
+      !apiOrigin.username && !apiOrigin.password && !apiOrigin.port &&
+      /^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(apiOrigin.hostname) &&
+      e.API_ALIAS === apiOrigin.hostname && e.WEB_ALIAS === webAlias && e.API_ALIAS !== e.WEB_ALIAS,
+    "canonical aliases differ from the selected API origin or web target",
+  );
   return {
+    apiAlias: e.API_ALIAS,
+    webAlias,
+    apiOrigin: e.API_ORIGIN,
     app: "isntgram",
     repository: e.GITHUB_REPOSITORY,
     sourceSha: e.SOURCE_SHA,
@@ -33,7 +46,9 @@ function identity(e = process.env) {
 function maintenanceRecord(value) {
   const r = typeof value === "string" ? JSON.parse(value) : value;
   assert(
-    r?.version === 1 &&
+    r?.version === 1 && r.scope === "api" &&
+      ["promotion-pending", "api-serving", "pair-healthy"].includes(r.releaseState) &&
+      /^dpl_[A-Za-z0-9]+$/.test(r.apiDeploymentId || "") &&
       /^[a-f0-9]{40}$/.test(r.sourceSha || "") &&
       /^[A-Za-z0-9._-]{1,128}$/.test(r.configRevision || ""),
     "invalid deployed maintenance record",
@@ -44,7 +59,9 @@ async function recordMaintenance(current, env = process.env, request = fetch) {
   assert(env.MAINTENANCE_RECORD_TOKEN, "maintenance record credential is unavailable");
   const name = "ISNTGRAM_DEPLOYED_RECORD";
   const value = JSON.stringify(
-    maintenanceRecord({ version: 1, sourceSha: current.sourceSha, configRevision: current.configRevision }),
+    maintenanceRecord({ version: 1, scope: "api", sourceSha: current.sourceSha,
+      configRevision: current.configRevision, apiDeploymentId: current.apiDeploymentId,
+      releaseState: current.releaseState }),
   );
   const url = `${env.GITHUB_API_URL || "https://api.github.com"}/repos/${current.repository}/environments/${current.environment}/variables/${name}`;
   const headers = {
@@ -197,7 +214,9 @@ async function main() {
   const current = identity();
   if (command === "identity") return;
   if (command === "record-maintenance") {
-    await recordMaintenance(current);
+    const r = validate(read("isntgram-release-receipt.json"));
+    for (const [key, value] of Object.entries(current)) assert(r[key] === value, `receipt ${key} differs`);
+    await recordMaintenance({ ...current, apiDeploymentId: r.api.deploymentId, releaseState: args[0] });
     return;
   }
   if (command === "config") {

@@ -107,3 +107,25 @@ Cleanup uses `CLEANUP_S3_ACCESS_KEY_ID` and `CLEANUP_S3_SECRET_ACCESS_KEY`. Back
 bytes or secrets as Actions artifacts. Backup also requires an environment-scoped `PG_CLIENT_MAJOR` value and refuses to
 run if the installed client does not match. Both workflows share the environment maintenance concurrency group with
 `cancel-in-progress: false`; the database advisory lock remains the guard for manual or release paths outside Actions.
+
+## Canonical release and maintenance identity
+
+`ISNTGRAM_WEB_ALIAS` must be exactly `isntgram-preview.mjames.dev` for preview or
+`isntgram.mjames.dev` for production. `ISNTGRAM_API_ORIGIN` is the selected API
+project's stable HTTPS `*.vercel.app` origin; `ISNTGRAM_API_ALIAS` must equal its
+hostname. Distinct project IDs and exact aliases are checked before effects and
+bound into the stage receipt. Promotion rechecks these values and each resulting
+canonical deployment identity after native provider operations.
+
+`ISNTGRAM_DEPLOYED_RECORD` describes API maintenance provenance, not whole-app
+acceptance. Its version 1 fields are `scope: "api"`, `sourceSha`, `configRevision`,
+`apiDeploymentId` and `releaseState`. Before any canonical promotion, the release
+writes `promotion-pending`; scheduled cleanup/backup refuse that state. An unknown
+or failed API promotion therefore requires read-only reconciliation and an explicit
+operator recovery instead of running maintenance against assumed provenance.
+After verified API promotion and health it becomes `api-serving`. If web promotion
+then fails, maintenance still follows the verified serving API and the release is
+incomplete. Only after both canonical units pass does it become `pair-healthy`.
+Each transition writes and verifies one JSON record. Initial bootstrap must provide
+this complete record for the actual API deployment. These states do not authorize
+any provider operation or substitute for the workflow's actual outcome.

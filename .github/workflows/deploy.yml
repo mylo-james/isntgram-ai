@@ -66,7 +66,7 @@ jobs:
           EXPECTED_DEPLOYED_RECORD: ${{ vars.ISNTGRAM_DEPLOYED_RECORD }}
         run: |
           "$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel" inspect "$API_ALIAS" --json --token="$VERCEL_TOKEN" > accepted-api.json
-          node -e 'const d=require("./accepted-api.json"),f=require("fs"),m=d.meta||{};if((d.projectId||d.project?.id)!==process.env.API_PROJECT_ID||m.deploymentSourceSha!==require("./scripts/release-receipt.cjs").maintenanceRecord(process.env.EXPECTED_DEPLOYED_RECORD).sourceSha||!/^[a-f0-9]{40}$/.test(m.deploymentSourceSha)||!/^[A-Za-z0-9._-]{1,128}$/.test(m.deploymentConfigRevision||""))throw Error("Accepted API provenance unavailable");f.appendFileSync(process.env.GITHUB_ENV,`BACKUP_DEPLOYED_SHA=${m.deploymentSourceSha}\nBACKUP_CONFIG_REVISION=${m.deploymentConfigRevision}\n`)'
+          node -e 'const d=require("./accepted-api.json"),f=require("fs"),m=d.meta||{},r=require("./scripts/release-receipt.cjs").maintenanceRecord(process.env.EXPECTED_DEPLOYED_RECORD);if(r.releaseState==="promotion-pending")throw Error("Previous promotion outcome requires reconciliation");if((d.projectId||d.project?.id)!==process.env.API_PROJECT_ID||m.deploymentSourceSha!==r.sourceSha||(d.uid||d.id)!==r.apiDeploymentId||m.deploymentConfigRevision!==r.configRevision||!/^[a-f0-9]{40}$/.test(m.deploymentSourceSha)||!/^[A-Za-z0-9._-]{1,128}$/.test(m.deploymentConfigRevision||""))throw Error("Accepted API provenance unavailable");f.appendFileSync(process.env.GITHUB_ENV,`BACKUP_DEPLOYED_SHA=${m.deploymentSourceSha}\nBACKUP_CONFIG_REVISION=${m.deploymentConfigRevision}\n`)'
       - name: Production pre-migration snapshot
         if: inputs.operation == 'stage' && inputs.target == 'production'
         env:
@@ -164,11 +164,15 @@ jobs:
             "$vc" inspect "$deployment_id" --wait --json --token="$VERCEL_TOKEN" > "$unit-inspection.json"
             node scripts/release-receipt.cjs inspection "$unit" "$unit-inspection.json"
           done
+          node scripts/release-receipt.cjs record-maintenance promotion-pending
           for unit in api web; do
             if [ "$unit" = api ]; then export VERCEL_PROJECT_ID="$API_PROJECT_ID"; alias="$API_ALIAS"; health=/api/ready; else export VERCEL_PROJECT_ID="$WEB_PROJECT_ID"; alias="$WEB_ALIAS"; health=/health; fi
             deployment_id="$(node -e 'process.stdout.write(require("./isntgram-release-receipt.json")[process.argv[1]].deploymentId)' "$unit")"
             if [ "$TARGET" = production ]; then "$vc" promote "$deployment_id" --yes --token="$VERCEL_TOKEN"; else "$vc" alias set "$deployment_id" "$alias" --token="$VERCEL_TOKEN"; fi
             curl --fail --show-error --silent --max-time 15 "https://$alias$health" > "$unit-canonical-health.json"
             node -e 'if(!["ok","ready"].includes(require("./"+process.argv[1]).status))throw Error("Canonical health failed")' "$unit-canonical-health.json"
-            if [ "$unit" = api ]; then node scripts/release-receipt.cjs record-maintenance; fi
+            "$vc" inspect "$alias" --wait --json --token="$VERCEL_TOKEN" > "$unit-promoted-inspection.json"
+            node scripts/release-receipt.cjs inspection "$unit" "$unit-promoted-inspection.json"
+            if [ "$unit" = api ]; then node scripts/release-receipt.cjs record-maintenance api-serving; fi
           done
+          node scripts/release-receipt.cjs record-maintenance pair-healthy
