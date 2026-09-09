@@ -67,7 +67,8 @@ describe('Follows Integration Tests', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    await app.init();
+    // Keep one loopback listener for the suite; Supertest must not close it per request.
+    await app.listen(0, '127.0.0.1');
 
     userRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
@@ -164,9 +165,11 @@ describe('Follows Integration Tests', () => {
 
     const statusAfter = await request(app.getHttpServer())
       .get('/api/follows/userb/status')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .expect(200);
-    expect(statusAfter.body).toEqual({ isFollowing: true });
+      .set('Authorization', `Bearer ${tokenA}`);
+    expect({ status: statusAfter.status, body: statusAfter.body }).toEqual({
+      status: 200,
+      body: { isFollowing: true },
+    });
 
     const unfollowRes = await request(app.getHttpServer())
       .delete('/api/follows/userb')

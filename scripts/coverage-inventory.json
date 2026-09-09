@@ -38,6 +38,7 @@
     "apps/api/src/common/admission/client-address.ts",
     "apps/api/src/common/column-types.ts",
     "apps/api/src/common/db-errors.ts",
+    "apps/api/src/common/deployment/backup-format.ts",
     "apps/api/src/common/deployment/maintenance-lock.ts",
     "apps/api/src/common/deployment/target.ts",
     "apps/api/src/common/dto/api-error.dto.ts",

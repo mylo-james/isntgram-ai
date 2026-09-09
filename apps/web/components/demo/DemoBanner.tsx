@@ -101,7 +101,7 @@ export default function DemoBanner() {
 
   const subtitle =
     process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true"
-      ? "Your demo and uploads expire after 48 hours. Private recovery copies can remain for up to 7 days."
+      ? "Your demo and uploads expire after 48 hours. Private recovery copies expire after 7 days."
       : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "curated"
       ? "Curated examples use fictional profiles and credited photographs. Session access expires; demo data is retained for review."
       : process.env.NEXT_PUBLIC_DEMO_CONTENT_SOURCE === "community"

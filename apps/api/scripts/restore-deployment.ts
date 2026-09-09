@@ -1,4 +1,5 @@
-import { createDecipheriv, createHash } from 'crypto';
+import { createHash } from 'crypto';
+import { decryptBackup, assertSnapshotFresh } from '../src/common/deployment/backup-format';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -11,13 +12,20 @@ import {
 } from '@aws-sdk/client-s3';
 
 type Manifest = {
+  version: number;
+  createdAt: string;
   source: {
     deployed: { sha: string; tree: string; configRevisionDigest: string };
     tool: { sha: string; tree: string; dirty: boolean };
   };
   migrations: Array<{ timestamp: number; name: string }>;
-  database: { key: string; sha256: string; iv: string; tag: string };
-  media: Array<{ key: string; sha256: string; contentType: string }>;
+  database: { key: string; sha256: string };
+  media: Array<{
+    key: string;
+    backupKey: string;
+    sha256: string;
+    contentType: string;
+  }>;
 };
 const required = (name: string) => {
   const value = process.env[name];
@@ -76,8 +84,13 @@ function allowlist(name: string) {
   return new Set(values);
 }
 function assertCompatible(manifest: Manifest) {
-  if (!manifest.source?.deployed || !Array.isArray(manifest.migrations))
+  if (
+    manifest.version !== 2 ||
+    !manifest.source?.deployed ||
+    !Array.isArray(manifest.migrations)
+  )
     throw new Error('snapshot lacks required source or schema metadata');
+  assertSnapshotFresh(manifest.createdAt);
   const sha = required('RESTORE_EXPECTED_DEPLOYED_SHA');
   if (!/^[a-f0-9]{40}$/.test(sha) || manifest.source.deployed.sha !== sha)
     throw new Error('snapshot deployed source SHA is not approved');
@@ -151,7 +164,7 @@ async function main() {
         await s3.send(
           new GetObjectCommand({
             Bucket: backupBucket,
-            Key: `${prefix}/manifest.json`,
+            Key: `${prefix}/manifest.enc`,
           }),
         )
       ).Body,
@@ -170,7 +183,9 @@ async function main() {
     ).toString();
     if (marker !== createHash('sha256').update(manifestBytes).digest('hex'))
       throw new Error('snapshot completion marker differs');
-    const manifest = JSON.parse(manifestBytes.toString()) as Manifest;
+    const manifest = JSON.parse(
+      decryptBackup(manifestBytes, key, `${prefix}/manifest.enc`).toString(),
+    ) as Manifest;
     assertCompatible(manifest);
     const encrypted = await bodyBytes(
       (
@@ -187,18 +202,9 @@ async function main() {
       manifest.database.sha256
     )
       throw new Error('encrypted dump hash differs');
-    const decipher = createDecipheriv(
-      'aes-256-gcm',
-      key,
-      Buffer.from(manifest.database.iv, 'base64'),
-    );
-    decipher.setAuthTag(Buffer.from(manifest.database.tag, 'base64'));
     const directory = await mkdtemp(join(tmpdir(), 'isntgram-restore-'));
     const file = join(directory, 'restore.dump');
-    await writeFile(
-      file,
-      Buffer.concat([decipher.update(encrypted), decipher.final()]),
-    );
+    await writeFile(file, decryptBackup(encrypted, key, manifest.database.key));
     try {
       await run(process.env.PG_RESTORE_BIN || 'pg_restore', [
         '--no-owner',
@@ -245,16 +251,17 @@ async function main() {
       );
       for (const media of manifest.media) {
         if (!retained.has(media.key)) continue;
-        const body = await bodyBytes(
+        const encryptedMedia = await bodyBytes(
           (
             await s3.send(
               new GetObjectCommand({
                 Bucket: backupBucket,
-                Key: `${prefix}/media/${media.key}`,
+                Key: media.backupKey,
               }),
             )
           ).Body,
         );
+        const body = decryptBackup(encryptedMedia, key, media.backupKey);
         if (createHash('sha256').update(body).digest('hex') !== media.sha256)
           throw new Error(`media hash differs: ${media.key}`);
         await s3.send(

@@ -1,15 +1,17 @@
-import { createCipheriv, createHash, randomBytes } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { spawn } from 'child_process';
 import {
   GetObjectCommand,
+  GetBucketLifecycleConfigurationCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import dataSource from '../ormconfig';
 import { withMaintenanceLock } from '../src/common/deployment/maintenance-lock';
+import { encryptBackup, assertBackupRetention } from '../src/common/deployment/backup-format';
 
 function required(name: string) {
   const value = process.env[name];
@@ -97,6 +99,11 @@ async function main() {
   await dataSource.initialize();
   try {
     await withMaintenanceLock(dataSource, env, 'backup', async (runner) => {
+      const lifecycle = await client.send(
+        new GetBucketLifecycleConfigurationCommand({ Bucket: backupBucket }),
+        { abortSignal: AbortSignal.timeout(15_000) },
+      );
+      assertBackupRetention(lifecycle.Rules);
       await runner.startTransaction('REPEATABLE READ');
       try {
         const snapshot = (
@@ -111,13 +118,8 @@ async function main() {
           required('DATABASE_DIRECT_URL'),
         ]);
         const dumpBytes = await readFile(dump);
-        const iv = randomBytes(12);
-        const cipher = createCipheriv('aes-256-gcm', key, iv);
-        const encrypted = Buffer.concat([
-          cipher.update(dumpBytes),
-          cipher.final(),
-        ]);
-        const tag = cipher.getAuthTag();
+        const databaseKey = `${prefix}/database.dump.enc`;
+        const encrypted = encryptBackup(dumpBytes, key, databaseKey);
         const media = (await runner.query(
           `SELECT "publishedKey", "publishedChecksum", "publishedBytes", "publishedContentType" FROM "media_uploads" WHERE "publishedKey" IS NOT NULL AND ("postId" IS NOT NULL OR "profilePictureUserId" IS NOT NULL)`,
         )) as Array<{
@@ -127,7 +129,7 @@ async function main() {
           publishedContentType: string;
         }>;
         const manifest = {
-          version: 1,
+          version: 2,
           environment: env,
           createdAt: new Date().toISOString(),
           source: {
@@ -142,13 +144,12 @@ async function main() {
             'SELECT timestamp, name FROM migrations ORDER BY timestamp',
           ),
           database: {
-            key: `${prefix}/database.dump.enc`,
+            key: databaseKey,
             sha256: createHash('sha256').update(encrypted).digest('hex'),
-            iv: iv.toString('base64'),
-            tag: tag.toString('base64'),
           },
           media: media.map((m) => ({
             key: m.publishedKey,
+            backupKey: `${prefix}/media/${randomUUID()}.enc`,
             sha256: m.publishedChecksum,
             bytes: m.publishedBytes,
             contentType: m.publishedContentType,
@@ -162,7 +163,7 @@ async function main() {
             ContentType: 'application/octet-stream',
           }),
         );
-        for (const object of media) {
+        for (const [index, object] of media.entries()) {
           const got = await client.send(
             new GetObjectCommand({
               Bucket: sourceBucket,
@@ -178,19 +179,24 @@ async function main() {
           await client.send(
             new PutObjectCommand({
               Bucket: backupBucket,
-              Key: `${prefix}/media/${object.publishedKey}`,
-              Body: bytes,
-              ContentType: object.publishedContentType,
+              Key: manifest.media[index].backupKey,
+              Body: encryptBackup(bytes, key, manifest.media[index].backupKey),
+              ContentType: 'application/octet-stream',
             }),
           );
         }
-        const manifestBytes = Buffer.from(JSON.stringify(manifest));
+        const manifestKey = `${prefix}/manifest.enc`;
+        const manifestBytes = encryptBackup(
+          Buffer.from(JSON.stringify(manifest)),
+          key,
+          manifestKey,
+        );
         await client.send(
           new PutObjectCommand({
             Bucket: backupBucket,
-            Key: `${prefix}/manifest.json`,
+            Key: manifestKey,
             Body: manifestBytes,
-            ContentType: 'application/json',
+            ContentType: 'application/octet-stream',
           }),
         );
         await client.send(
