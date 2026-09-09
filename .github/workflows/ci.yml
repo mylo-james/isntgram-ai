@@ -4,18 +4,65 @@ on:
   push:
     branches: [main, develop, development]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
     branches: [main, develop, development]
 
+  workflow_dispatch:
+
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   CI: true
 
 jobs:
+  scope:
+    name: Select applicable checks
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    outputs:
+      full: ${{ steps.changes.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the complete candidate diff
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          paths = subprocess.check_output([
+              'git', 'diff', '--name-only', '--no-renames', '-z',
+              os.environ['BASE_SHA'], 'HEAD',
+          ]).split(b'\0')[:-1]
+          docs_only = bool(paths) and all(
+              path == b'README.md' or (path.endswith(b'.md') and path.startswith(b'docs/'))
+              for path in paths
+          )
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f"full={str(not docs_only).lower()}\n")
+          print('Documentation checks only' if docs_only else 'Full candidate checks')
+          PY
+      - name: Check documentation whitespace
+        if: steps.changes.outputs.full == 'false'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --check "$BASE_SHA" HEAD
+
   # 1. CODE QUALITY - Lint, test, and coverage checks
   quality:
+    needs: [scope]
+    # A failed scope check falls back to the full gate; drafts allocate no test runner.
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || !github.event.pull_request.draft) &&
+      (needs.scope.result != 'success' || needs.scope.outputs.full != 'false')
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
@@ -311,9 +358,9 @@ jobs:
 
   # 5. SECURITY - Code security scans (runs in parallel with E2E and Production Build)
   security:
+    if: github.event.action != 'converted_to_draft'
     name: Security Scans
     runs-on: ubuntu-latest
-    needs: [quality]
     permissions:
       actions: read
       contents: read

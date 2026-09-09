@@ -37,6 +37,19 @@ describe('validateEnv', () => {
     ).toMatchObject({ NODE_ENV: 'production' });
   });
 
+  it('requires a sufficiently long server-only BFF signing secret for public deployment admission', () => {
+    const deployment = {
+      JWT_SECRET: 'test',
+      DEPLOYMENT_ENV: 'preview',
+      DEMO_ENABLED: 'true',
+      DEMO_TTL_HOURS: '48',
+    };
+    expect(() => validateEnv(deployment)).toThrow('BFF_PROXY_SECRET');
+    expect(
+      validateEnv({ ...deployment, BFF_PROXY_SECRET: 'a'.repeat(32) }),
+    ).toMatchObject({ DEPLOYMENT_ENV: 'preview' });
+  });
+
   it.each([
     { S3_PRESIGN_ENDPOINT: 'https://phone.example' },
     { S3_DISPLAY_BASE_URL: 'https://phone.example' },

@@ -1,0 +1,83 @@
+name: Isntgram deployment backup
+
+on:
+  schedule:
+    - cron: '43 3 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment environment with its own protected secrets
+        required: true
+        type: choice
+        options: [preview, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isntgram-maintenance-${{ inputs.target || vars.ISNTGRAM_MAINTENANCE_ENVIRONMENT || 'disabled' }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: ${{ vars.ISNTGRAM_MAINTENANCE_ENABLED == 'true' }}
+    environment: ${{ inputs.target || vars.ISNTGRAM_MAINTENANCE_ENVIRONMENT }}
+    runs-on: ubuntu-24.04
+    outputs:
+      target: ${{ steps.target.outputs.value }}
+      sha: ${{ steps.sha.outputs.value }}
+      config_revision: ${{ steps.sha.outputs.config_revision }}
+    steps:
+      - id: target
+        env:
+          TARGET: ${{ inputs.target || vars.ISNTGRAM_MAINTENANCE_ENVIRONMENT }}
+        run: |
+          case "$TARGET" in preview|production) echo "value=$TARGET" >> "$GITHUB_OUTPUT" ;; *) exit 1 ;; esac
+      - id: sha
+        env:
+          RECORD: ${{ vars.ISNTGRAM_DEPLOYED_RECORD }}
+        run: |
+          node -e 'const r=JSON.parse(process.env.RECORD||"null");if(r?.version!==1||!/^[a-f0-9]{40}$/.test(r.sourceSha||"")||!/^[A-Za-z0-9._-]{1,128}$/.test(r.configRevision||""))throw Error("Invalid deployed maintenance record");require("fs").appendFileSync(process.env.GITHUB_OUTPUT,`value=${r.sourceSha}\nconfig_revision=${r.configRevision}\n`)' 
+
+  backup:
+    needs: validate
+    environment: ${{ needs.validate.outputs.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 9.12.3
+      - uses: actions/setup-node@1e60f620b9541d6b2b3d3a02881fcd250b5c2c4c
+        with:
+          node-version: 24.20.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Create encrypted deployment snapshot
+        env:
+          NODE_ENV: production
+          ISNTGRAM_DEPLOYED_SHA: ${{ needs.validate.outputs.sha }}
+          DEPLOYED_API_CONFIG_REVISION: ${{ needs.validate.outputs.config_revision }}
+          DEPLOYMENT_ENV: ${{ needs.validate.outputs.target }}
+          DEPLOYMENT_TARGET_ID: ${{ vars.DEPLOYMENT_TARGET_ID }}
+          DATABASE_DIRECT_URL: ${{ secrets.BACKUP_DATABASE_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_DIRECT_URL }}
+          DATABASE_SSL: 'true'
+          S3_REGION: ${{ vars.S3_REGION }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_PUBLISHED_BUCKET: ${{ vars.S3_PUBLISHED_BUCKET }}
+          S3_BACKUP_BUCKET: ${{ vars.S3_BACKUP_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_ENCRYPTION_KEY_BASE64: ${{ secrets.BACKUP_ENCRYPTION_KEY_BASE64 }}
+          PG_CLIENT_MAJOR: ${{ vars.PG_CLIENT_MAJOR }}
+        run: |
+          [[ "$PG_CLIENT_MAJOR" =~ ^(16|17|18)$ ]] || exit 1
+          test -x "/usr/lib/postgresql/$PG_CLIENT_MAJOR/bin/pg_dump"
+          export PATH="/usr/lib/postgresql/$PG_CLIENT_MAJOR/bin:$PATH"
+          pnpm --filter api deployment:backup

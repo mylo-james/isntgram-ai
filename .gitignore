@@ -19,6 +19,7 @@ dist/
 build/
 out/
 .next/
+.vercel/
 apps/*/dist/
 apps/*/build/
 apps/*/.next/

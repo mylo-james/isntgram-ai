@@ -43,6 +43,7 @@ describe('UsersService', () => {
     getOwnedUpload: jest.fn(),
     getPublishedUrl: jest.fn(),
     preparePublication: jest.fn(),
+    completeUploadReservation: jest.fn(),
     recordOrphan: jest.fn(),
     toDisplayUrl: jest.fn((value) => value),
   };
@@ -443,6 +444,39 @@ describe('UsersService', () => {
         prepared,
         'profile_transaction_failed',
       );
+    });
+
+    it('waits for a durable profile orphan intent before returning a failed claim', async () => {
+      (mockUserRepository.findOne as jest.Mock)
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(null);
+      const prepared = {
+        uploadId: 'upload-1', ownerId: '1', publishedKey: 'published/1/photo-id',
+        publishedUrl: 'https://cdn.example.com/published/1/photo-id', checksum: 'a'.repeat(64),
+        contentType: 'image/jpeg', bytes: 42, width: 10, height: 10, frames: 1,
+      };
+      let persist!: () => void;
+      mockMediaService.getOwnedUpload.mockResolvedValue({ id: 'upload-1', ownerId: '1' });
+      mockMediaService.getPublishedUrl.mockReturnValue(undefined);
+      mockMediaService.preparePublication.mockResolvedValue(prepared);
+      (mockUserRepository.save as jest.Mock).mockImplementation(async (user) => ({ ...user }));
+      mockMediaRepository.update.mockResolvedValue({ affected: 0 });
+      mockMediaService.recordOrphan.mockImplementation(
+        () => new Promise<void>((resolve) => { persist = resolve; }),
+      );
+
+      const result = service.updateProfile('1', {
+        fullName: 'New Name', username: 'newname', profilePictureUploadId: 'upload-1',
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mockMediaService.recordOrphan).toHaveBeenCalledWith(
+        prepared,
+        'profile_transaction_failed',
+      );
+      expect(mockMediaService.completeUploadReservation).not.toHaveBeenCalled();
+
+      persist();
+      await expect(result).rejects.toThrow('Media upload is no longer available');
     });
   });
 });

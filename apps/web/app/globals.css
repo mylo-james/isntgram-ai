@@ -354,3 +354,14 @@
     padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* A small embedded viewport needs one navigation bar, not two. */
+@media (max-height: 480px) and (max-width: 639px) {
+  html[data-portfolio-embedded] .social-header { height: 0; border: 0; }
+  html[data-portfolio-embedded] .social-header > div > a { display: none; }
+  html[data-portfolio-embedded] .social-page { padding-top: var(--demo-banner-height, 0px) !important; }
+  html[data-portfolio-embedded] .social-nav .nav-item,
+  html[data-portfolio-embedded] .social-nav button { min-height: 44px; padding-top: 6px; padding-bottom: 6px; }
+  html[data-portfolio-embedded] .demo-full-description { display: none; }
+  html[data-portfolio-embedded] .demo-compact-description { display: block; }
+}

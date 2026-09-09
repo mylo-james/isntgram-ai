@@ -17,6 +17,8 @@
     "openapi:generate": "NODE_ENV=test ts-node -T scripts/generate-openapi.ts",
     "counts:reconcile": "ts-node -T scripts/reconcile-user-counts.ts",
     "demo:cleanup": "ts-node -T scripts/cleanup-demo-users.ts",
+    "deployment:backup": "ts-node -T scripts/backup-deployment.ts",
+    "deployment:restore": "ts-node -T scripts/restore-deployment.ts",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm migration:generate -- -d ormconfig.ts",
     "migration:run": "npm run typeorm migration:run -- -d ormconfig.ts",

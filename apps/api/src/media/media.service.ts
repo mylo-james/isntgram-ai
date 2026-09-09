@@ -12,14 +12,16 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
+  DeleteObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createHash, randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { SharpMediaImageProcessor } from './media-image';
 import { MediaUpload } from './entities/media-upload.entity';
 import { projectMediaUrl } from './media-url';
+import { AdmissionService } from '../common/admission/admission.service';
 
 const DEFAULT_EXPIRES_IN = 900;
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -76,7 +78,8 @@ type ReadDeadline = {
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
   private readonly imageProcessor = new SharpMediaImageProcessor();
-  private readonly bucket: string;
+  private readonly pendingBucket: string;
+  private readonly publishedBucket: string;
   private readonly region: string;
   private readonly accessKeyId: string;
   private readonly secretAccessKey: string;
@@ -89,8 +92,19 @@ export class MediaService {
     private readonly configService: ConfigService,
     @InjectRepository(MediaUpload)
     private readonly mediaUploadRepository: Repository<MediaUpload>,
+    private readonly admissionService?: AdmissionService,
   ) {
-    this.bucket = this.configService.get<string>('S3_BUCKET') || '';
+    // S3_BUCKET remains the local, single-bucket compatibility default. Hosted
+    // profiles must name both buckets so unvalidated bytes never have a public
+    // object path.
+    this.pendingBucket =
+      this.configService.get<string>('S3_PENDING_BUCKET') ||
+      this.configService.get<string>('S3_BUCKET') ||
+      '';
+    this.publishedBucket =
+      this.configService.get<string>('S3_PUBLISHED_BUCKET') ||
+      this.configService.get<string>('S3_BUCKET') ||
+      '';
     this.region = this.configService.get<string>('S3_REGION') || '';
     this.accessKeyId = this.configService.get<string>('S3_ACCESS_KEY_ID') || '';
     this.secretAccessKey =
@@ -133,6 +147,16 @@ export class MediaService {
     this.assertStorageConfigured();
     this.assertUploadRequest(params.contentType, params.contentLength);
 
+    // Reserve before durable intent creation and before sending a browser a
+    // write capability. The admission module is optional only for legacy local
+    // fixtures; deployment mode wires it and fails closed for costly work.
+    if (!fixed && this.admissionService) {
+      await this.admissionService.reserveUpload({
+        userId: params.userId,
+        uploadId,
+        bytes: params.contentLength,
+      });
+    }
     const key = `pending/${params.userId}/${uploadId}`;
     const intent = this.mediaUploadRepository.create({
       id: uploadId,
@@ -145,15 +169,24 @@ export class MediaService {
     // The intent exists before the browser receives a write capability. `publicUrl`
     // remains a compatibility locator for old clients. Pending keys stay private and
     // are never authority to attach media to a post.
-    if (fixed) await this.mediaUploadRepository.insert(intent);
-    else await this.mediaUploadRepository.save(intent);
+    try {
+      if (fixed) await this.mediaUploadRepository.insert(intent);
+      else await this.mediaUploadRepository.save(intent);
+    } catch (error) {
+      if (!fixed && this.admissionService)
+        await this.admissionService.releaseUpload({
+          userId: params.userId,
+          uploadId,
+        });
+      throw error;
+    }
 
     const client = this.createPresigningClient();
     try {
       const uploadUrl = await getSignedUrl(
         client,
         new PutObjectCommand({
-          Bucket: this.bucket,
+          Bucket: this.pendingBucket,
           Key: key,
           ContentType: params.contentType,
           ContentLength: params.contentLength,
@@ -170,6 +203,14 @@ export class MediaService {
         key,
         expiresIn: DEFAULT_EXPIRES_IN,
       };
+    } catch (error) {
+      // No valid capability was returned, so a reservation must not strand.
+      if (!fixed && this.admissionService)
+        await this.admissionService.releaseUpload({
+          userId: params.userId,
+          uploadId,
+        });
+      throw error;
     } finally {
       client.destroy();
     }
@@ -202,7 +243,10 @@ export class MediaService {
     const client = this.createClient();
     try {
       const head = await client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: upload.pendingKey }),
+        new HeadObjectCommand({
+          Bucket: this.pendingBucket,
+          Key: upload.pendingKey,
+        }),
         { abortSignal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
       );
       this.assertObservedObject(upload, head.ContentLength, head.ContentType);
@@ -237,11 +281,26 @@ export class MediaService {
       };
       prepared.publishedUrl = this.toPublicUrl(prepared.publishedKey);
 
+      // Store ownership before the external write. If the process loses the
+      // response after S3 accepts the immutable object, maintenance can still
+      // find this key and reconcile it without relying on request memory.
+      const ownership = await this.mediaUploadRepository.update(
+        { id: upload.id, ownerId: userId, publishedKey: IsNull() },
+        {
+          publishedKey: prepared.publishedKey,
+          publishedChecksum: prepared.checksum,
+          publishedContentType: prepared.contentType,
+          publishedBytes: prepared.bytes,
+        },
+      );
+      if (ownership.affected !== 1)
+        throw new ConflictException('Media upload is no longer available');
+
       let writeCompleted = false;
       try {
         await client.send(
           new PutObjectCommand({
-            Bucket: this.bucket,
+            Bucket: this.publishedBucket,
             Key: prepared.publishedKey,
             Body: validated.bytes,
             ContentType: prepared.contentType,
@@ -253,7 +312,7 @@ export class MediaService {
         writeCompleted = true;
         await this.verifyPublishedObject(client, prepared, validated.bytes);
       } catch (error) {
-        this.recordOrphan(
+        await this.recordOrphan(
           prepared,
           writeCompleted
             ? 'publication_verification_failed'
@@ -265,6 +324,38 @@ export class MediaService {
     } finally {
       client.destroy();
     }
+  }
+
+  /** Remove a pending or immutable published object only from its configured
+   * bucket. Cleanup supplies keys from durable deletion intents. */
+  async deleteObject(
+    kind: 'pending' | 'published',
+    key: string,
+  ): Promise<void> {
+    this.assertStorageConfigured();
+    const requiredPrefix = kind === 'pending' ? 'pending/' : 'published/';
+    if (!key.startsWith(requiredPrefix) || key.includes('..'))
+      throw new BadRequestException('Invalid media deletion key');
+    const client = this.createClient();
+    try {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket:
+            kind === 'pending' ? this.pendingBucket : this.publishedBucket,
+          Key: key,
+        }),
+        { abortSignal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
+      );
+    } finally {
+      client.destroy();
+    }
+  }
+
+  async completeUploadReservation(
+    userId: string,
+    uploadId: string,
+  ): Promise<void> {
+    await this.admissionService?.completeUpload({ userId, uploadId });
   }
 
   getPublishedUrl(upload: MediaUpload): string | undefined {
@@ -300,6 +391,7 @@ export class MediaService {
         upload.publishedKey,
         upload.publishedBytes,
         upload.publishedContentType,
+        this.publishedBucket,
       );
       const checksum = createHash('sha256').update(body).digest('hex');
       if (checksum !== upload.publishedChecksum)
@@ -319,15 +411,15 @@ export class MediaService {
     }
   }
 
-  recordOrphan(
+  async recordOrphan(
     prepared: PreparedMedia,
     reason: OrphanReason,
-  ): {
+  ): Promise<{
     uploadId: string;
     ownerId: string;
     publishedKey: string;
     reason: OrphanReason;
-  } {
+  }> {
     const safeReason: OrphanReason = ORPHAN_REASONS.has(reason)
       ? reason
       : 'db_binding_failed';
@@ -338,6 +430,24 @@ export class MediaService {
       reason: safeReason,
     };
     this.logger.warn(JSON.stringify(record));
+    // Local SQLite development intentionally has no deployment-maintenance
+    // tables. Logging keeps the existing diagnostic behavior there; deployed
+    // environments must durably own the object before returning the failure.
+    if (!this.admissionService?.isDeploymentMode()) return record;
+    // The object may have been written before the caller's database
+    // transaction failed. Persist deletion ownership before that failure is
+    // returned; cleanup, not this request, releases the reservation.
+    await this.mediaUploadRepository.manager.query(
+      `INSERT INTO media_deletion_intents (environment, upload_id, bucket_kind, object_key, reason)
+       VALUES ($1, $2, 'published', $3, $4)
+       ON CONFLICT (environment, bucket_kind, object_key) DO NOTHING`,
+      [
+        process.env.DEPLOYMENT_ENV ?? process.env.NODE_ENV ?? 'development',
+        prepared.uploadId,
+        prepared.publishedKey,
+        safeReason,
+      ],
+    );
     return record;
   }
 
@@ -348,7 +458,7 @@ export class MediaService {
   ): Promise<void> {
     const head = await client.send(
       new HeadObjectCommand({
-        Bucket: this.bucket,
+        Bucket: this.publishedBucket,
         Key: prepared.publishedKey,
       }),
       { abortSignal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
@@ -366,6 +476,7 @@ export class MediaService {
       prepared.publishedKey,
       prepared.bytes,
       prepared.contentType,
+      this.publishedBucket,
     );
     if (!bytes.equals(expected)) {
       throw new InternalServerErrorException(
@@ -376,7 +487,8 @@ export class MediaService {
 
   private assertStorageConfigured(): void {
     if (
-      !this.bucket ||
+      !this.pendingBucket ||
+      !this.publishedBucket ||
       !this.region ||
       !this.accessKeyId ||
       !this.secretAccessKey ||
@@ -430,12 +542,13 @@ export class MediaService {
     key: string,
     expectedBytes: number,
     expectedContentType: string,
+    bucket = this.pendingBucket,
   ): Promise<Buffer> {
     const deadline = this.newReadDeadline();
     let body: unknown;
     try {
       const request = client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        new GetObjectCommand({ Bucket: bucket, Key: key }),
         { abortSignal: deadline.controller.signal },
       );
       // A real SDK request observes abort. This handler also releases a body if a

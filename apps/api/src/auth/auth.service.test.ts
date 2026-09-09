@@ -3,10 +3,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { User } from '../users/entities/user.entity';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 import { MediaService } from '../media/media.service';
+import { ConfigService } from '@nestjs/config';
 
 jest.mock('argon2');
 
@@ -14,6 +15,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let userRepository: Repository<User>;
   let jwtService: JwtService;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -38,12 +40,17 @@ describe('AuthService', () => {
           provide: MediaService,
           useValue: { toDisplayUrl: jest.fn((value) => value) },
         },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
     jwtService = module.get<JwtService>(JwtService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -79,6 +86,19 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
+    it('closes ordinary registration in an explicit public demo deployment', async () => {
+      (configService.get as jest.Mock).mockReturnValue('preview');
+      await expect(
+        service.register({
+          email: 'visitor@example.com',
+          username: 'visitor',
+          fullName: 'Visitor',
+          password: 'Password123!',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+    });
+
     it('should throw ConflictException if email already exists', async () => {
       (userRepository.findOne as jest.Mock).mockResolvedValueOnce({} as User);
 

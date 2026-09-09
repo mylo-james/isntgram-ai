@@ -11,6 +11,7 @@ import { getPostgresSslOptions } from './src/config/postgres-ssl';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const databaseUrl =
+  process.env.DATABASE_DIRECT_URL ||
   process.env.DATABASE_URL ||
   (nodeEnv === 'production'
     ? undefined
@@ -33,6 +34,7 @@ export default new DataSource({
     Notification,
     MediaUpload,
   ],
+  // Tests live outside this operational migration directory.
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
   logging: nodeEnv === 'development',

@@ -12,6 +12,7 @@ import { DemoSeeder } from './demo/demo.seeder';
 import { DemoService } from './demo/demo.service';
 import { CuratedDemoService } from './demo/curated-demo.service';
 import { MediaModule } from '../media/media.module';
+import { AdmissionModule } from '../common/admission/admission.module';
 
 export function getJwtSecret(
   configService: Pick<ConfigService, 'get'>,
@@ -34,6 +35,7 @@ export function getJwtExpiresIn(
   imports: [
     ConfigModule,
     MediaModule,
+    AdmissionModule,
     PassportModule,
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({

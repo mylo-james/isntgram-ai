@@ -11,6 +11,7 @@ import { AuthService } from '../auth.service';
 import { CommunitySeeder } from './community.seeder';
 import { DemoSeeder } from './demo.seeder';
 import { CuratedDemoService } from './curated-demo.service';
+import { AdmissionService } from '../../common/admission/admission.service';
 
 @Injectable()
 export class DemoService {
@@ -24,6 +25,7 @@ export class DemoService {
     private readonly demoSeeder: DemoSeeder,
     @Optional() private readonly curatedDemoService?: CuratedDemoService,
     @Optional() private readonly communitySeeder?: CommunitySeeder,
+    @Optional() private readonly admissionService?: AdmissionService,
   ) {}
 
   private async withDemoSessionLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -71,21 +73,29 @@ export class DemoService {
     };
   }
 
-  async createDemoSession(): Promise<{
+  async createDemoSession(clientAddress = 'unknown'): Promise<{
     user: PrivateUserProfileDto;
     accessToken: string;
     isDemoUser: true;
     demoExpiresAt: string;
   }> {
-    if (this.configService.get<string>('DEMO_CONTENT_SOURCE') === 'curated') {
-      if (!this.curatedDemoService)
-        throw new ForbiddenException('Curated demo is unavailable');
-      return this.curatedDemoService.createSession();
+    const operationId = randomUUID();
+    if (this.admissionService?.isDeploymentMode()) {
+      await this.admissionService.admitDemo(clientAddress, operationId);
     }
-    if (this.shouldSerializeDemoSessions()) {
-      return this.withDemoSessionLock(() => this.createDemoSessionInternal());
+    try {
+      if (this.configService.get<string>('DEMO_CONTENT_SOURCE') === 'curated') {
+        if (!this.curatedDemoService)
+          throw new ForbiddenException('Curated demo is unavailable');
+        return await this.curatedDemoService.createSession();
+      }
+      if (this.shouldSerializeDemoSessions()) {
+        return await this.withDemoSessionLock(() => this.createDemoSessionInternal());
+      }
+      return await this.createDemoSessionInternal();
+    } finally {
+      await this.admissionService?.completeDemo(operationId);
     }
-    return this.createDemoSessionInternal();
   }
 
   private async createDemoSessionInternal(): Promise<{

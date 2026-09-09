@@ -24,8 +24,9 @@ import {
 } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { AuthUser } from './jwt.types';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { DemoService } from './demo/demo.service';
+import { resolveAdmissionAddress } from '../common/admission/client-address';
 
 const ONE_MINUTE_MS = 60_000;
 
@@ -69,8 +70,10 @@ export class AuthController {
   @Throttle({ default: { limit: 2, ttl: ONE_MINUTE_MS } })
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: AuthLoginResponseDto })
-  async demo() {
-    const demoSession = await this.demoService.createDemoSession();
+  async demo(@Req() req?: Request) {
+    const demoSession = await this.demoService.createDemoSession(
+      this.trustedClientAddress(req),
+    );
     return {
       message: 'Demo sign in successful',
       user: demoSession.user,
@@ -78,6 +81,10 @@ export class AuthController {
       isDemoUser: true,
       demoExpiresAt: demoSession.demoExpiresAt,
     };
+  }
+
+  private trustedClientAddress(req?: Request): string {
+    return resolveAdmissionAddress(req ?? {}, process.env.BFF_PROXY_SECRET);
   }
 
   @UseGuards(JwtAuthGuard)
