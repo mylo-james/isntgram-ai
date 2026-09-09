@@ -93,6 +93,9 @@ jobs:
       - name: 🧪 Unit Tests with Coverage
         run: pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary
 
+      - name: Verify the test launcher in real Node processes
+        run: node --test scripts/journey-test-env.test.cjs
+
       - name: 📦 Archive coverage artifacts
         run: |
           # Create coverage archive with the actual coverage file
