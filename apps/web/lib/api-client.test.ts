@@ -140,13 +140,21 @@ describe("apiClient", () => {
       ),
     );
 
-    const result = await apiClient.updateProfile({ fullName: "New Name", username: "newuser" });
+    const result = await apiClient.updateProfile({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
     expect(result.username).toBe("newuser");
 
     const req = getLastRequest();
     expect(req.method).toBe("PUT");
     expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/users/profile");
-    await expect(readRequestJson(req)).resolves.toEqual({ fullName: "New Name", username: "newuser" });
+    await expect(readRequestJson(req)).resolves.toEqual({
+      fullName: "New Name",
+      username: "newuser",
+      profilePictureUploadId: "550e8400-e29b-41d4-a716-446655440000",
+    });
   });
 
   it("adds CSRF header for state-changing requests when cookie is present", async () => {
@@ -230,23 +238,44 @@ describe("apiClient", () => {
     expect(result.content).toBe("Hello");
   });
 
-  it("rewrites a post draft", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      toResponse(
-        {
-          content: "Rewritten content.",
-          provider: "mock",
-        },
-        { status: 200 },
-      ),
+  it("keeps media identity, CSRF and cancellation on the publication request", async () => {
+    document.cookie = "isntgram-csrf=publication-token";
+    const controller = new AbortController();
+    (global.fetch as jest.Mock).mockImplementation(
+      (request: Request) =>
+        new Promise((_resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), {
+            once: true,
+          });
+        }),
     );
-
-    const result = await apiClient.rewritePost({ content: "hello world" });
-    expect(result.content).toBe("Rewritten content.");
-
-    const req = getLastRequest();
-    expect(new URL(req.url, "http://localhost").pathname).toBe("/api/bff/ai/rewrite");
+    const payload = { content: "Photo", mediaUploadId: "faf70e02-433a-4fe4-a537-46374b972ec8" };
+    const pending = apiClient.createPost(payload, { signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    const request = getLastRequest();
+    expect(await readRequestJson(request.clone())).toEqual(payload);
+    expect(request.headers.get("x-csrf-token")).toBe("publication-token");
+    controller.abort();
+    expect(request.signal.aborted).toBe(true);
+    await rejected;
+    document.cookie = "isntgram-csrf=";
   });
+
+  it.each([400, 409, 503])(
+    "preserves HTTP status %i so publication can distinguish refusal from uncertainty",
+    async (status) => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        toResponse({ message: "Publication could not complete" }, { status }),
+      );
+      await expect(
+        apiClient.createPost({ content: "Photo", mediaUploadId: "faf70e02-433a-4fe4-a537-46374b972ec8" }),
+      ).rejects.toMatchObject({
+        name: "ApiRequestError",
+        status,
+        message: "Publication could not complete",
+      });
+    },
+  );
 
   it("builds feed query parameters", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(

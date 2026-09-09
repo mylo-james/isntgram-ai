@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter';
 
 describe('GlobalExceptionFilter', () => {
@@ -142,5 +147,88 @@ describe('GlobalExceptionFilter', () => {
         error: 'InternalServerError',
       }),
     );
+  });
+
+  it('emits one safe final record for a guard-style rejection without changing the response request ID', () => {
+    const loggerWarn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation();
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation();
+    const rawRequestId = 'unsafe-id?token=secret-value';
+    const mockResponse = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    jest.spyOn(mockHost, 'switchToHttp').mockReturnValue({
+      getRequest: jest.fn().mockReturnValue({
+        requestId: rawRequestId,
+        method: 'GET',
+        url: '/api/private?token=secret-value',
+        originalUrl: '/api/private?token=secret-value',
+        baseUrl: '',
+        route: undefined,
+        headers: { authorization: 'Bearer secret-value' },
+      }),
+      getResponse: jest.fn().mockReturnValue(mockResponse),
+    } as any);
+
+    filter.catch(
+      new HttpException('Forbidden', HttpStatus.FORBIDDEN),
+      mockHost,
+    );
+
+    expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: rawRequestId,
+        statusCode: HttpStatus.FORBIDDEN,
+      }),
+    );
+    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(loggerError).not.toHaveBeenCalled();
+    const payload = String(loggerWarn.mock.calls[0]?.[0]);
+    expect(payload).toContain('"route":"unmatched"');
+    expect(payload).toContain('"statusCode":403');
+    expect(payload).not.toContain(rawRequestId);
+    expect(payload).not.toContain('secret-value');
+    expect(payload).not.toContain('authorization');
+  });
+
+  it('preserves a valid UUID in the final handler-error record and does not log exception text', () => {
+    const loggerWarn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation();
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation();
+    const requestId = '6d6a4c21-5b6e-4e50-9d86-0d66d2b9f0cc';
+    const mockResponse = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    jest.spyOn(mockHost, 'switchToHttp').mockReturnValue({
+      getRequest: jest.fn().mockReturnValue({
+        requestId,
+        method: 'POST',
+        url: '/api/users/secret-user?token=secret-value',
+        baseUrl: '/api',
+        route: { path: '/users/:username' },
+      }),
+      getResponse: jest.fn().mockReturnValue(mockResponse),
+    } as any);
+
+    filter.catch(new Error('database password secret-value'), mockHost);
+
+    expect(loggerError).toHaveBeenCalledTimes(1);
+    expect(loggerWarn).not.toHaveBeenCalled();
+    const payload = String(loggerError.mock.calls[0]?.[0]);
+    expect(payload).toContain(requestId);
+    expect(payload).toContain('"route":"/api/users/:username"');
+    expect(payload).not.toContain('secret-value');
+    expect(payload).not.toContain('database password');
   });
 });

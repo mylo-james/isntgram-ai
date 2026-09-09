@@ -2,19 +2,20 @@ import LegacyNav from "@/components/legacy/LegacyNav";
 import { auth } from "@/lib/auth";
 import { getApiAccessToken, getRequestId, internalApi } from "@/lib/server-api";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import NotificationsClient from "./NotificationsClient";
 
-function timeAgoLabel(date: string): string {
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+function isNotificationsPayload(value: unknown): value is {
+  items: Array<{
+    id: string;
+    type: "follow" | "like" | "comment";
+    createdAt: string;
+    actor: { id: string; username: string; fullName: string; profilePictureUrl?: string };
+    postId?: string;
+    postMediaUrl?: string;
+  }>;
+  nextCursor?: string;
+} {
+  return typeof value === "object" && value !== null && Array.isArray((value as { items?: unknown }).items);
 }
 
 export default async function NotificationsPage() {
@@ -23,77 +24,50 @@ export default async function NotificationsPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
-  const [{ data }, { data: notifications }] = await Promise.all([
-    internalApi.GET("/api/users/me", {
+  const profileRequest = internalApi
+    .GET("/api/users/me", {
       headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
       cache: "no-store",
-    }),
-    internalApi.GET("/api/notifications", {
+    })
+    .catch(() => undefined);
+  const notificationsRequest = internalApi
+    .GET("/api/notifications", {
       headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
       cache: "no-store",
-    }),
-  ]);
+    })
+    .catch(() => undefined);
 
-  const avatarSrc = data?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
-  const items = notifications?.items ?? [];
+  const [profileResult, notificationsResult] = await Promise.all([profileRequest, notificationsRequest]);
+  if (notificationsResult?.response.status === 401) redirect("/login?reauth=1");
+  const notifications = notificationsResult?.data;
+  const initialLoadError = !notificationsResult?.response.ok || !isNotificationsPayload(notifications);
+  const initialNotifications = isNotificationsPayload(notifications)
+    ? notifications
+    : { items: [], nextCursor: undefined };
+
+  const avatarSrc = profileResult?.data?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    profileResult?.response.ok &&
+    typeof profileResult.data?.username === "string" &&
+    profileResult.data.username.length > 0
+      ? `/${profileResult.data.username}`
+      : "/feed";
 
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-          <h1 className="text-sm font-semibold text-gray-800">Notifications</h1>
-
-          {items.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">No notifications yet.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {items.map((notification) => {
-                const actor = notification.actor;
-                const actorHref = `/${actor.username}`;
-                const postHref = notification.postId ? `/post/${notification.postId}` : null;
-                const targetHref = notification.type === "follow" ? actorHref : (postHref ?? actorHref);
-                const action =
-                  notification.type === "follow"
-                    ? "started following you."
-                    : notification.type === "comment"
-                      ? "commented on your post."
-                      : "liked your post.";
-                const time = timeAgoLabel(notification.createdAt);
-
-                return (
-                  <li key={notification.id}>
-                    <Link
-                      href={targetHref}
-                      className="flex items-center gap-3 rounded-sm border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={actor.profilePictureUrl ?? "/assets/profile.jpeg"}
-                        alt={actor.username}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-
-                      <div className="min-w-0 flex-1 text-sm text-gray-800">
-                        <span className="font-semibold text-gray-900">{actor.username}</span>{" "}
-                        <span className="text-gray-800">{action}</span>{" "}
-                        {time ? <span className="text-gray-500">{time}</span> : null}
-                      </div>
-
-                      {notification.type !== "follow" && notification.postMediaUrl ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={notification.postMediaUrl} alt="" className="h-10 w-10 rounded-sm object-cover" />
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <h1 className="page-heading">Notifications</h1>
+          <NotificationsClient initialNotifications={initialNotifications} initialLoadError={initialLoadError} />
         </div>
       </main>
     </>

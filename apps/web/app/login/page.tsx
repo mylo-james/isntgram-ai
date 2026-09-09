@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import ErrorNotice from "@/components/ui/ErrorNotice";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { validateEmail, validatePassword, ValidationResult } from "@/lib/validation";
 import Spinner from "@/components/ui/Spinner";
+import Brand from "@/components/ui/Brand";
 
 interface LoginFormData {
   email: string;
@@ -21,14 +23,47 @@ function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const reauthenticate = searchParams.get("reauth") === "1";
   const demoEnabled = process.env.NEXT_PUBLIC_DEMO_ENABLED === "true";
 
   const [formData, setFormData] = useState<LoginFormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
+  const [isClientReady, setIsClientReady] = useState(false);
+  const mountedRef = useRef(false);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    setIsClientReady(true);
+    return () => {
+      mountedRef.current = false;
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const navigateToFeed = (delayMs = 0) => {
+    if (!mountedRef.current) return;
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+    if (delayMs === 0) {
+      router.push("/");
+      return;
+    }
+    redirectTimerRef.current = window.setTimeout(() => {
+      redirectTimerRef.current = null;
+      if (mountedRef.current) router.push("/");
+    }, delayMs);
+  };
 
   // Check for success message from registration
   useEffect(() => {
@@ -40,10 +75,10 @@ function LoginInner() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (status === "authenticated" && session) {
+    if (status === "authenticated" && session && !reauthenticate) {
       router.push("/");
     }
-  }, [status, session, router]);
+  }, [status, session, router, reauthenticate]);
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     const nextValue = field === "email" ? value.toLowerCase() : value;
@@ -81,6 +116,7 @@ function LoginInner() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isClientReady || isLoading || demoLoading) return;
     setFormError("");
     setSuccessMessage("");
 
@@ -94,33 +130,34 @@ function LoginInner() {
         password: formData.password,
         redirect: false,
       });
+      if (!mountedRef.current) return;
 
       if (result?.error) {
-        let message = result.error;
-        if (message === "CredentialsSignin") {
-          message = "Invalid credentials";
-        } else if (message === "Configuration") {
-          message = "Authentication configuration error";
+        let message = "Log in couldn’t complete. Your details are still here. Try again.";
+        if (result.error === "CredentialsSignin" || result.error === "Invalid credentials") {
+          message = "The email or password doesn’t match. Check both fields and try again.";
+        } else if (result.error === "Configuration") {
+          message = "Log in is temporarily unavailable. Your details are still here. Try again shortly.";
         }
         setFormError(message);
       } else if (result?.ok) {
         setSuccessMessage("Login successful! Redirecting...");
         setFormData({ email: "", password: "" });
-        // Redirect to main feed after successful login
-        setTimeout(() => {
-          router.push("/");
-        }, 1000);
+        navigateToFeed(1000);
+      } else {
+        setFormError("We couldn't complete sign in. Please try again.");
       }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Login failed. Please try again.";
+    } catch {
+      if (!mountedRef.current) return;
+      const message = "Log in couldn’t connect. Check your connection and try again. Your details are still here.";
       setFormError(message);
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   };
 
   const handleDemoSignIn = async () => {
-    if (!demoEnabled) return;
+    if (!isClientReady || isLoading || demoLoading || !demoEnabled) return;
     setFormError("");
     setSuccessMessage("");
     setDemoLoading(true);
@@ -133,52 +170,74 @@ function LoginInner() {
         password: demoPassword,
         redirect: false,
       });
+      if (!mountedRef.current) return;
       if (result?.error) {
         setFormError("Demo sign-in failed");
       } else if (result?.ok) {
-        router.push("/");
+        navigateToFeed();
+      } else {
+        setFormError("We couldn't complete sign in. Please try again.");
       }
     } catch {
+      if (!mountedRef.current) return;
       setFormError("Demo sign-in failed");
     } finally {
-      setDemoLoading(false);
+      if (mountedRef.current) setDemoLoading(false);
     }
   };
 
+  const controlsDisabled = !isClientReady || isLoading || demoLoading;
+
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      aria-label="Log in"
+      className="relative min-h-screen w-full flex items-center justify-end bg-gray-50 overflow-hidden"
+    >
       <div className="absolute inset-0 z-0">
         <div className="relative w-full h-full overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             className="w-full h-full object-cover"
             src="https://picsum.photos/seed/isntgram-login/2000/3000"
-            alt="Isntgram splash background"
+            alt=""
           />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20" />
         </div>
       </div>
 
-      <div className="relative min-h-screen w-full max-w-md bg-white border border-gray-200 shadow-xl z-10">
+      <div className="relative z-10 min-h-screen w-full max-w-md bg-white/95">
         <div className="flex flex-col items-center justify-center min-h-screen px-8 py-12">
           <div className="mb-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="w-48 h-auto object-contain" src="/assets/logo.svg" alt="Isntgram logo" />
+            <Brand className="auth-brand" />
           </div>
 
           <div className="w-full max-w-sm">
+            <h1 className="page-heading mb-6">Log in</h1>
+            {reauthenticate ? (
+              <p className="mb-4 text-sm text-gray-700">
+                Log in again to continue. Your draft in the other tab will stay there.
+              </p>
+            ) : null}
             <div className="w-full space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+                {!isClientReady ? (
+                  <p className="sr-only" role="status">
+                    Preparing login…
+                  </p>
+                ) : null}
+                {formError ? <ErrorNotice key={formError} message={formError} /> : null}
 
                 <div>
-                  <label className="sr-only" htmlFor="email">
+                  <label className="mb-2 block text-sm font-medium" htmlFor="email">
                     Email
                   </label>
                   <input
-                    className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                    placeholder="Phone number, username, or email"
+                    className="ui-field"
+                    placeholder="Email"
                     name="email"
+                    autoComplete="email"
                     id="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
@@ -187,37 +246,59 @@ function LoginInner() {
                     autoCorrect="off"
                     required
                     type="email"
+                    aria-invalid={errors.email ? true : undefined}
+                    aria-describedby={errors.email ? "login-email-error" : undefined}
+                    disabled={controlsDisabled}
                   />
-                  {errors.email ? <p className="mt-1 text-xs text-red-600">{errors.email}</p> : null}
+                  {errors.email ? (
+                    <p id="login-email-error" className="mt-1 text-xs text-red-600" role="alert">
+                      {errors.email}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
-                  <label className="sr-only" htmlFor="password">
+                  <label className="mb-2 block text-sm font-medium" htmlFor="password">
                     Password
                   </label>
                   <input
-                    className="w-full px-3 py-3 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                    type="password"
+                    className="ui-field"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     name="password"
+                    autoComplete="current-password"
                     id="password"
                     value={formData.password}
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     onBlur={() => handleBlur("password")}
                     required
+                    aria-invalid={errors.password ? true : undefined}
+                    aria-describedby={errors.password ? "login-password-error" : undefined}
+                    disabled={controlsDisabled}
                   />
-                  {errors.password ? <p className="mt-1 text-xs text-red-600">{errors.password}</p> : null}
+                  <button
+                    type="button"
+                    className="ui-quiet mt-1"
+                    aria-controls="password"
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((value) => !value)}
+                  >
+                    {showPassword ? "Hide password" : "Show password"}
+                  </button>
+                  {errors.password ? (
+                    <p id="login-password-error" className="mt-1 text-xs text-red-600" role="alert">
+                      {errors.password}
+                    </p>
+                  ) : null}
                 </div>
 
                 {successMessage ? (
-                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md">{successMessage}</div>
+                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded-md" role="status">
+                    {successMessage}
+                  </div>
                 ) : null}
 
-                <button
-                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="submit"
-                  disabled={isLoading}
-                >
+                <button className="ui-primary w-full" type="submit" disabled={controlsDisabled}>
                   {isLoading ? "Logging in..." : "Log In"}
                 </button>
 
@@ -232,29 +313,32 @@ function LoginInner() {
 
                 {demoEnabled ? (
                   <button
-                    className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-2 px-4 rounded-md transition-colors duration-200 text-sm border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ui-secondary w-full"
                     onClick={handleDemoSignIn}
+                    data-portfolio-demo-sign-in
                     type="button"
-                    disabled={demoLoading}
+                    disabled={controlsDisabled}
                   >
                     {demoLoading ? "Starting demo..." : "Try Our Demo"}
                   </button>
                 ) : null}
               </form>
 
-              <div className="text-sm text-center">
+              {process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true" ? (
+                <p className="text-sm text-center text-gray-600">
+                  This public demo lasts 48 hours. Your uploads are temporary;
+                  private recovery copies expire after 7 days.
+                </p>
+              ) : <div className="text-sm text-center">
                 <span className="text-gray-600">Don&apos;t have an account? </span>
-                <Link
-                  className="text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-200"
-                  href="/register"
-                >
+                <Link className="ui-quiet font-semibold" href="/register">
                   Sign up
                 </Link>
-              </div>
+              </div>}
             </div>
           </div>
 
-          <div className="absolute flex justify-between items-center h-[10vh] w-[90%] bottom-[35px] left-[5%]">
+          <div className="mt-10 flex w-full max-w-sm items-center justify-around gap-4">
             <a
               href="https://github.com/jamesurobertson/"
               className="flex justify-center w-[30%]"
@@ -265,7 +349,7 @@ function LoginInner() {
               <img
                 src="/assets/profile.jpeg"
                 alt="James Robertson"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -278,7 +362,7 @@ function LoginInner() {
               <img
                 src="/assets/aaron-profile.jpeg"
                 alt="Aaron Pierskalla"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
             <a
@@ -291,13 +375,13 @@ function LoginInner() {
               <img
                 src="/assets/mylo-profile.jpg"
                 alt="Mylo James"
-                className="w-[70%] h-full rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
+                className="h-12 w-12 rounded-full object-cover hover:opacity-80 transition-opacity duration-200"
               />
             </a>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

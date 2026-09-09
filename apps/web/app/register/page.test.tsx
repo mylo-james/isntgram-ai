@@ -69,6 +69,10 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/password is required/i)).toBeInTheDocument();
     });
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "register-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("id", "register-email-error");
+    expect(screen.getByText(/email is required/i)).toHaveAttribute("role", "alert");
   });
 
   it("validates email format", async () => {
@@ -151,6 +155,7 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/registration successful/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/registration successful/i)).toHaveAttribute("role", "status");
   });
 
   it("redirects to login after successful registration", async () => {
@@ -230,8 +235,11 @@ describe("RegisterPage", () => {
 
     // Wait for error message
     await waitFor(() => {
-      expect(screen.getByText(/email already exists/i)).toBeInTheDocument();
+      expect(screen.getByText(/that email cannot be used/i)).toBeInTheDocument();
     });
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "register-email-error");
+    expect(screen.getByText(/that email cannot be used/i)).toHaveAttribute("role", "alert");
   });
 
   it("handles username-specific backend error mapping", async () => {
@@ -248,7 +256,7 @@ describe("RegisterPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/username already taken/i)).toBeInTheDocument();
+      expect(screen.getByText(/that username is unavailable/i)).toBeInTheDocument();
     });
   });
 
@@ -267,7 +275,7 @@ describe("RegisterPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/registration failed\. please try again\./i)).toBeInTheDocument();
+      expect(screen.getByText(/account couldn’t be created/i)).toBeInTheDocument();
     });
   });
 
@@ -286,8 +294,9 @@ describe("RegisterPage", () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/network down/i)).toBeInTheDocument();
+      expect(screen.getByText(/account couldn’t be created/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/account couldn’t be created/i)).toHaveAttribute("role", "alert");
   });
 
   it("validates username and full name on blur", async () => {

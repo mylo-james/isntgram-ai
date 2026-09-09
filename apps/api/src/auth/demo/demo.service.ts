@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import argon2 from 'argon2';
@@ -8,7 +8,10 @@ import { isUniqueConstraintError } from '../../common/db-errors';
 import { User } from '../../users/entities/user.entity';
 import { PrivateUserProfileDto } from '../../users/dto/private-user-profile.dto';
 import { AuthService } from '../auth.service';
+import { CommunitySeeder } from './community.seeder';
 import { DemoSeeder } from './demo.seeder';
+import { CuratedDemoService } from './curated-demo.service';
+import { AdmissionService } from '../../common/admission/admission.service';
 
 @Injectable()
 export class DemoService {
@@ -20,6 +23,9 @@ export class DemoService {
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
     private readonly demoSeeder: DemoSeeder,
+    @Optional() private readonly curatedDemoService?: CuratedDemoService,
+    @Optional() private readonly communitySeeder?: CommunitySeeder,
+    @Optional() private readonly admissionService?: AdmissionService,
   ) {}
 
   private async withDemoSessionLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -67,16 +73,29 @@ export class DemoService {
     };
   }
 
-  async createDemoSession(): Promise<{
+  async createDemoSession(clientAddress = 'unknown'): Promise<{
     user: PrivateUserProfileDto;
     accessToken: string;
     isDemoUser: true;
     demoExpiresAt: string;
   }> {
-    if (this.shouldSerializeDemoSessions()) {
-      return this.withDemoSessionLock(() => this.createDemoSessionInternal());
+    const operationId = randomUUID();
+    if (this.admissionService?.isDeploymentMode()) {
+      await this.admissionService.admitDemo(clientAddress, operationId);
     }
-    return this.createDemoSessionInternal();
+    try {
+      if (this.configService.get<string>('DEMO_CONTENT_SOURCE') === 'curated') {
+        if (!this.curatedDemoService)
+          throw new ForbiddenException('Curated demo is unavailable');
+        return await this.curatedDemoService.createSession();
+      }
+      if (this.shouldSerializeDemoSessions()) {
+        return await this.withDemoSessionLock(() => this.createDemoSessionInternal());
+      }
+      return await this.createDemoSessionInternal();
+    } finally {
+      await this.admissionService?.completeDemo(operationId);
+    }
   }
 
   private async createDemoSessionInternal(): Promise<{
@@ -92,9 +111,17 @@ export class DemoService {
       throw new ForbiddenException('Demo mode disabled');
     }
 
-    const seedUsers = await this.demoSeeder.ensureDemoSeedUsers();
-    await this.demoSeeder.ensureDemoSeedPosts(seedUsers);
-    await this.demoSeeder.seedDemoSeedEngagement(seedUsers);
+    const useCommunity =
+      this.configService.get<string>('DEMO_CONTENT_SOURCE') === 'community';
+    if (useCommunity && !this.communitySeeder)
+      throw new ForbiddenException('Demo community is unavailable');
+    const seedUsers = useCommunity
+      ? await this.communitySeeder!.ensureCommunity()
+      : await this.demoSeeder.ensureDemoSeedUsers();
+    if (!useCommunity) {
+      await this.demoSeeder.ensureDemoSeedPosts(seedUsers);
+      await this.demoSeeder.seedDemoSeedEngagement(seedUsers);
+    }
 
     const { email, username, fullName } = this.createDemoIdentity();
     const demoExpiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
@@ -114,13 +141,17 @@ export class DemoService {
       isDemoUser: true,
       isDemoSeed: false,
       demoExpiresAt,
-      profilePictureUrl: `https://picsum.photos/seed/${username}/200/200`,
+      profilePictureUrl: useCommunity
+        ? undefined
+        : `https://picsum.photos/seed/${username}/200/200`,
       bio: 'Demo account • post, like, comment, and follow freely.',
     });
 
     try {
       const saved = await this.userRepository.save(demoUser);
-      const demoPosts = await this.demoSeeder.seedDemoUserPosts(saved);
+      const demoPosts = useCommunity
+        ? []
+        : await this.demoSeeder.seedDemoUserPosts(saved);
       const followerUsers = await this.demoSeeder.seedDemoSocialGraph(
         saved.id,
         seedUsers,

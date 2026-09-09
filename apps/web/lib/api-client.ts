@@ -1,6 +1,4 @@
 import type {
-  AiRewriteRequest,
-  AiRewriteResponse,
   ApiPaths,
   Comment,
   CommentsResponse,
@@ -24,7 +22,7 @@ import type {
 } from "@isntgram-ai/shared-types";
 
 import createClient from "openapi-fetch";
-import { getApiErrorMessage } from "./api-error";
+import { ApiRequestError, getApiErrorMessage } from "./api-error";
 import { CSRF_HEADER_NAME, getCsrfTokenFromCookie, isStateChangingMethod } from "./csrf";
 
 type BffPaths = {
@@ -62,7 +60,7 @@ async function unwrap<T>(result: Promise<unknown>): Promise<T> {
   };
 
   if (!response.ok) {
-    throw new Error(getApiErrorMessage(error));
+    throw new ApiRequestError(getApiErrorMessage(error), response.status);
   }
 
   // openapi-fetch only provides `data` for 2xx responses.
@@ -102,7 +100,11 @@ export const apiClient = {
     );
   },
 
-  async updateProfile(data: { fullName: string; username: string }): Promise<PrivateUserProfile> {
+  async updateProfile(data: {
+    fullName: string;
+    username: string;
+    profilePictureUploadId?: string;
+  }): Promise<PrivateUserProfile> {
     return unwrap<PrivateUserProfile>(
       client.PUT("/users/profile", {
         body: data,
@@ -163,10 +165,11 @@ export const apiClient = {
     );
   },
 
-  async createPost(data: CreatePostRequest): Promise<PostItem> {
+  async createPost(data: CreatePostRequest, options?: { signal?: AbortSignal }): Promise<PostItem> {
     return unwrap<PostItem>(
       client.POST("/posts", {
         body: data,
+        signal: options?.signal,
       }),
     );
   },
@@ -230,14 +233,6 @@ export const apiClient = {
     return unwrap<AuthLogoutResponse>(client.POST("/auth/logout"));
   },
 
-  async rewritePost(data: AiRewriteRequest): Promise<AiRewriteResponse> {
-    return unwrap<AiRewriteResponse>(
-      client.POST("/ai/rewrite", {
-        body: data,
-      }),
-    );
-  },
-
   async getFollowStatus(username: string): Promise<FollowStatus> {
     return unwrap<FollowStatus>(
       client.GET("/follows/{username}/status", {
@@ -290,8 +285,6 @@ export const apiClient = {
   },
 };
 export type {
-  AiRewriteRequest,
-  AiRewriteResponse,
   PublicUserProfile,
   PrivateUserProfile,
   FeedResponse,

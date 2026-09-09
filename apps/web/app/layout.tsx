@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import PortfolioBridge from "@/components/demo/PortfolioBridge";
 import SessionProvider from "@/components/providers/SessionProvider";
 
 const geistSans = localFont({
@@ -15,9 +16,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Isntgram - AI-Powered Social Media",
-  description: "Connect with meaningful content and conversations on Isntgram, the AI-powered social media platform.",
-  keywords: ["social media", "AI", "connections", "content", "community"],
+  title: "Isntgram",
+  description: "Share photos, updates and conversations with your community on Isntgram.",
+  keywords: ["social media", "connections", "content", "community"],
   authors: [{ name: "Isntgram Team" }],
   robots: "index, follow",
   icons: { icon: "/favicon.svg" },
@@ -36,7 +37,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <SessionProvider>{children}</SessionProvider>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[250] focus:rounded-md focus:bg-white focus:p-3 focus:text-blue-800"
+        >
+          Skip to content
+        </a>
+        <SessionProvider>{children}<PortfolioBridge /></SessionProvider>
       </body>
     </html>
   );

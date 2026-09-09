@@ -1,0 +1,181 @@
+{
+  "version": "isntgram-v1-curated-1",
+  "status": "approved-local-candidate",
+  "description": "A finite local demonstration corpus. These are NPS archival photographs, not Mylo\u2019s photography or evidence of user adoption.",
+  "catalogUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Page.htm",
+  "rightsUrl": "https://www.nps.gov/features/yell/slidefile/faq.htm",
+  "retrievedAt": "2026-09-08T05:32:25.668Z",
+  "actors": [
+    {
+      "id": "2a9597bd-8354-5ea1-afa1-3ce7b76cb63a",
+      "username": "v1_reader",
+      "fullName": "Curated Demo Reader",
+      "email": "v1-reader@example.invalid",
+      "isDemoUser": false
+    },
+    {
+      "id": "3803f946-9325-5852-804d-fbb8d8f874fe",
+      "username": "v1_author",
+      "fullName": "Curated Demo Author",
+      "email": "v1-author@example.invalid",
+      "isDemoUser": false
+    }
+  ],
+  "photos": [
+    {
+      "id": "00457",
+      "title": "Mt Everts",
+      "photographer": "William W Dunmire",
+      "year": 1969,
+      "altText": "Pale rock cliffs and scattered conifers on a steep brown mountainside, with low cloud along the ridge.",
+      "caption": "Pale cliffs and scattered conifers on Mt Everts, Yellowstone. Historical photograph from 1969. NPS Photo by William W Dunmire. Curated demo image.",
+      "postId": "599a9a92-dd88-53f9-a07b-3e454286b373",
+      "credit": "NPS Photo by William W Dunmire",
+      "license": "Public domain; credit required by the NPS collection",
+      "catalogUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Page.htm",
+      "downloadUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Images/00457.jpg",
+      "rightsUrl": "https://www.nps.gov/features/yell/slidefile/faq.htm",
+      "original": {
+        "width": 1999,
+        "height": 1244,
+        "format": "jpeg",
+        "bytes": 593645,
+        "sha256": "43da944e96beed3cec70a060f29b3ab24de7cc75dfed78bb648648d3b0f73c4e",
+        "fileName": "00457.jpg",
+        "mime": "image/jpeg"
+      },
+      "validated": {
+        "width": 1999,
+        "height": 1244,
+        "frames": 1,
+        "contentType": "image/jpeg",
+        "bytes": 436279,
+        "sha256": "b52c58dd4bda1445f562c7b693613d24206649044eaf233836acb221e35198b5"
+      },
+      "uploadId": "8e74403c-4626-586b-93a0-31c04548f4c7"
+    },
+    {
+      "id": "07190",
+      "title": "Round Prairie and Amphitheater Mountain",
+      "photographer": "J Schmidt",
+      "year": 1977,
+      "altText": "Sunlit cliffs above a densely forested valley, with a narrow strip of open grassland in the foreground.",
+      "caption": "Amphitheater Mountain above the forest near Round Prairie, Yellowstone. Historical photograph from 1977. NPS Photo by J Schmidt. Curated demo image.",
+      "postId": "0bda276e-40fa-52c8-9c3b-6401e102bab0",
+      "credit": "NPS Photo by J Schmidt",
+      "license": "Public domain; credit required by the NPS collection",
+      "catalogUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Page.htm",
+      "downloadUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Images/07190.jpg",
+      "rightsUrl": "https://www.nps.gov/features/yell/slidefile/faq.htm",
+      "original": {
+        "width": 2001,
+        "height": 1233,
+        "format": "jpeg",
+        "bytes": 323059,
+        "sha256": "9f9bb9a10e19ae0788f6fd30070a491961dbb31d8e768ce394e089cdd99d369e",
+        "fileName": "07190.jpg",
+        "mime": "image/jpeg"
+      },
+      "validated": {
+        "width": 2001,
+        "height": 1233,
+        "frames": 1,
+        "contentType": "image/jpeg",
+        "bytes": 222308,
+        "sha256": "2c3eb0239efc07d22a2e1ebeb954ba74e0f550752dd92904adbbd69d159ceae8"
+      },
+      "uploadId": "8aacfb56-1d35-5173-8dcd-f79c1223603b"
+    },
+    {
+      "id": "07191",
+      "title": "Lamar Valley and River",
+      "photographer": "J Schmidt",
+      "year": 1977,
+      "altText": "A river curves across a stony bank below a line of trees, with forested hills and distant cliffs beyond.",
+      "caption": "The Lamar River winds through an open valley in Yellowstone. Historical photograph from 1977. NPS Photo by J Schmidt. Curated demo image.",
+      "postId": "3ddf9d60-2818-546d-bd6e-a4b0978309eb",
+      "credit": "NPS Photo by J Schmidt",
+      "license": "Public domain; credit required by the NPS collection",
+      "catalogUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Page.htm",
+      "downloadUrl": "https://www.nps.gov/features/yell/slidefile/scenics/mvnortheast/Images/07191.jpg",
+      "rightsUrl": "https://www.nps.gov/features/yell/slidefile/faq.htm",
+      "original": {
+        "width": 1999,
+        "height": 1277,
+        "format": "jpeg",
+        "bytes": 442702,
+        "sha256": "463173fa8715344763e816ed740cb9a2569eb7b1d8b6d15504a812af14934e93",
+        "fileName": "07191.jpg",
+        "mime": "image/jpeg"
+      },
+      "validated": {
+        "width": 1999,
+        "height": 1277,
+        "frames": 1,
+        "contentType": "image/jpeg",
+        "bytes": 305220,
+        "sha256": "1a0256ea00e88ae04fcd9c3adcb111caaf634bc446b1cafab3dd3e8fc9bf382c"
+      },
+      "uploadId": "1bf86857-cad0-53bd-aeef-ac910ddb03c9"
+    }
+  ],
+  "textPost": {
+    "id": "68686aae-b3e7-5e64-aca3-b8c80ccf324b",
+    "content": "This local Isntgram demo uses three credited Yellowstone archive photographs. Use it to verify posting, persistence, follows and notifications without fabricated engagement."
+  },
+  "initialRelationships": [],
+  "demoSeeds": [
+    {
+      "id": "c32170a9-b43e-54bb-ad41-bc8c4c4be230",
+      "username": "v1_demo_north",
+      "fullName": "Curated Demo North",
+      "email": "v1-demo-north@example.invalid",
+      "isDemoUser": true,
+      "isDemoSeed": true,
+      "bio": "Fictional demo account sharing credited NPS archive photographs.",
+      "posts": [
+        {
+          "id": "af5c7b36-542c-57ba-b0b4-f33cdf1456e8",
+          "photoId": "00457",
+          "uploadId": "16200f08-cc90-54ee-afad-da2e2deb5281"
+        },
+        {
+          "id": "e1e6cdc6-fd97-5ebd-aa7b-9ad8afe52702",
+          "photoId": "07190",
+          "uploadId": "9f2d18f3-4555-553d-9f5c-b5633c8cbcc9"
+        },
+        {
+          "id": "f3be6753-8583-5f80-9c04-318f2fd07025",
+          "photoId": "07191",
+          "uploadId": "5a1a131f-c9db-56de-8fb9-c2e3dd014efb"
+        }
+      ]
+    },
+    {
+      "id": "d2d9b382-cbb5-5a03-83eb-acf6014b9aa7",
+      "username": "v1_demo_river",
+      "fullName": "Curated Demo River",
+      "email": "v1-demo-river@example.invalid",
+      "isDemoUser": true,
+      "isDemoSeed": true,
+      "bio": "Fictional demo account sharing credited NPS archive photographs.",
+      "posts": [
+        {
+          "id": "8a35e6c1-06f5-5947-989c-eed4cb2bed71",
+          "photoId": "00457",
+          "uploadId": "5085769c-453e-52c6-a085-49d6be31e0f4"
+        },
+        {
+          "id": "dd79003f-9097-570e-9c8e-82492a46c79a",
+          "photoId": "07190",
+          "uploadId": "2cc2fde5-9446-5d85-9767-00d8dd9fe1a0"
+        },
+        {
+          "id": "3fd73177-d08d-5a01-8943-1ab3b964377e",
+          "photoId": "07191",
+          "uploadId": "d606d688-62f8-5044-a845-212cff15466d"
+        }
+      ]
+    }
+  ]
+}

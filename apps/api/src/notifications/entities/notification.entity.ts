@@ -18,6 +18,7 @@ export type NotificationType = 'follow' | 'like' | 'comment';
 @Entity('notifications')
 @Index(['recipientId', 'createdAt'])
 @Index(['recipientId', 'readAt'])
+@Index(['type', 'sourceId'], { unique: true })
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -30,6 +31,9 @@ export class Notification {
 
   @Column({ type: 'varchar', length: 32 })
   type!: NotificationType;
+
+  @Column({ type: 'uuid', nullable: true })
+  sourceId?: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   postId?: string | null;

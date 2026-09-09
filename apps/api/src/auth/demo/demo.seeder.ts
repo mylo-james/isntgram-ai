@@ -477,8 +477,6 @@ export class DemoSeeder {
   }): Promise<void> {
     const { demoUserId, demoPosts, followerUsers } = params;
 
-    if (demoPosts.length === 0) return;
-
     let notificationRepository: Repository<Notification> | null = null;
     try {
       notificationRepository =
@@ -518,6 +516,7 @@ export class DemoSeeder {
         }),
       );
       await notificationRepository.save(followNotifications);
+      if (demoPosts.length === 0) return;
 
       const likeActors = actors.slice(0, 5);
       const likeTargets = demoPosts.slice(0, Math.min(3, demoPosts.length));

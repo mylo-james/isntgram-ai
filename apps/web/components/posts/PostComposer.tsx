@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { PostItem } from "@/lib/api-client";
 import { apiClient } from "@/lib/api-client";
+import { ApiRequestError } from "@/lib/api-error";
+
+import Button from "@/components/ui/Button";
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import Dialog from "@/components/ui/Dialog";
+import { userError } from "@/lib/user-error";
+
+const DIRECT_UPLOAD_TIMEOUT_MS = 15_000;
+const PUBLICATION_TIMEOUT_MS = 30_000;
+const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const parsedMaxUploadBytes = Number(process.env.NEXT_PUBLIC_MEDIA_MAX_UPLOAD_BYTES);
@@ -22,16 +32,27 @@ function formatBytes(bytes: number): string {
 
 interface PostComposerProps {
   onPostCreated: (post: PostItem) => void;
+  onCancel?: () => void;
 }
 
-export default function PostComposer({ onPostCreated }: PostComposerProps) {
+export default function PostComposer({ onPostCreated, onCancel }: PostComposerProps) {
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRewriting, setIsRewriting] = useState(false);
-  const [aiProvider, setAiProvider] = useState<"mock" | "openai" | null>(null);
+  const [isClientReady, setIsClientReady] = useState(false);
+  const [mediaAltText, setMediaAltText] = useState("");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [uncertainAttempt, setUncertainAttempt] = useState<{
+    uploadId: string;
+    content: string;
+    mediaAltText: string;
+  } | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const publishAbortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -46,190 +67,354 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     }
 
     const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // Keep the browser-issued object URL in URI form at the image boundary.
+    setPreviewUrl(encodeURI(url));
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    setIsClientReady(true);
+    return () => {
+      mountedRef.current = false;
+      uploadAbortRef.current?.abort();
+      publishAbortRef.current?.abort();
+    };
+  }, []);
+
+  const composerDisabled = !isClientReady || isSubmitting || Boolean(uncertainAttempt);
 
   const resetForm = () => {
     setContent("");
     setFile(null);
-    setAiProvider(null);
+    setMediaAltText("");
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleAiRewrite = async () => {
-    if (!content.trim()) {
-      setError("Write something before rewriting.");
-      return;
-    }
+  const isDefinitiveMediaRejection = (err: unknown) =>
+    err instanceof ApiRequestError && [400, 401, 403, 404, 409, 413, 415, 422].includes(err.status);
 
-    setIsRewriting(true);
-    setError(null);
-
+  const publish = async (draft: string, uploadId?: string, description = "") => {
+    const controller = new AbortController();
+    publishAbortRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), PUBLICATION_TIMEOUT_MS);
     try {
-      const response = await apiClient.rewritePost({
-        content: content.trim(),
-        tone: "professional",
-        maxLength: 2000,
-      });
-
-      setContent(response.content);
-      setAiProvider(response.provider);
+      const created = await apiClient.createPost(
+        uploadId ? { content: draft, mediaUploadId: uploadId, mediaAltText: description } : { content: draft },
+        { signal: controller.signal },
+      );
+      if (!mountedRef.current) return;
+      onPostCreated(created);
+      setUncertainAttempt(null);
+      resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI rewrite failed");
+      if (!mountedRef.current) return;
+      if (uploadId && !isDefinitiveMediaRejection(err)) {
+        setUncertainAttempt({ uploadId, content: draft, mediaAltText: description });
+        setError("We could not confirm publication. Resolve this original photo post before creating another one.");
+      } else {
+        setUncertainAttempt(null);
+        setError(
+          userError(err, "Your post wasn’t published. Your draft and selected photo are still here. Try again."),
+        );
+      }
     } finally {
-      setIsRewriting(false);
+      window.clearTimeout(timeout);
+      if (publishAbortRef.current === controller) publishAbortRef.current = null;
     }
   };
 
   const handleSubmit = async () => {
-    if (!content.trim()) {
-      setError("Write something before posting.");
+    if (!isClientReady || busyRef.current) return;
+    const draft = content.trim();
+    if (!file) {
+      setError("Choose a photo before writing your caption.");
       return;
     }
-
+    if (uncertainAttempt) {
+      setError("Resolve the earlier photo post before creating another one.");
+      return;
+    }
+    if (!draft) {
+      setError("Write a caption before posting.");
+      document.getElementById("post-content")?.focus();
+      return;
+    }
+    if (!mediaAltText.trim()) {
+      setError("Add a photo description so people can understand the photo without seeing it.");
+      document.getElementById("post-description")?.focus();
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `This photo is too large. Choose an image up to ${formatBytes(MAX_UPLOAD_BYTES)}. Your text is still here.`,
+      );
+      return;
+    }
+    busyRef.current = true;
     setIsSubmitting(true);
     setError(null);
-
     try {
-      let mediaUrl: string | undefined;
-      if (file) {
-        if (file.size > MAX_UPLOAD_BYTES) {
-          setFile(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-          throw new Error(`Image is too large (max ${formatBytes(MAX_UPLOAD_BYTES)})`);
-        }
-
-        const presign = await apiClient.createUploadUrl({
-          fileName: file.name,
-          contentType: file.type,
-          contentLength: file.size,
-        });
-
-        try {
-          const parsed = new URL(presign.publicUrl);
-          if (!["http:", "https:"].includes(parsed.protocol)) {
-            throw new Error("Invalid upload URL");
-          }
-        } catch {
-          throw new Error("Upload is misconfigured (invalid public URL).");
-        }
-
+      if (file.size > MAX_UPLOAD_BYTES) throw new Error(`Image is too large (max ${formatBytes(MAX_UPLOAD_BYTES)})`);
+      const presign = await apiClient.createUploadUrl({
+        fileName: file.name,
+        contentType: file.type,
+        contentLength: file.size,
+      });
+      if (!mountedRef.current) return;
+      const uploadId = presign.uploadId;
+      if (!uploadId) throw new Error("Upload is misconfigured (missing upload ID).");
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      const timeout = window.setTimeout(() => controller.abort(), DIRECT_UPLOAD_TIMEOUT_MS);
+      try {
         const upload = await fetch(presign.uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
           body: file,
+          signal: controller.signal,
         });
-
-        if (!upload.ok) {
-          throw new Error("Upload failed");
-        }
-
-        mediaUrl = presign.publicUrl;
+        if (!upload.ok) throw new Error("Upload failed");
+      } catch (err) {
+        if (controller.signal.aborted)
+          throw new Error("Upload timed out. Your draft and selected photo are still available.");
+        throw err;
+      } finally {
+        window.clearTimeout(timeout);
+        if (uploadAbortRef.current === controller) uploadAbortRef.current = null;
       }
-
-      const created = await apiClient.createPost({
-        content: content.trim(),
-        mediaUrl,
-      });
-
-      onPostCreated(created);
-      resetForm();
+      if (!mountedRef.current) return;
+      await publish(draft, uploadId, mediaAltText.trim());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create post");
+      if (mountedRef.current)
+        setError(
+          userError(err, "Your post wasn’t published. Your draft and selected photo are still here. Try again."),
+        );
     } finally {
-      setIsSubmitting(false);
+      busyRef.current = false;
+      if (mountedRef.current) setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="w-full bg-white sm:rounded-sm sm:border sm:border-gray-300">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <p className="text-sm font-semibold text-gray-800">Create new post</p>
-      </div>
-      <div className="px-4 pb-4 pt-3">
-        <div className="flex-1">
-          {previewUrl ? (
-            <div className="mb-3 overflow-hidden rounded-sm border border-gray-200 bg-gray-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="Selected image preview" className="h-auto w-full object-cover" />
-            </div>
-          ) : null}
+  const retryUncertainAttempt = async () => {
+    if (!uncertainAttempt || busyRef.current) return;
+    busyRef.current = true;
+    setIsSubmitting(true);
+    setError(null);
+    await publish(uncertainAttempt.content, uncertainAttempt.uploadId, uncertainAttempt.mediaAltText);
+    busyRef.current = false;
+    if (mountedRef.current) setIsSubmitting(false);
+  };
 
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder="Share your latest idea, update, or insight..."
-            className="min-h-[120px] w-full resize-none rounded-sm border border-gray-300 bg-white p-3 text-sm text-gray-900 outline-none focus:border-gray-400"
-            maxLength={2000}
-            disabled={isSubmitting || isRewriting}
-          />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <input
-                ref={fileInputRef}
-                id="post-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                aria-label="Upload image"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                disabled={isSubmitting || isRewriting}
-                className="peer sr-only"
-              />
-              <label
-                htmlFor="post-image"
-                className="inline-flex cursor-pointer items-center rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"
-              >
-                Choose photo
-              </label>
-              {file ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFile(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = "";
-                    }
-                  }}
-                  disabled={isSubmitting || isRewriting}
-                  className="text-xs font-semibold text-gray-600 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Remove
-                </button>
-              ) : null}
-              {file ? <span className="max-w-[220px] truncate">{file.name}</span> : <span>No photo selected</span>}
-              <span>
-                {content.length}/2000 · Max image {formatBytes(MAX_UPLOAD_BYTES)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleAiRewrite}
-                disabled={isSubmitting || isRewriting}
-                className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isRewriting ? "Rewriting..." : "AI polish"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting || isRewriting}
-                className="rounded-sm bg-blue-600 px-6 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? "Posting..." : "Post"}
-              </button>
-            </div>
-          </div>
-          {aiProvider ? <p className="mt-2 text-[11px] text-gray-500">AI provider: {aiProvider}</p> : null}
-          {error ? <p className="mt-3 text-xs text-red-600">{error}</p> : null}
-        </div>
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSubmit();
+      }}
+      className="social-surface p-4 sm:p-6"
+    >
+      {process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true" ? (
+        <p className="mb-4 text-sm text-gray-600">
+          Demo uploads expire with your 48-hour session. Private recovery copies
+          expire after 7 days. Please use photos you can share publicly.
+        </p>
+      ) : null}
+      <div className="mb-5">
+        <input
+          ref={fileInputRef}
+          id="post-image"
+          type="file"
+          hidden
+          disabled={composerDisabled}
+          aria-label="Choose photo"
+          onChange={(e) => {
+            const selectedFile = e.target.files?.[0];
+            if (!selectedFile) return;
+            if (!SUPPORTED_IMAGE_TYPES.has(selectedFile.type)) {
+              setError("This photo format isn’t supported. Choose a JPEG, PNG, WebP, or GIF.");
+              e.currentTarget.value = "";
+              return;
+            }
+            if (selectedFile.size > MAX_UPLOAD_BYTES) {
+              setError(
+                `This photo is too large. Choose an image up to ${formatBytes(MAX_UPLOAD_BYTES)}. Your text is still here.`,
+              );
+              e.currentTarget.value = "";
+              return;
+            }
+            setFile(selectedFile);
+            setMediaAltText("");
+            setError(null);
+          }}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          className={file ? "" : "min-h-48 w-full flex-col gap-3 rounded-xl border-dashed bg-gray-50"}
+          disabled={composerDisabled}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M12 16V4m0 0 4 4m-4-4L8 8M5 14v5h14v-5" />
+          </svg>
+          <span>Choose photo</span>
+        </Button>
       </div>
-    </div>
+      {file ? (
+        <div className="mb-5">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={mediaAltText.trim() || "Selected photo preview"}
+              className="mb-3 max-h-72 w-full rounded-xl bg-gray-50 object-contain"
+            />
+          ) : null}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className="break-all text-sm">{file.name}</span>
+            <Button
+              variant="secondary"
+              disabled={composerDisabled}
+              aria-label="Remove photo"
+              title="Remove photo"
+              className="px-3 text-lg leading-none"
+              onClick={() => {
+                setFile(null);
+                setMediaAltText("");
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="m6 6 12 12M6 18 18 6" />
+              </svg>
+            </Button>
+          </div>
+          <div className="mb-5">
+            <label htmlFor="post-content" className="mb-2 block font-medium">
+              Caption
+            </label>
+            <textarea
+              id="post-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+              maxLength={2000}
+              className="ui-field min-h-32"
+              disabled={composerDisabled}
+              aria-invalid={Boolean(error && !content.trim())}
+              aria-describedby={error ? "post-content-help post-composer-error" : "post-content-help"}
+            />
+            <p id="post-content-help" className="mt-2 text-sm text-gray-600">
+              {content.length}/2000
+            </p>
+          </div>
+          <label htmlFor="post-description" className="mb-2 block font-medium">
+            Photo description
+          </label>
+          <textarea
+            id="post-description"
+            className="ui-field"
+            value={mediaAltText}
+            onChange={(e) => setMediaAltText(e.target.value)}
+            disabled={composerDisabled}
+            required
+            maxLength={1000}
+            aria-invalid={Boolean(error && !mediaAltText.trim())}
+            aria-describedby={
+              error && !mediaAltText.trim() ? "post-description-help post-composer-error" : "post-description-help"
+            }
+          />
+          <p id="post-description-help" className="mt-2 text-sm text-gray-600">
+            Describe the photo for people who cannot see it. <span>{mediaAltText.length}/1000</span>
+          </p>
+        </div>
+      ) : null}
+      {error ? (
+        <ErrorNotice
+          id="post-composer-error"
+          key={error}
+          message={error}
+          onRetry={() => void (uncertainAttempt ? retryUncertainAttempt() : handleSubmit())}
+          pending={isSubmitting}
+          retryLabel={uncertainAttempt ? "Retry original photo post" : "Try posting again"}
+          persistentSummary={
+            uncertainAttempt
+              ? "Post status is still unconfirmed. Retry the original attempt before editing."
+              : undefined
+          }
+        />
+      ) : null}
+      {uncertainAttempt && !error ? (
+        <div role="status" className="my-4">
+          <p>Post status is still unconfirmed. Your original text, description and photo are preserved.</p>
+          <Button onClick={() => void retryUncertainAttempt()} disabled={isSubmitting}>
+            Retry original photo post
+          </Button>
+        </div>
+      ) : null}
+      <div className="mt-6 flex flex-wrap justify-between gap-3">
+        <Button
+          variant="secondary"
+          disabled={composerDisabled}
+          onClick={() => {
+            if (content || file) setConfirmDiscard(true);
+            else onCancel?.();
+          }}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={composerDisabled} loading={isSubmitting} loadingText="Publishing…">
+          Publish post
+        </Button>
+      </div>
+      <p role="status" className="mt-3 text-sm text-gray-600">
+        {!isClientReady ? "Preparing composer…" : isSubmitting ? "Publishing your post. Your draft remains here." : ""}
+      </p>
+      <Dialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        aria-labelledby="discard-title"
+        contentClassName="w-full max-w-sm rounded-2xl bg-white p-6"
+      >
+        <h2 id="discard-title" className="mb-3 text-xl font-semibold">
+          Discard this draft?
+        </h2>
+        <p className="mb-5">Your text and selected photo will be removed from this draft.</p>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => setConfirmDiscard(false)}>
+            Keep editing
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              resetForm();
+              setConfirmDiscard(false);
+              onCancel?.();
+            }}
+          >
+            Discard draft
+          </Button>
+        </div>
+      </Dialog>
+    </form>
   );
 }

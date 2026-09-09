@@ -28,7 +28,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
 
   // Match legacy parity: profile pages require auth.
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const viewerHeaders = {
@@ -36,22 +36,24 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     "x-request-id": requestId,
   };
 
-  const [{ data: profileData, response: profileResponse }, { data: postsData }] = await Promise.all([
-    internalApi.GET("/api/users/{username}", {
-      params: { path: { username: normalizedUsername } },
-      headers: viewerHeaders,
-      cache: "no-store",
-    }),
-    internalApi.GET("/api/posts/user/{username}", {
-      params: { path: { username: normalizedUsername } },
-      headers: viewerHeaders,
-      cache: "no-store",
-    }),
-  ]);
+  const [{ data: profileData, response: profileResponse }, { data: postsData, response: postsResponse }] =
+    await Promise.all([
+      internalApi.GET("/api/users/{username}", {
+        params: { path: { username: normalizedUsername } },
+        headers: viewerHeaders,
+        cache: "no-store",
+      }),
+      internalApi.GET("/api/posts/user/{username}", {
+        params: { path: { username: normalizedUsername } },
+        headers: viewerHeaders,
+        cache: "no-store",
+      }),
+    ]);
 
-  if (!profileResponse.ok || !profileData) {
-    notFound();
-  }
+  if (profileResponse.status === 401 || postsResponse.status === 401)
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
+  if (profileResponse.status === 404) notFound();
+  if (!profileResponse.ok || !profileData) throw new Error("Profile unavailable");
 
   const initialFeed = (postsData ?? { items: [] }) as FeedResponse;
 
@@ -65,23 +67,30 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     initialIsFollowing = followData.isFollowing;
   }
 
-  const { data: me } = await internalApi.GET("/api/users/me", {
+  const { data: me, response: meResponse } = await internalApi.GET("/api/users/me", {
     headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
-  const avatarSrc = me?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = me?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
   const nav: ReactNode = <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />;
 
   return (
     <>
       {nav}
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <ProfilePage
           username={normalizedUsername}
           currentUser={session?.user}
           initialProfile={profileData as PublicUserProfile}
           initialPosts={initialFeed.items}
+          initialPostsError={!postsResponse.ok}
           initialCursor={initialFeed.nextCursor}
           initialIsFollowing={initialIsFollowing}
         />

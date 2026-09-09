@@ -147,6 +147,81 @@
         ]
       }
     },
+    "/api/media/presign": {
+      "post": {
+        "operationId": "MediaController_createUploadUrl",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadUrlDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Presigned upload URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/UploadUrlDto"
+                    }
+                  ],
+                  "example": {
+                    "uploadId": "faf70e02-433a-4fe4-a537-46374b972ec8",
+                    "uploadUrl": "https://s3.us-east-1.amazonaws.com/isntgram-media/pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+                    "publicUrl": "https://cdn.isntgram.ai/pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8",
+                    "key": "pending/owner-uuid/faf70e02-433a-4fe4-a537-46374b972ec8",
+                    "expiresIn": 900
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsupported media type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Media storage is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["media"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/users/me": {
       "get": {
         "operationId": "UsersController_getCurrentUser",
@@ -1136,6 +1211,80 @@
         ]
       }
     },
+    "/api/notifications": {
+      "get": {
+        "operationId": "NotificationsController_getNotifications",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque cursor from previous page",
+            "schema": {
+              "example": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDEyMy1ub3RpZmljYXRpb24taWQ",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/NotificationsResponseDto"
+                    }
+                  ],
+                  "example": {
+                    "items": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["notifications"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/follows/{username}/status": {
       "get": {
         "operationId": "FollowsController_getFollowStatus",
@@ -1323,216 +1472,6 @@
           }
         ]
       }
-    },
-    "/api/notifications": {
-      "get": {
-        "operationId": "NotificationsController_getNotifications",
-        "parameters": [
-          {
-            "name": "cursor",
-            "required": false,
-            "in": "query",
-            "description": "Opaque cursor from previous page",
-            "schema": {
-              "example": "MjAyNS0xMi0xOVQxMDoxMjowMC4wMDBafDEyMy1ub3RpZmljYXRpb24taWQ",
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "maximum": 50,
-              "default": 20,
-              "example": 20,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notifications list",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/NotificationsResponseDto"
-                    }
-                  ],
-                  "example": {
-                    "items": []
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid cursor",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["notifications"],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/media/presign": {
-      "post": {
-        "operationId": "MediaController_createUploadUrl",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateUploadUrlDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Presigned upload URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/UploadUrlDto"
-                    }
-                  ],
-                  "example": {
-                    "uploadUrl": "https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
-                    "publicUrl": "https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg",
-                    "key": "uploads/ava/1702990000-uuid-photo.jpg",
-                    "expiresIn": 900
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Unsupported media type",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Media storage is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["media"],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/ai/rewrite": {
-      "post": {
-        "operationId": "AiController_rewrite",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AiRewriteRequestDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Rewrite post content using an AI provider",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/AiRewriteResponseDto"
-                    }
-                  ],
-                  "example": {
-                    "content": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share.",
-                    "provider": "mock"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": ["ai"],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
     }
   },
   "info": {
@@ -1684,6 +1623,93 @@
         },
         "required": ["message"]
       },
+      "UploadUrlDto": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owned pending upload intent. Supply this as mediaUploadId when creating the post."
+          },
+          "uploadUrl": {
+            "type": "string",
+            "example": "https://s3.us-east-1.amazonaws.com/isntgram-media/pending/owner-uuid/upload-uuid?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=..."
+          },
+          "publicUrl": {
+            "type": "string",
+            "description": "Compatibility locator only. Pending objects are private and this URL cannot authorize a photo post.",
+            "example": "https://cdn.isntgram.ai/pending/owner-uuid/upload-uuid"
+          },
+          "key": {
+            "type": "string",
+            "example": "pending/owner-uuid/upload-uuid"
+          },
+          "expiresIn": {
+            "type": "number",
+            "example": 900
+          }
+        },
+        "required": ["uploadId", "uploadUrl", "publicUrl", "key", "expiresIn"]
+      },
+      "ApiErrorDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2025-12-19T12:34:56.789Z"
+          },
+          "path": {
+            "type": "string",
+            "example": "/api/posts/feed?limit=20"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "req_9a6b3f0c-4a0a-4f11-9c61-2f6a3c5d1b2c"
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid cursor"
+          },
+          "errors": {
+            "example": [
+              "username must be longer than or equal to 3 characters"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "type": "string",
+            "example": "BadRequestException"
+          }
+        },
+        "required": ["statusCode", "timestamp", "path", "message", "error"]
+      },
+      "CreateUploadUrlDto": {
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "example": "photo.jpg"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "image/jpeg"
+          },
+          "contentLength": {
+            "type": "number",
+            "example": 245000,
+            "maximum": 5242880,
+            "description": "File size in bytes"
+          }
+        },
+        "required": ["fileName", "contentType", "contentLength"]
+      },
       "UserSearchItemDto": {
         "type": "object",
         "properties": {
@@ -1777,6 +1803,11 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 30
+          },
+          "profilePictureUploadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owned image upload intent to use as this profile photo."
           }
         },
         "required": ["fullName", "username"]
@@ -1855,6 +1886,11 @@
       "PostDto": {
         "type": "object",
         "properties": {
+          "mediaAltText": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Author-written photo description."
+          },
           "id": {
             "type": "string",
             "example": "7c1a2f04-1cf3-4c75-b42f-8f6c0f3e4d5a"
@@ -1990,48 +2026,14 @@
         },
         "required": ["items"]
       },
-      "ApiErrorDto": {
-        "type": "object",
-        "properties": {
-          "statusCode": {
-            "type": "number",
-            "example": 400
-          },
-          "timestamp": {
-            "type": "string",
-            "example": "2025-12-19T12:34:56.789Z"
-          },
-          "path": {
-            "type": "string",
-            "example": "/api/posts/feed?limit=20"
-          },
-          "requestId": {
-            "type": "string",
-            "example": "req_9a6b3f0c-4a0a-4f11-9c61-2f6a3c5d1b2c"
-          },
-          "message": {
-            "type": "string",
-            "example": "Invalid cursor"
-          },
-          "errors": {
-            "example": [
-              "username must be longer than or equal to 3 characters"
-            ],
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "error": {
-            "type": "string",
-            "example": "BadRequestException"
-          }
-        },
-        "required": ["statusCode", "timestamp", "path", "message", "error"]
-      },
       "CreatePostDto": {
         "type": "object",
         "properties": {
+          "mediaAltText": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Author-written photo description, separate from the caption."
+          },
           "content": {
             "type": "string",
             "minLength": 1,
@@ -2040,9 +2042,16 @@
           },
           "mediaUrl": {
             "type": "string",
+            "description": "Deprecated. New photo posts must use mediaUploadId; supplied media URLs are rejected.",
+            "deprecated": true,
             "format": "uri",
             "maxLength": 1000,
             "example": "https://cdn.isntgram.ai/uploads/ava/post-cover.jpg"
+          },
+          "mediaUploadId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owned upload intent returned by media presign."
           }
         },
         "required": ["content"]
@@ -2057,16 +2066,6 @@
           }
         },
         "required": ["content"]
-      },
-      "FollowStatusDto": {
-        "type": "object",
-        "properties": {
-          "isFollowing": {
-            "type": "boolean",
-            "example": true
-          }
-        },
-        "required": ["isFollowing"]
       },
       "NotificationActorDto": {
         "type": "object",
@@ -2150,89 +2149,15 @@
         },
         "required": ["items"]
       },
-      "UploadUrlDto": {
+      "FollowStatusDto": {
         "type": "object",
         "properties": {
-          "uploadUrl": {
-            "type": "string",
-            "example": "https://s3.us-east-1.amazonaws.com/isntgram-media/uploads/ava/1702990000-uuid-photo.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=..."
-          },
-          "publicUrl": {
-            "type": "string",
-            "example": "https://cdn.isntgram.ai/uploads/ava/1702990000-uuid-photo.jpg"
-          },
-          "key": {
-            "type": "string",
-            "example": "uploads/ava/1702990000-uuid-photo.jpg"
-          },
-          "expiresIn": {
-            "type": "number",
-            "example": 900
+          "isFollowing": {
+            "type": "boolean",
+            "example": true
           }
         },
-        "required": ["uploadUrl", "publicUrl", "key", "expiresIn"]
-      },
-      "CreateUploadUrlDto": {
-        "type": "object",
-        "properties": {
-          "fileName": {
-            "type": "string",
-            "example": "photo.jpg"
-          },
-          "contentType": {
-            "type": "string",
-            "example": "image/jpeg"
-          },
-          "contentLength": {
-            "type": "number",
-            "example": 245000,
-            "maximum": 5242880,
-            "description": "File size in bytes"
-          }
-        },
-        "required": ["fileName", "contentType", "contentLength"]
-      },
-      "AiRewriteResponseDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "example": "Shipping a fresh batch of ideas after today's research sprint — distilled and ready to share."
-          },
-          "provider": {
-            "type": "string",
-            "enum": ["mock", "openai"]
-          },
-          "model": {
-            "type": "string",
-            "example": "gpt-4o-mini"
-          }
-        },
-        "required": ["content", "provider"]
-      },
-      "AiRewriteRequestDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 2000,
-            "example": "Shipping a fresh batch of ideas after today's research sprint."
-          },
-          "tone": {
-            "type": "string",
-            "enum": ["professional", "friendly", "concise"],
-            "default": "professional"
-          },
-          "maxLength": {
-            "type": "number",
-            "description": "Maximum character length for the rewritten content",
-            "default": 2000,
-            "minimum": 1,
-            "maximum": 2000
-          }
-        },
-        "required": ["content"]
+        "required": ["isFollowing"]
       }
     }
   }

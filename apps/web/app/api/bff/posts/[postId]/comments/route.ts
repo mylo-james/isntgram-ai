@@ -46,7 +46,12 @@ export async function POST(request: Request, { params }: Params) {
   const { postId } = await params;
   const normalizedPostId = postId.trim();
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return attachRequestId(NextResponse.json({ message: "Invalid JSON body" }, { status: 400 }), requestId);
+  }
   const { data, error, response } = await internalApi.POST("/api/posts/{postId}/comments", {
     params: { path: { postId: normalizedPostId } },
     body,

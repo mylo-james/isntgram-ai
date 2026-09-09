@@ -1,8 +1,18 @@
 const { spawnSync } = require("node:child_process");
-const env = { ...process.env };
+const path = require("node:path");
+const { buildTestEnvironment } = require("./test-env.cjs");
+let env;
+try {
+  env = buildTestEnvironment(process.env, path.resolve(__dirname, ".."));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Unsafe test environment refused.");
+  process.exit(1);
+}
 const existingNodeOptions = env.NODE_OPTIONS ?? "";
 
 const splitArgs = (value) => {
+  // Match Node's NODE_OPTIONS grammar: double quotes, ASCII spaces, and
+  // backslash escapes inside double quotes only.
   const args = [];
   let current = "";
   let quote = null;
@@ -11,7 +21,8 @@ const splitArgs = (value) => {
     if (quote) {
       if (char === quote) {
         quote = null;
-      } else if (char === "\\" && i + 1 < value.length) {
+      } else if (char === "\\") {
+        if (i + 1 === value.length) throw new Error("Invalid escape in NODE_OPTIONS.");
         current += value[i + 1];
         i += 1;
       } else {
@@ -19,11 +30,11 @@ const splitArgs = (value) => {
       }
       continue;
     }
-    if (char === "'" || char === '"') {
+    if (char === '"') {
       quote = char;
       continue;
     }
-    if (/\s/.test(char)) {
+    if (char === " ") {
       if (current) {
         args.push(current);
         current = "";
@@ -32,6 +43,7 @@ const splitArgs = (value) => {
     }
     current += char;
   }
+  if (quote) throw new Error("Unterminated string in NODE_OPTIONS.");
   if (current) {
     args.push(current);
   }
@@ -39,8 +51,8 @@ const splitArgs = (value) => {
 };
 
 const escapeArg = (arg) => {
-  if (/[\\s"]/g.test(arg)) {
-    return `"${arg.replace(/"/g, '\\"')}"`;
+  if (/[\\ "]/.test(arg)) {
+    return `"${arg.replace(/[\\"]/g, "\\$&")}"`;
   }
   return arg;
 };
@@ -71,7 +83,12 @@ if (serializedNodeOptions) {
 }
 
 const jestBin = require.resolve("jest/bin/jest");
-const result = spawnSync(process.execPath, [jestBin, ...process.argv.slice(2)], {
+// pnpm can forward its option separator to this script. Consume that boundary
+// so options such as --runInBand still reach Jest as options.
+const jestArgs = process.argv.slice(2);
+const separatorIndex = jestArgs.indexOf("--");
+if (separatorIndex !== -1) jestArgs.splice(separatorIndex, 1);
+const result = spawnSync(process.execPath, [jestBin, ...jestArgs], {
   env,
   stdio: "inherit",
 });

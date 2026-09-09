@@ -7,7 +7,10 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { getRouteLabel } from '../http/route-label';
+import { normalizeRequestIdForLog } from '../middleware/request-id.middleware';
 
 interface ExceptionResponse {
   message?: unknown;
@@ -16,6 +19,8 @@ interface ExceptionResponse {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger('HTTP');
+
   constructor(@Optional() private readonly configService?: ConfigService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -81,6 +86,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error,
     };
 
-    response.status(status).json(errorResponse);
+    response.status(status);
+
+    const payload = {
+      requestId: normalizeRequestIdForLog(request.requestId),
+      method: request.method,
+      route: getRouteLabel(request),
+      statusCode: status,
+    };
+    const serializedPayload = JSON.stringify(payload);
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(serializedPayload);
+    } else {
+      this.logger.warn(serializedPayload);
+    }
+
+    response.json(errorResponse);
   }
 }

@@ -1,38 +1,82 @@
 name: CI Pipeline
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    types: [opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
+    branches: [main, develop, development]
+
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  NODE_ENV: ci
   CI: true
 
 jobs:
-  # 1. CODE QUALITY - Lint, test, and coverage checks
-  quality:
+  # Determine whether a pull request needs the full test suite. Documentation-only
+  # changes receive whitespace validation while security scanning remains separate.
+  scope:
+    if: github.event_name == 'pull_request'
+    name: Select applicable checks
+    runs-on: ubuntu-24.04
+    outputs:
+      full: ${{ steps.changes.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the complete candidate diff
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          paths = subprocess.check_output([
+              'git', 'diff', '--name-only', '--no-renames', '-z',
+              os.environ['BASE_SHA'], 'HEAD',
+          ]).split(b'\0')[:-1]
+          docs_only = bool(paths) and all(
+              path == b'README.md' or (path.endswith(b'.md') and path.startswith(b'docs/'))
+              for path in paths
+          )
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f"full={str(not docs_only).lower()}\n")
+          print('Documentation checks only' if docs_only else 'Full candidate checks')
+          PY
+      - name: Check documentation whitespace
+        if: steps.changes.outputs.full == 'false'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --check "$BASE_SHA" HEAD
+
+  # Every ready, non-documentation-only pull request and manual dispatch receives this gate.
+  fast-checks:
+    needs: [scope]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || !github.event.pull_request.draft) &&
+      (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.full != 'false')
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -45,47 +89,52 @@ jobs:
           pnpm run lint:all
           pnpm run type-check
 
+      - name: 🧪 Unit Tests
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main'
+        run: pnpm test -- --watchAll=false
+
       - name: 🧪 Unit Tests with Coverage
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
         run: pnpm test -- --coverage --watchAll=false --coverageReporters=json-summary
 
+      - name: Verify the test launcher in real Node processes
+        run: node --test scripts/journey-test-env.test.cjs
+
       - name: 📦 Archive coverage artifacts
-        run: |
-          # Create coverage archive with the actual coverage file
-          tar -czf coverage-artifacts.tgz coverage/coverage-summary.json
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
+        run: tar -czf coverage-artifacts.tgz coverage/coverage-summary.json
 
       - name: 📊 Upload Coverage
+        if: github.event_name != 'pull_request' || github.event.pull_request.base.ref == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage-artifacts.tgz
           retention-days: 14
 
-      - name: 📄 Upload JUnit
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit
-          path: test-results/junit/jest-junit.xml
-          retention-days: 14
-
-  # Coverage enforcement with deterministic paths
+  # Coverage enforcement remains part of every main-branch or manual release validation.
   coverage-gate:
     name: Coverage Gate
     runs-on: ubuntu-latest
-    needs: [quality]
+    needs: [fast-checks]
+    if: >-
+      !cancelled() && needs.fast-checks.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft &&
+      github.event.pull_request.base.ref == 'main'))
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -112,7 +161,12 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [quality]
+    needs: [fast-checks]
+    if: >-
+      !cancelled() && needs.fast-checks.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft &&
+      github.event.pull_request.base.ref == 'main'))
     services:
       postgres:
         image: postgres:16-alpine
@@ -126,25 +180,21 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isntgram_test
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: isntgram_test
+      NODE_ENV: ci
+      ISNTGRAM_TEST_POSTGRES: "1"
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
@@ -177,20 +227,20 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: [integration]
+    if: ${{ !cancelled() && needs.integration.result == 'success' }}
     steps:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: ♻️ Cache Next.js build cache
         uses: actions/cache@v4
@@ -222,21 +272,40 @@ jobs:
         run: npx playwright install chromium --with-deps
         if: steps.cache-playwright.outputs.cache-hit != 'true'
 
+      - name: Start disposable photo storage
+        run: |
+          curl --fail --location --retry 3 https://github.com/seaweedfs/seaweedfs/releases/download/4.45/linux_amd64.tar.gz -o "$RUNNER_TEMP/seaweedfs.tar.gz"
+          echo "c408894668aeaa74d4f251e20b350fd72195cbe596ddc3f48658709714f7be36  $RUNNER_TEMP/seaweedfs.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/seaweedfs-bin"
+          tar -xzf "$RUNNER_TEMP/seaweedfs.tar.gz" -C "$RUNNER_TEMP/seaweedfs-bin" weed
+          E2E_WEED_BIN="$RUNNER_TEMP/seaweedfs-bin/weed" bash scripts/e2e-storage.sh > "$RUNNER_TEMP/e2e-storage.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/e2e-storage.pid"
+          node apps/api/scripts/bootstrap-e2e-storage.cjs
+
       - name: 🌐 E2E Tests
         run: pnpm run test:e2e
 
       - name: 📊 Upload Playwright Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
 
+      - name: Stop disposable photo storage
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/e2e-storage.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/e2e-storage.pid")" || true
+          fi
+
   # 4. PRODUCTION BUILD - Container build and security
   production-build:
     name: Production Build
     runs-on: ubuntu-latest
     needs: [integration]
+    if: ${{ !cancelled() && needs.integration.result == 'success' }}
     permissions:
       contents: read
     steps:
@@ -258,7 +327,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy API Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: isntgram-ai-api:${{ github.sha }}
           format: "table"
@@ -278,7 +347,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 🔍 Trivy Web Image Scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: isntgram-ai-web:${{ github.sha }}
           format: "table"
@@ -301,9 +370,9 @@ jobs:
 
   # 5. SECURITY - Code security scans (runs in parallel with E2E and Production Build)
   security:
+    if: github.event.action != 'converted_to_draft'
     name: Security Scans
     runs-on: ubuntu-latest
-    needs: [quality]
     permissions:
       actions: read
       contents: read
@@ -312,16 +381,15 @@ jobs:
       - name: 🚀 Checkout
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.3 --activate
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
+          node-version-file: .nvmrc
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile

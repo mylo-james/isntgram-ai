@@ -126,4 +126,29 @@ describe('JwtStrategy', () => {
       isDemoSeed: false,
     });
   });
+
+  it('rejects an expired non-seed demo session', async () => {
+    const configService = {
+      get: jest.fn().mockReturnValue('secret'),
+    } as unknown as ConfigService;
+    const userRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'demo',
+        email: 'demo@example.com',
+        username: 'demo',
+        tokenVersion: 0,
+        isDemoUser: true,
+        isDemoSeed: false,
+        demoExpiresAt: new Date(Date.now() - 1),
+      }),
+    } as unknown as Repository<User>;
+    const strategy = new JwtStrategy(configService, userRepository);
+    await expect(
+      strategy.validate({
+        sub: 'demo',
+        email: 'demo@example.com',
+        username: 'demo',
+      }),
+    ).rejects.toThrow('Demo session expired');
+  });
 });

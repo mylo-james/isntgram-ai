@@ -8,7 +8,6 @@ flowchart LR
   W -->|Server-side fetch + JWT| A[NestJS API]
   A --> DB[(Postgres)]
   A --> S3[(S3-compatible storage)]
-  A --> AI[(AI Provider)]
 ```
 
 ## Core principles

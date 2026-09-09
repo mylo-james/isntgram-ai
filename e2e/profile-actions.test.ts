@@ -49,6 +49,9 @@ test.describe("Profile actions", () => {
 
     await page.goto(`/${user.username}`);
     await page.getByRole("button", { name: /log out/i }).click();
+    const confirmation = page.getByRole("dialog", { name: "Log out?", exact: true });
+    await expect(confirmation.getByRole("button", { name: "Stay logged in" })).toBeFocused();
+    await confirmation.getByRole("button", { name: "Log out", exact: true }).click();
 
     await page.waitForURL(/\/login$/, { timeout: 15000 });
     await expect(page.getByRole("button", { name: /log in/i })).toBeVisible();

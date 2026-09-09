@@ -1,8 +1,13 @@
 "use client";
 
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { postDescription, postLinkLabel } from "@/lib/post-description";
 import Link from "next/link";
 import { apiClient, type PostItem, type UserSearchItem } from "@/lib/api-client";
+import { useInfiniteScroll } from "@/components/ui/useInfiniteScroll";
 
 function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -23,34 +28,62 @@ export default function ExploreClient({
   const [nextCursor, setNextCursor] = useState<string | undefined>(initialCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const paginationRequestRef = useRef(false);
 
+  const [searchRetry, setSearchRetry] = useState(0);
   const [query, setQuery] = useState("");
+  const [isClientReady, setIsClientReady] = useState(false);
   const [results, setResults] = useState<UserSearchItem[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchState, setSearchState] = useState<"idle" | "loading" | "success" | "empty" | "error">("idle");
+  const searchGenerationRef = useRef(0);
 
   useEffect(() => {
+    setIsClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    const generation = searchGenerationRef.current + 1;
+    searchGenerationRef.current = generation;
     const q = query.trim();
     if (!q) {
       setResults([]);
-      setIsSearching(false);
+      setSearchState("idle");
       return;
     }
 
     const timer = setTimeout(async () => {
-      setIsSearching(true);
+      setSearchState("loading");
       try {
         const response = await apiClient.searchUsers({ q, limit: 8 });
-        setResults(response.items ?? []);
+        if (searchGenerationRef.current !== generation) return;
+        const nextResults = response.items ?? [];
+        setResults(nextResults);
+        setSearchState(nextResults.length === 0 ? "empty" : "success");
       } catch {
+        if (searchGenerationRef.current !== generation) return;
         setResults([]);
+        setSearchState("error");
       } finally {
-        setIsSearching(false);
+        if (searchGenerationRef.current === generation) {
+          setSearchState((state) => (state === "loading" ? "empty" : state));
+        }
       }
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, searchRetry]);
+
+  const searchStatus = !isClientReady
+    ? "Preparing search…"
+    : searchState === "loading"
+      ? "Searching..."
+      : searchState === "empty"
+        ? "No results."
+        : searchState === "success"
+          ? results.length === 1
+            ? "1 result available."
+            : `${results.length} results available.`
+          : "";
 
   const rows = useMemo(
     () =>
@@ -62,8 +95,9 @@ export default function ExploreClient({
   );
 
   const handleLoadMore = useCallback(async () => {
-    if (!nextCursor || isLoadingMore) return;
+    if (!nextCursor || isLoadingMore || paginationRequestRef.current) return;
 
+    paginationRequestRef.current = true;
     setIsLoadingMore(true);
     setError(null);
 
@@ -72,61 +106,94 @@ export default function ExploreClient({
       setItems((prev) => [...prev, ...(response.items ?? [])]);
       setNextCursor(response.nextCursor);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load more posts");
+      setError(userError(err, "More photos couldn’t load. Your earlier results are still here. Try again."));
     } finally {
+      paginationRequestRef.current = false;
       setIsLoadingMore(false);
     }
   }, [isLoadingMore, nextCursor]);
-
-  useEffect(() => {
-    if (!nextCursor) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-
-    if (typeof IntersectionObserver === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        handleLoadMore();
-      },
-      { rootMargin: "600px 0px" },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [handleLoadMore, nextCursor]);
+  const paginationBoundaryRef = useInfiniteScroll({
+    cursor: nextCursor,
+    disabled: Boolean(error),
+    onLoadMore: handleLoadMore,
+  });
 
   return (
-    <div className="pt-2.5">
-      <div className="relative mx-auto mb-2.5 w-[95vw] max-w-[614px] max-[614px]:flex max-[614px]:justify-center">
-        <input
-          name="search"
-          placeholder="Search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="w-[200px] rounded-sm border border-gray-300 px-2 py-1 transition-colors focus:border-gray-400 focus:outline-none"
-          aria-label="Search users"
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-        />
+    <div className="px-4 py-6">
+      <h1 className="page-heading mx-auto mb-5 max-w-[614px]">Explore</h1>
+      <div className="mx-auto mb-8 w-full max-w-[614px]">
+        <label htmlFor="search-users" className="mb-2 block font-medium">
+          Search people
+        </label>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSearchRetry((n) => n + 1);
+          }}
+          className="flex flex-wrap gap-2"
+        >
+          <input
+            id="search-users"
+            name="search"
+            value={query}
+            onChange={(event) => {
+              if (!isClientReady) return;
+              setQuery(event.target.value);
+            }}
+            disabled={!isClientReady}
+            className="ui-field min-w-0 flex-1"
+            aria-label="Search users"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+          <button className="ui-primary" disabled={!isClientReady || !query.trim()} type="submit">
+            Search
+          </button>
+          {query ? (
+            <button
+              className="ui-quiet px-3 text-lg leading-none"
+              type="button"
+              aria-label="Clear search"
+              title="Clear search"
+              onClick={() => setQuery("")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="m6 6 12 12M6 18 18 6" />
+              </svg>
+            </button>
+          ) : null}
+        </form>
+        <p className="sr-only" role="status" aria-live="polite">
+          {searchStatus}
+        </p>
 
         {query.trim().length > 0 ? (
-          <div className="absolute left-1/2 top-full z-20 mt-2 w-[200px] -translate-x-1/2 overflow-hidden rounded-sm border border-gray-200 bg-white shadow">
-            {isSearching ? (
+          <div className="social-surface mt-3 w-full">
+            {searchState === "loading" ? (
               <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
-            ) : results.length === 0 ? (
+            ) : searchState === "error" ? (
+              <ErrorNotice
+                message="People couldn’t load. Your search is still here. Try again."
+                onRetry={() => setSearchRetry((n) => n + 1)}
+              />
+            ) : searchState === "empty" ? (
               <div className="px-3 py-2 text-sm text-gray-500">No results.</div>
             ) : (
-              <ul className="max-h-[260px] overflow-auto py-1">
+              <ul className="py-1">
                 {results.map((user) => (
                   <li key={user.id}>
                     <Link href={`/${user.username}`} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={user.profilePictureUrl ?? "/assets/profile.jpeg"}
+                        src={user.profilePictureUrl ?? "/assets/default-avatar.svg"}
                         alt=""
                         className="h-8 w-8 rounded-full object-cover"
                       />
@@ -143,30 +210,32 @@ export default function ExploreClient({
         ) : null}
       </div>
 
-      <div className="mx-auto mb-[10vh] w-[95vw] max-w-[614px]">
+      <div className="mx-auto mb-8 w-full max-w-[614px]">
         {rows.length === 0 ? (
-          <p className="py-16 text-center text-sm text-gray-500">Nothing to explore yet.</p>
+          <p className="py-16 text-center text-sm text-gray-500">
+            No photos yet. Search for people above or create the first photo post.
+          </p>
         ) : (
-          <div className="space-y-[1vw]">
+          <div className="space-y-2">
             {rows.map((row, rowIndex) => (
               <div
                 // Matches legacy Explore/Layout1 row geometry.
                 key={`row-${rowIndex}`}
-                className="grid h-[calc(100vw/3)] max-h-[204px] grid-cols-[1fr_0.97fr_1fr] gap-[1vw] overflow-hidden"
+                className="grid grid-cols-3 gap-2"
               >
                 {row.map((post, colIndex) => (
                   <Link
                     key={`img-${rowIndex}-${colIndex}`}
                     href={`/post/${post.id}`}
-                    aria-label={`View post ${rowIndex * 3 + colIndex + 1}`}
-                    className="block h-full w-full"
+                    aria-label={postLinkLabel(post)}
+                    className="block aspect-square w-full overflow-hidden rounded-xl"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       className="h-full w-full object-cover"
                       draggable={false}
                       src={post.mediaUrl ?? ""}
-                      alt={post.content ?? ""}
+                      alt={postDescription(post)}
                     />
                   </Link>
                 ))}
@@ -175,14 +244,22 @@ export default function ExploreClient({
           </div>
         )}
 
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-
-        <div ref={sentinelRef} aria-hidden="true" className="h-1" />
+        {error ? (
+          <ErrorNotice key={error} message={error} onRetry={() => void handleLoadMore()} pending={isLoadingMore} />
+        ) : null}
+        {nextCursor && !error ? (
+          <>
+            <div ref={paginationBoundaryRef} aria-hidden="true" />
+            <button className="ui-secondary mt-5" onClick={() => void handleLoadMore()} disabled={isLoadingMore}>
+              Load more photos
+            </button>
+          </>
+        ) : null}
 
         {isLoadingMore ? <p className="mt-6 text-center text-sm text-gray-500">Loading...</p> : null}
 
         {!nextCursor && rows.length > 0 ? (
-          <p className="mt-6 text-center text-sm text-gray-600">Yay! You have seen it all</p>
+          <p className="mt-6 text-center text-sm text-gray-600">You’ve seen all available photos.</p>
         ) : null}
       </div>
     </div>

@@ -7,7 +7,10 @@ const apiPort = process.env.E2E_API_PORT || "4011";
 const apiBaseUrl = process.env.E2E_API_URL || `http://127.0.0.1:${apiPort}`;
 const configuredWorkers = process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : undefined;
 const defaultWorkers = 1; // SQLite :memory: in the API is not safe under parallel write load.
-const workers = Number.isFinite(configuredWorkers) && (configuredWorkers as number) > 0 ? (configuredWorkers as number) : defaultWorkers;
+const workers =
+  Number.isFinite(configuredWorkers) && (configuredWorkers as number) > 0
+    ? (configuredWorkers as number)
+    : defaultWorkers;
 
 process.env.E2E_WEB_PORT = webPort;
 process.env.E2E_WEB_URL = webBaseUrl;
@@ -16,7 +19,9 @@ process.env.E2E_API_URL = apiBaseUrl;
 
 const hasFirefox = fs.existsSync(firefox.executablePath());
 if (!process.env.CI && !hasFirefox) {
-  console.warn("[playwright] Firefox not installed; skipping Firefox project. Run `pnpm exec playwright install firefox`.");
+  console.warn(
+    "[playwright] Firefox not installed; skipping Firefox project. Run `pnpm exec playwright install firefox`.",
+  );
 }
 
 /**
@@ -115,6 +120,13 @@ export default defineConfig({
         JWT_EXPIRES_IN: "7d",
         DEMO_ENABLED: "true",
         E2E_API_URL: apiBaseUrl,
+        S3_ENDPOINT: "http://127.0.0.1:9000",
+        S3_PUBLIC_BASE_URL: "http://127.0.0.1:9000/isntgram-e2e",
+        S3_BUCKET: "isntgram-e2e",
+        S3_REGION: "us-east-1",
+        S3_ACCESS_KEY_ID: "e2e-access",
+        S3_SECRET_ACCESS_KEY: "e2e-secret-for-disposable-tests",
+        MEDIA_ALLOWED_HOSTS: "127.0.0.1:9000,picsum.photos",
       },
     },
   ],

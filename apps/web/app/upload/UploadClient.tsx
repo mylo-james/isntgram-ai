@@ -12,8 +12,8 @@ export default function UploadClient() {
 
   return (
     <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-      <h1 className="sr-only">Upload</h1>
-      <PostComposer onPostCreated={handlePostCreated} />
+      <h1 className="page-heading">Create post</h1>
+      <PostComposer onPostCreated={handlePostCreated} onCancel={() => router.push("/feed")} />
     </div>
   );
 }

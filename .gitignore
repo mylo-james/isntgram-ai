@@ -19,6 +19,7 @@ dist/
 build/
 out/
 .next/
+.vercel/
 apps/*/dist/
 apps/*/build/
 apps/*/.next/
@@ -55,6 +56,7 @@ Thumbs.db
 tmp/
 temp/
 .tmp/
+.local/
 .firebase/
 web-bundles/
 Isntgram/

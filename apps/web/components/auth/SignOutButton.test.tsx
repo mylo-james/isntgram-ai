@@ -43,9 +43,9 @@ describe("SignOutButton", () => {
 
     fireEvent.click(screen.getByText("Sign Out"));
 
-    expect(screen.getByText("Are you sure?")).toBeInTheDocument();
-    expect(screen.getByText("Yes, Sign Out")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(screen.getByText("Log out?")).toBeInTheDocument();
+    expect(screen.getByText("Log out")).toBeInTheDocument();
+    expect(screen.getByText("Stay logged in")).toBeInTheDocument();
   });
 
   it("calls signOut and redirects when confirmed", async () => {
@@ -57,7 +57,7 @@ describe("SignOutButton", () => {
     fireEvent.click(screen.getByText("Sign Out"));
 
     // Click confirm
-    fireEvent.click(screen.getByText("Yes, Sign Out"));
+    fireEvent.click(screen.getByText("Log out"));
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledWith({
@@ -75,13 +75,13 @@ describe("SignOutButton", () => {
     render(<SignOutButton />);
 
     fireEvent.click(screen.getByText("Sign Out"));
-    fireEvent.click(screen.getByText("Yes, Sign Out"));
+    fireEvent.click(screen.getByText("Log out"));
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/login");
     });
 
-    expect(screen.queryByText("Yes, Sign Out")).not.toBeInTheDocument();
+    expect(screen.queryByText("Log out")).not.toBeInTheDocument();
     expect(screen.getByText("Sign Out")).toBeInTheDocument();
   });
 
@@ -95,13 +95,13 @@ describe("SignOutButton", () => {
     fireEvent.click(screen.getByText("Sign Out"));
 
     // Click confirm
-    fireEvent.click(screen.getByText("Yes, Sign Out"));
+    fireEvent.click(screen.getByText("Log out"));
 
     expect(screen.getByText("Signing out...")).toBeInTheDocument();
     // The button is disabled during loading
     const confirmButton = screen.getByText("Signing out...").closest("button");
     expect(confirmButton).toBeDisabled();
-    expect(screen.getByText("Cancel")).toBeDisabled();
+    expect(screen.getByText("Stay logged in")).toBeDisabled();
   });
 
   it("hides confirmation dialog when cancelled", () => {
@@ -111,32 +111,18 @@ describe("SignOutButton", () => {
     fireEvent.click(screen.getByText("Sign Out"));
 
     // Click cancel
-    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(screen.getByText("Stay logged in"));
 
     expect(mockSignOut).not.toHaveBeenCalled();
-    expect(screen.queryByText("Are you sure?")).not.toBeInTheDocument();
-    expect(screen.queryByText("Yes, Sign Out")).not.toBeInTheDocument();
-    expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
+    expect(screen.queryByText("Log out?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Log out")).not.toBeInTheDocument();
+    expect(screen.queryByText("Stay logged in")).not.toBeInTheDocument();
     expect(screen.getByText("Sign Out")).toBeInTheDocument();
   });
 
-  it("applies custom className", () => {
-    render(<SignOutButton className="custom-class" />);
+  it("applies custom class, secondary variant, and small size through Button", () => {
+    render(<SignOutButton className="custom-class" variant="secondary" size="sm" />);
     const button = screen.getByText("Sign Out");
-    expect(button).toHaveClass("custom-class");
-  });
-
-  it("applies custom variant", () => {
-    render(<SignOutButton variant="secondary" />);
-    const button = screen.getByText("Sign Out");
-    // Check that the button has the variant applied
-    expect(button).toBeInTheDocument();
-  });
-
-  it("applies custom size", () => {
-    render(<SignOutButton size="sm" />);
-    const button = screen.getByText("Sign Out");
-    // Check that the button has the small size applied
-    expect(button).toBeInTheDocument();
+    expect(button).toHaveClass("custom-class", "ui-secondary", "px-3", "py-1.5", "text-sm");
   });
 });

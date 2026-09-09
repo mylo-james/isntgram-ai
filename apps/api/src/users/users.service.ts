@@ -4,25 +4,29 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { MediaUpload } from '../media/entities/media-upload.entity';
+import { MediaService, PreparedMedia } from '../media/media.service';
 import { PublicUserProfileDto } from './dto/public-user-profile.dto';
 import { PrivateUserProfileDto } from './dto/private-user-profile.dto';
 import { isUniqueConstraintError } from '../common/db-errors';
 import { UserSearchQueryDto } from './dto/user-search-query.dto';
 import { UserSearchItemDto } from './dto/user-search-item.dto';
 import { UserSearchResponseDto } from './dto/user-search-response.dto';
+import {
+  isReservedUsername,
+  normalizeUsername,
+} from '@isntgram-ai/shared-types';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
+    private readonly mediaService: MediaService,
   ) {}
-
-  private normalizeUsername(value: string): string {
-    return value.trim().toLowerCase();
-  }
 
   private normalizeFullName(value: string): string {
     return value.trim();
@@ -30,7 +34,7 @@ export class UsersService {
 
   async findByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({
-      where: { username: this.normalizeUsername(username) },
+      where: { username: normalizeUsername(username) },
     });
 
     if (!user) {
@@ -44,8 +48,11 @@ export class UsersService {
     username: string,
     excludeUserId?: string,
   ): Promise<boolean> {
+    const normalizedUsername = normalizeUsername(username);
+    if (isReservedUsername(normalizedUsername)) return true;
+
     const existing = await this.userRepository.findOne({
-      where: { username: this.normalizeUsername(username) },
+      where: { username: normalizedUsername },
     });
     if (!existing) return false;
     if (excludeUserId && existing.id === excludeUserId) return false;
@@ -57,7 +64,7 @@ export class UsersService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
       bio: user.bio,
       postCount: user.postsCount,
       followerCount: user.followerCount,
@@ -78,7 +85,7 @@ export class UsersService {
     username: string,
     viewerIsDemo = false,
   ): Promise<PublicUserProfileDto> {
-    const normalizedUsername = this.normalizeUsername(username);
+    const normalizedUsername = normalizeUsername(username);
     const user = await this.userRepository.findOne({
       where: { username: normalizedUsername, isDemoUser: viewerIsDemo },
     });
@@ -109,12 +116,20 @@ export class UsersService {
 
   async updateProfile(
     id: string,
-    updates: { fullName: string; username: string },
+    updates: {
+      fullName: string;
+      username: string;
+      profilePictureUploadId?: string;
+    },
   ): Promise<PrivateUserProfileDto> {
-    const user = await this.findById(id);
-
-    const nextUsername = this.normalizeUsername(updates.username);
+    const nextUsername = normalizeUsername(updates.username);
     const nextFullName = this.normalizeFullName(updates.fullName);
+
+    if (isReservedUsername(nextUsername)) {
+      throw new ConflictException('Username is reserved');
+    }
+
+    const user = await this.findById(id);
 
     // Username uniqueness check (exclude current user)
     const usernameTaken = await this.isUsernameTaken(nextUsername, id);
@@ -122,13 +137,74 @@ export class UsersService {
       throw new ConflictException('Username already taken');
     }
 
+    let prepared: PreparedMedia | undefined;
+    if (updates.profilePictureUploadId) {
+      const existing = await this.mediaService.getOwnedUpload(
+        id,
+        updates.profilePictureUploadId,
+      );
+      const replayUrl = this.mediaService.getPublishedUrl(existing);
+      if (existing.profilePictureUserId) {
+        if (
+          existing.profilePictureUserId !== id ||
+          !replayUrl ||
+          user.profilePictureUrl !== replayUrl
+        ) {
+          throw new ConflictException('Media upload is already in use');
+        }
+      } else {
+        prepared = await this.mediaService.preparePublication(
+          id,
+          updates.profilePictureUploadId,
+        );
+      }
+    }
+
     user.fullName = nextFullName;
     user.username = nextUsername;
 
     try {
+      if (prepared) {
+        const saved = await this.dataSource.transaction(async (manager) => {
+          const users = manager.getRepository(User);
+          const uploads = manager.getRepository(MediaUpload);
+          user.profilePictureUrl = prepared.publishedUrl;
+          const savedUser = await users.save(user);
+          const claim = await uploads.update(
+            {
+              id: prepared.uploadId,
+              ownerId: id,
+              postId: IsNull(),
+              profilePictureUserId: IsNull(),
+              expiresAt: MoreThan(new Date()),
+            },
+            {
+              profilePictureUserId: id,
+              publishedKey: prepared.publishedKey,
+              publishedChecksum: prepared.checksum,
+              publishedContentType: prepared.contentType,
+              publishedBytes: prepared.bytes,
+            },
+          );
+          if (claim.affected !== 1) {
+            throw new ConflictException(
+              'Media upload is no longer available. Select the photo again.',
+            );
+          }
+          return savedUser;
+        });
+        await this.mediaService.completeUploadReservation(
+          id,
+          prepared.uploadId,
+        );
+        return this.toPrivateProfileDto(saved);
+      }
       const saved = await this.userRepository.save(user);
       return this.toPrivateProfileDto(saved);
     } catch (error) {
+      if (prepared) {
+        await this.mediaService.recordOrphan(prepared, 'profile_transaction_failed');
+      }
       if (isUniqueConstraintError(error)) {
         throw new ConflictException('Username already taken');
       }
@@ -168,7 +244,7 @@ export class UsersService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: this.mediaService.toDisplayUrl(user.profilePictureUrl),
     }));
 
     return { items };

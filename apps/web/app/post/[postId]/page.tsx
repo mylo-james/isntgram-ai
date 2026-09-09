@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import LegacyNav from "@/components/legacy/LegacyNav";
 import { auth } from "@/lib/auth";
@@ -20,12 +21,16 @@ export default async function PostPage({ params }: PostPageProps) {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
   const headers = { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId };
 
-  const [{ data: me }, { data: post, response: postResponse }, { data: comments }] = await Promise.all([
+  const [
+    { data: me, response: meResponse },
+    { data: post, response: postResponse },
+    { data: comments, response: commentsResponse },
+  ] = await Promise.all([
     internalApi.GET("/api/users/me", { headers, cache: "no-store" }),
     internalApi.GET("/api/posts/{postId}", {
       params: { path: { postId } },
@@ -39,19 +44,55 @@ export default async function PostPage({ params }: PostPageProps) {
     }),
   ]);
 
-  if (!postResponse.ok || !post) {
-    notFound();
-  }
+  if (postResponse.status === 401 || commentsResponse.status === 401)
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
+  if (postResponse.status === 404) notFound();
+  if (!postResponse.ok || !post) throw new Error("Post unavailable");
 
-  const avatarSrc = me?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = me?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    meResponse.ok && typeof me?.username === "string" && me.username.length > 0 ? `/${me.username}` : "/feed";
 
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <div className="mx-auto w-full max-w-[600px] px-4 pb-10 pt-6">
-          <PostDetailClient post={post} initialComments={comments?.items ?? []} initialCursor={comments?.nextCursor} />
+          <div className="page-header justify-start gap-2">
+            <Link
+              className="return-link min-w-11 -ml-2 justify-center"
+              href="/feed"
+              aria-label="Back to Home"
+              title="Home"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m14 7-5 5 5 5" />
+              </svg>
+            </Link>
+            <h1 className="page-heading">Post</h1>
+          </div>
+          <PostDetailClient
+            viewerId={session.user.id}
+            initialCommentsError={!commentsResponse.ok}
+            post={post}
+            initialComments={comments?.items ?? []}
+            initialCursor={comments?.nextCursor}
+          />
         </div>
       </main>
     </>

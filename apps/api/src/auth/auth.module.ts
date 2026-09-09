@@ -7,8 +7,12 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { User } from '../users/entities/user.entity';
 import { JwtStrategy } from './jwt.strategy';
+import { CommunitySeeder } from './demo/community.seeder';
 import { DemoSeeder } from './demo/demo.seeder';
 import { DemoService } from './demo/demo.service';
+import { CuratedDemoService } from './demo/curated-demo.service';
+import { MediaModule } from '../media/media.module';
+import { AdmissionModule } from '../common/admission/admission.module';
 
 export function getJwtSecret(
   configService: Pick<ConfigService, 'get'>,
@@ -30,6 +34,8 @@ export function getJwtExpiresIn(
 @Module({
   imports: [
     ConfigModule,
+    MediaModule,
+    AdmissionModule,
     PassportModule,
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
@@ -43,7 +49,14 @@ export function getJwtExpiresIn(
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, DemoSeeder, DemoService, JwtStrategy],
+  providers: [
+    AuthService,
+    DemoSeeder,
+    CommunitySeeder,
+    CuratedDemoService,
+    DemoService,
+    JwtStrategy,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -11,23 +11,38 @@ import { Post } from '../src/posts/entities/post.entity';
 import { Like } from '../src/posts/entities/like.entity';
 import { Comment } from '../src/posts/entities/comment.entity';
 import { Follow } from '../src/follows/entities/follow.entity';
+import { Notification } from '../src/notifications/entities/notification.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { selectTestDatabase } = require('./test-database-target.cjs') as {
+  selectTestDatabase: (
+    env: NodeJS.ProcessEnv,
+  ) => { kind: 'sqlite' } | { kind: 'postgres'; url: string };
+};
+
 describe('Follows Integration Tests', () => {
   let app: INestApplication;
+  let isPostgres = false;
   let userRepository: Repository<User>;
   let followRepository: Repository<Follow>;
+  let notificationRepository: Repository<Notification>;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
+    const selectedDatabase = selectTestDatabase(process.env);
+    isPostgres = selectedDatabase.kind === 'postgres';
+    const databaseConnection =
+      selectedDatabase.kind === 'postgres'
+        ? { type: 'postgres' as const, url: selectedDatabase.url }
+        : { type: 'sqlite' as const, database: ':memory:' };
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [User, Post, Like, Comment, Follow],
+          ...databaseConnection,
+          entities: [User, Post, Like, Comment, Follow, Notification],
           synchronize: true,
         }),
         ThrottlerModule.forRoot([
@@ -52,7 +67,8 @@ describe('Follows Integration Tests', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    await app.init();
+    // Keep one loopback listener for the suite; Supertest must not close it per request.
+    await app.listen(0, '127.0.0.1');
 
     userRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
@@ -60,15 +76,23 @@ describe('Follows Integration Tests', () => {
     followRepository = moduleFixture.get<Repository<Follow>>(
       getRepositoryToken(Follow),
     );
+    notificationRepository = moduleFixture.get<Repository<Notification>>(
+      getRepositoryToken(Notification),
+    );
   });
 
   beforeEach(async () => {
+    if (isPostgres) {
+      await userRepository.query('TRUNCATE TABLE "users" CASCADE');
+      return;
+    }
+    await notificationRepository.clear();
     await followRepository.clear();
     await userRepository.clear();
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('requires auth for follow status', async () => {
@@ -117,11 +141,35 @@ describe('Follows Integration Tests', () => {
       .expect(201);
     expect(followRes.body).toEqual({ isFollowing: true });
 
+    const [followingUser, followedUser] = await Promise.all([
+      userRepository.findOneByOrFail({ username: 'usera' }),
+      userRepository.findOneByOrFail({ username: 'userb' }),
+    ]);
+    expect(followingUser.followingCount).toBe(1);
+    expect(followedUser.followerCount).toBe(1);
+    const firstFollow = await followRepository.findOneByOrFail({
+      followerId: followingUser.id,
+      followingId: followedUser.id,
+    });
+    await expect(
+      notificationRepository.findOneByOrFail({
+        type: 'follow',
+        sourceId: firstFollow.id,
+      }),
+    ).resolves.toMatchObject({
+      recipientId: followedUser.id,
+      actorId: followingUser.id,
+      postId: null,
+      commentId: null,
+    });
+
     const statusAfter = await request(app.getHttpServer())
       .get('/api/follows/userb/status')
-      .set('Authorization', `Bearer ${tokenA}`)
-      .expect(200);
-    expect(statusAfter.body).toEqual({ isFollowing: true });
+      .set('Authorization', `Bearer ${tokenA}`);
+    expect({ status: statusAfter.status, body: statusAfter.body }).toEqual({
+      status: 200,
+      body: { isFollowing: true },
+    });
 
     const unfollowRes = await request(app.getHttpServer())
       .delete('/api/follows/userb')
@@ -129,11 +177,26 @@ describe('Follows Integration Tests', () => {
       .expect(200);
     expect(unfollowRes.body).toEqual({ isFollowing: false });
 
+    const [unfollowedUser, formerTarget] = await Promise.all([
+      userRepository.findOneByOrFail({ username: 'usera' }),
+      userRepository.findOneByOrFail({ username: 'userb' }),
+    ]);
+    expect(unfollowedUser.followingCount).toBe(0);
+    expect(formerTarget.followerCount).toBe(0);
+    expect(await notificationRepository.count()).toBe(1);
+
     const statusAfterUnfollow = await request(app.getHttpServer())
       .get('/api/follows/userb/status')
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
     expect(statusAfterUnfollow.body).toEqual({ isFollowing: false });
+
+    await request(app.getHttpServer())
+      .post('/api/follows/userb')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201);
+
+    expect(await notificationRepository.count()).toBe(2);
   });
 
   it('rejects following yourself', async () => {

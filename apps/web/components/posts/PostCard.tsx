@@ -1,16 +1,23 @@
 "use client";
 
+import ErrorNotice from "@/components/ui/ErrorNotice";
+import { userError } from "@/lib/user-error";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { apiClient, type PostItem } from "@/lib/api-client";
-import Dialog from "@/components/ui/Dialog";
+import PostOptions from "@/components/posts/PostOptions";
+import { postDescription } from "@/lib/post-description";
 import { CommentIcon, HeartIcon } from "@/components/posts/PostIcons";
 
-function formatDateLabel(date: string) {
+function formatPostDate(date: string) {
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (Number.isNaN(parsed.getTime())) return null;
+  return {
+    dateTime: parsed.toISOString(),
+    visibleLabel: parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    accessibleLabel: parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+  };
 }
 
 export default function PostCard({ post }: { post: PostItem }) {
@@ -19,7 +26,6 @@ export default function PostCard({ post }: { post: PostItem }) {
   const commentCount = post.commentCount ?? 0;
   const [isLiking, setIsLiking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +38,7 @@ export default function PostCard({ post }: { post: PostItem }) {
       .toUpperCase();
   }, [post.author.fullName]);
 
-  const createdAtLabel = useMemo(() => formatDateLabel(post.createdAt), [post.createdAt]);
+  const createdAt = useMemo(() => formatPostDate(post.createdAt), [post.createdAt]);
 
   const handleToggleLike = async () => {
     if (isLiking) return;
@@ -53,7 +59,7 @@ export default function PostCard({ post }: { post: PostItem }) {
     } catch (err) {
       setLikedByViewer(previousLiked);
       setLikeCount(previousCount);
-      setError(err instanceof Error ? err.message : "Failed to update like");
+      setError(userError(err, "Your like wasn’t changed. Try again."));
     } finally {
       setIsLiking(false);
     }
@@ -66,48 +72,45 @@ export default function PostCard({ post }: { post: PostItem }) {
     return [...comments].reverse();
   }, [post.previewComments]);
 
-  const handleCopyLink = async () => {
-    const url = `${window.location.origin}/post/${post.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
-    <article className="w-full bg-white sm:rounded-sm sm:border sm:border-gray-300">
-      <header className="flex h-[60px] items-center justify-between px-4">
-        <Link href={`/${post.author.username}`} className="flex items-center gap-3">
+    <article className="social-surface w-full">
+      <header className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:px-5">
+        <Link href={`/${post.author.username}`} className="flex min-w-0 items-center gap-3">
           {post.author.profilePictureUrl ? (
             <Image
               src={post.author.profilePictureUrl}
-              alt={post.author.fullName}
+              alt=""
               width={36}
               height={36}
-              className="h-9 w-9 rounded-full object-cover"
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white"
+              aria-hidden="true"
+            >
               {initials || "U"}
             </div>
           )}
-          <span className="text-sm font-semibold text-gray-800">{post.author.username}</span>
+          <span className="min-w-0 truncate text-sm font-semibold text-gray-800">{post.author.username}</span>
         </Link>
 
         <div className="flex items-center gap-3">
-          <span aria-label="Post date" className="text-xs text-gray-500">
-            {createdAtLabel}
-          </span>
+          {createdAt ? (
+            <time dateTime={createdAt.dateTime} className="text-xs text-gray-500">
+              <span aria-hidden="true">{createdAt.visibleLabel}</span>
+              <span className="sr-only">Posted {createdAt.accessibleLabel}</span>
+            </time>
+          ) : (
+            <span className="text-xs text-gray-500" />
+          )}
           <button
             type="button"
             aria-label="More options"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
-            className="rounded-sm p-1 text-gray-600 hover:text-gray-900"
+            className="ui-action post-action text-gray-600 hover:text-gray-900"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="h-5 w-5 fill-current">
               <circle cx="6" cy="12" r="1.5" />
@@ -122,7 +125,7 @@ export default function PostCard({ post }: { post: PostItem }) {
         <div className="relative aspect-square w-full bg-gray-100">
           <Image
             src={post.mediaUrl}
-            alt="Post media"
+            alt={postDescription(post)}
             fill
             sizes="(max-width: 640px) 100vw, 600px"
             className="object-cover"
@@ -130,16 +133,17 @@ export default function PostCard({ post }: { post: PostItem }) {
         </div>
       ) : null}
 
-      <div className="px-4 pb-4 pt-3">
-        <div className="flex items-center gap-4">
+      <div className="post-body">
+        <div className="post-actions">
           <button
             type="button"
             onClick={handleToggleLike}
             disabled={isLiking}
             aria-pressed={likedByViewer}
             aria-label={likedByViewer ? "Unlike" : "Like"}
+            title={likedByViewer ? "Unlike" : "Like"}
             className={[
-              "p-1 transition-transform duration-150 active:scale-95",
+              "ui-action post-action transition-transform duration-150 active:scale-95",
               isLiking ? "cursor-not-allowed opacity-60" : "hover:opacity-70",
             ].join(" ")}
           >
@@ -152,17 +156,19 @@ export default function PostCard({ post }: { post: PostItem }) {
             />
           </button>
 
-          <Link href={`/post/${post.id}`} aria-label="Comment" className="p-1 hover:opacity-70">
+          <Link href={`/post/${post.id}`} aria-label="Comment" title="Comment" className="ui-action post-action">
             <CommentIcon className="h-6 w-6 text-[#262626]" />
           </Link>
         </div>
 
-        <p className="mt-2 text-sm font-semibold text-gray-900">
-          {likeCount} {likeCount === 1 ? "like" : "likes"}
-        </p>
+        {likeCount > 0 ? (
+          <p className="mt-2 text-sm font-semibold text-gray-900">
+            {likeCount} {likeCount === 1 ? "like" : "likes"}
+          </p>
+        ) : null}
 
         {post.content ? (
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+          <p className="post-caption">
             <Link href={`/${post.author.username}`} className="font-semibold text-gray-900">
               {post.author.username}
             </Link>{" "}
@@ -184,43 +190,26 @@ export default function PostCard({ post }: { post: PostItem }) {
             </ul>
           ) : null}
 
-          <Link href={`/post/${post.id}`} className="block text-sm text-gray-500 hover:text-gray-700">
-            View all {commentCount} comments
-          </Link>
+          {commentCount > previewComments.length ? (
+            <Link href={`/post/${post.id}`} className="ui-action quiet-link">
+              View all {commentCount} comments
+            </Link>
+          ) : null}
         </div>
 
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        {error ? (
+          <ErrorNotice
+            key={error}
+            message={error}
+            onRetry={() => void handleToggleLike()}
+            pending={isLiking}
+            retryLabel="Retry like"
+          />
+        ) : null}
       </div>
 
       {menuOpen ? (
-        <Dialog
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          aria-label="Post options"
-          contentClassName="w-full max-w-sm overflow-hidden rounded-xl bg-white shadow-xl"
-        >
-          <Link
-            href={`/post/${post.id}`}
-            onClick={() => setMenuOpen(false)}
-            className="block w-full border-b border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-900 hover:bg-gray-50"
-          >
-            Go to post
-          </Link>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="w-full border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-          >
-            {copied ? "Copied" : "Copy link"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(false)}
-            className="w-full px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </Dialog>
+        <PostOptions postId={post.id} open={menuOpen} onClose={() => setMenuOpen(false)} showPostLink />
       ) : null}
     </article>
   );

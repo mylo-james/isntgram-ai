@@ -94,6 +94,7 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.userId, {
       fullName: body.fullName,
       username: body.username,
+      profilePictureUploadId: body.profilePictureUploadId,
     });
   }
 }

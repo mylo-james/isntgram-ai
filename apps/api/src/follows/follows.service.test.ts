@@ -15,7 +15,7 @@ describe('FollowsService', () => {
 
     const manager = {
       create: jest.fn(),
-      save: jest.fn(),
+      save: jest.fn(async <T>(entity: T): Promise<T> => entity),
       delete: jest.fn(),
       increment: jest.fn(),
       decrement: jest.fn(),
@@ -26,14 +26,23 @@ describe('FollowsService', () => {
         fn(manager),
       ),
     };
+    const notificationsWriter = { write: jest.fn() };
 
     const service = new FollowsService(
       followRepository as any,
       userRepository as any,
       dataSource as any,
+      notificationsWriter as any,
     );
 
-    return { service, followRepository, userRepository, dataSource, manager };
+    return {
+      service,
+      followRepository,
+      userRepository,
+      dataSource,
+      manager,
+      notificationsWriter,
+    };
   };
 
   describe('getFollowStatus', () => {
@@ -105,11 +114,18 @@ describe('FollowsService', () => {
     });
 
     it('creates follow row and increments counters when new follow', async () => {
-      const { service, userRepository, followRepository, dataSource, manager } =
-        makeService();
+      const {
+        service,
+        userRepository,
+        followRepository,
+        dataSource,
+        manager,
+        notificationsWriter,
+      } = makeService();
       userRepository.findOne.mockResolvedValueOnce({ id: 'u2' } as User);
       followRepository.findOne.mockResolvedValueOnce(null);
       manager.create.mockReturnValueOnce({ id: 'f-new' });
+      manager.save.mockResolvedValueOnce({ id: 'f-new' });
 
       await expect(service.followUser('u1', false, 'target')).resolves.toEqual({
         isFollowing: true,
@@ -133,6 +149,12 @@ describe('FollowsService', () => {
         'followerCount',
         1,
       );
+      expect(notificationsWriter.write).toHaveBeenCalledWith(manager, {
+        recipientId: 'u2',
+        actorId: 'u1',
+        type: 'follow',
+        sourceId: 'f-new',
+      });
     });
 
     it('returns true when unique constraint error occurs', async () => {
@@ -179,13 +201,17 @@ describe('FollowsService', () => {
         makeService();
       userRepository.findOne.mockResolvedValueOnce({ id: 'u2' } as User);
       followRepository.findOne.mockResolvedValueOnce({ id: 'f1' } as Follow);
+      manager.delete.mockResolvedValueOnce({ affected: 1 });
 
       await expect(
         service.unfollowUser('u1', false, 'target'),
       ).resolves.toEqual({ isFollowing: false });
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(manager.delete).toHaveBeenCalledWith(Follow, { id: 'f1' });
+      expect(manager.delete).toHaveBeenCalledWith(Follow, {
+        followerId: 'u1',
+        followingId: 'u2',
+      });
       expect(manager.decrement).toHaveBeenCalledWith(
         User,
         { id: 'u1' },
@@ -198,6 +224,35 @@ describe('FollowsService', () => {
         'followerCount',
         1,
       );
+    });
+
+    it('does not decrement counts when a concurrent unfollow already removed the relation', async () => {
+      const { service, userRepository, followRepository, manager } =
+        makeService();
+      userRepository.findOne.mockResolvedValueOnce({ id: 'u2' } as User);
+      followRepository.findOne.mockResolvedValueOnce({ id: 'f1' } as Follow);
+      manager.delete.mockResolvedValueOnce({ affected: 0 });
+
+      await expect(
+        service.unfollowUser('u1', false, 'target'),
+      ).resolves.toEqual({ isFollowing: false });
+
+      expect(manager.decrement).not.toHaveBeenCalled();
+    });
+
+    it('locks and updates follow counters in sorted user order for both directions', async () => {
+      const { service, userRepository, followRepository, manager } =
+        makeService();
+      userRepository.findOne.mockResolvedValueOnce({ id: 'a-user' } as User);
+      followRepository.findOne.mockResolvedValueOnce(null);
+      manager.create.mockReturnValueOnce({ id: 'f-new' });
+
+      await service.followUser('z-user', false, 'target');
+
+      expect(manager.increment.mock.calls).toEqual([
+        [User, { id: 'a-user' }, 'followerCount', 1],
+        [User, { id: 'z-user' }, 'followingCount', 1],
+      ]);
     });
   });
 });

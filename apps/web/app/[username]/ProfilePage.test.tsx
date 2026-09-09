@@ -10,6 +10,21 @@ const mockApiClient = {
   getFollowStatus: jest.fn(),
 };
 
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  constructor(private readonly callback: IntersectionObserverCallback) {
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  disconnect = jest.fn();
+  observe = jest.fn();
+
+  trigger() {
+    this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
+}
+
 jest.mock("@/lib/api-client", () => ({
   __esModule: true,
   apiClient: mockApiClient,
@@ -20,20 +35,25 @@ jest.mock("./components/ProfileActions", () => {
     currentUser,
     isOwnProfile,
     isFollowing,
+    followStatus,
     onProfileUpdated,
     onFollowChange,
+    onRetryFollowStatus,
   }: {
     currentUser?: { username: string } | null;
     isOwnProfile: boolean;
     isFollowing: boolean | null;
+    followStatus?: "unresolved" | "known" | "error";
     onProfileUpdated: (updated: { fullName: string; username: string }) => void;
     onFollowChange: (next: boolean) => void;
+    onRetryFollowStatus?: () => void;
   }) {
     return (
       <div data-testid="profile-actions">
         <span data-testid="is-own-profile">{isOwnProfile.toString()}</span>
         <span data-testid="current-user">{currentUser?.username || "no-user"}</span>
         <span data-testid="is-following">{String(isFollowing)}</span>
+        <span data-testid="follow-status">{followStatus ?? "unresolved"}</span>
         <button type="button" onClick={() => onProfileUpdated({ fullName: "Updated Name", username: "updated" })}>
           Trigger profile update
         </button>
@@ -42,6 +62,9 @@ jest.mock("./components/ProfileActions", () => {
         </button>
         <button type="button" onClick={() => onFollowChange(false)}>
           Trigger unfollow
+        </button>
+        <button type="button" onClick={() => onRetryFollowStatus?.()}>
+          Retry follow status
         </button>
       </div>
     );
@@ -137,6 +160,8 @@ describe("ProfilePage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    MockIntersectionObserver.instances = [];
+    Object.defineProperty(window, "IntersectionObserver", { configurable: true, value: MockIntersectionObserver });
     mockUseRouter = (jest.requireMock("next/navigation") as { useRouter: jest.Mock }).useRouter;
     mockUseRouter.mockReturnValue({
       push: mockPush,
@@ -160,11 +185,11 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(screen.getByText("testuser")).toBeInTheDocument());
     expect(screen.getByText("Test User")).toBeInTheDocument();
-    expect(screen.getByText(/posts/i)).toHaveTextContent("10");
+    expect(screen.getByText(/^posts$/i, { selector: "span" })).toHaveTextContent("10");
     expect(screen.getByText(/followers/i)).toHaveTextContent("100");
     expect(screen.getByText(/following/i)).toHaveTextContent("50");
     expect(screen.getByTestId("is-following")).toHaveTextContent("true");
-    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
 
     expect(mockApiClient.getFollowStatus).not.toHaveBeenCalled();
   });
@@ -182,6 +207,25 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledWith("testuser"));
     await waitFor(() => expect(screen.getByTestId("is-following")).toHaveTextContent("true"));
+    expect(screen.getByTestId("follow-status")).toHaveTextContent("known");
+  });
+
+  it("marks a failed follow-status fetch as retryable and keeps mutation unresolved", async () => {
+    mockApiClient.getFollowStatus
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ isFollowing: false });
+
+    render(
+      <ProfilePage {...baseProps} initialProfile={{ ...mockProfile, id: "other-profile" }} initialIsFollowing={null} />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("follow-status")).toHaveTextContent("error"));
+    expect(screen.getByTestId("is-following")).toHaveTextContent("null");
+
+    fireEvent.click(screen.getByRole("button", { name: /retry follow status/i }));
+    await waitFor(() => expect(mockApiClient.getFollowStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("follow-status")).toHaveTextContent("known"));
+    expect(screen.getByTestId("is-following")).toHaveTextContent("false");
   });
 
   it("does not fetch follow status for own profile", async () => {
@@ -198,21 +242,27 @@ describe("ProfilePage", () => {
     expect(screen.getByTestId("is-following")).toHaveTextContent("null");
   });
 
-  it("loads more posts when nextCursor is present", async () => {
+  it("loads more posts when its pagination boundary enters view", async () => {
     mockApiClient.getUserPosts.mockResolvedValueOnce({
-      items: [createPost("p2", "Second post")],
+      items: [createPost("p1", "First post"), createPost("p2", "Second post")],
       nextCursor: undefined,
     } as never);
 
     render(<ProfilePage {...baseProps} initialPosts={[createPost("p1", "First post")]} initialCursor="cursor-1" />);
 
-    const loadMore = screen.getByRole("button", { name: /load more/i });
-    fireEvent.click(loadMore);
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
     await waitFor(() =>
       expect(mockApiClient.getUserPosts).toHaveBeenLastCalledWith("testuser", { cursor: "cursor-1" }),
     );
-    await waitFor(() => expect(screen.getByRole("link", { name: "View post 2" })).toBeInTheDocument());
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("link", { name: /View post by testuser: First post/ })).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /View post by testuser: Second post/ })).toBeInTheDocument(),
+    );
     expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
   });
 
@@ -235,14 +285,21 @@ describe("ProfilePage", () => {
     expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
   });
 
-  it("shows an error message when loading more posts fails", async () => {
+  it("keeps profile posts and stops automatic retries when an observer page fails", async () => {
     mockApiClient.getUserPosts.mockRejectedValueOnce(new Error("More posts failed"));
 
     render(<ProfilePage {...baseProps} initialPosts={[createPost("p1", "First post")]} initialCursor="cursor-1" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /load more/i }));
+    await act(async () => {
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger();
+    });
 
-    await waitFor(() => expect(screen.getByText(/more posts failed/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
+    await act(async () => MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]?.trigger());
+    expect(mockApiClient.getUserPosts).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
   });
 
   it("falls back to a generic error when loading more posts throws a non-Error", async () => {
@@ -252,7 +309,7 @@ describe("ProfilePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
 
-    await waitFor(() => expect(screen.getByText(/failed to load posts/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/more posts couldn’t load/i)).toBeInTheDocument());
   });
 
   it("updates profile state when ProfileActions triggers onProfileUpdated", async () => {
@@ -275,6 +332,35 @@ describe("ProfilePage", () => {
     await waitFor(() => expect(screen.getByText(/followers/i)).toHaveTextContent("1"));
   });
 
+  it("omits a bio invitation when bio editing is unavailable", async () => {
+    const { rerender } = render(<ProfilePage {...baseProps} initialProfile={{ ...mockProfile, bio: "" }} />);
+
+    expect(screen.queryByText("Add a bio to tell people about yourself.")).not.toBeInTheDocument();
+
+    rerender(
+      <ProfilePage
+        {...baseProps}
+        initialProfile={{ ...mockProfile, id: "other-profile", bio: "" }}
+        initialIsFollowing={false}
+      />,
+    );
+
+    expect(screen.queryByText("Add a bio to tell people about yourself.")).not.toBeInTheDocument();
+  });
+
+  it("makes a text-only post reachable with a bounded visible excerpt", async () => {
+    const longContent = `${"A focused text post. ".repeat(8)}The final words should not be shown.`;
+    render(
+      <ProfilePage {...baseProps} initialPosts={[{ ...createPost("text-post", longContent), mediaUrl: undefined }]} />,
+    );
+
+    const destination = screen.getByRole("link", { name: /View post by testuser:/ });
+    expect(destination).toHaveAttribute("href", "/post/text-post");
+    expect(screen.getByText("Text post")).toBeInTheDocument();
+    expect(screen.getByText(`${longContent.trim().slice(0, 90)}…`)).toBeInTheDocument();
+    expect(screen.queryByText(longContent)).not.toBeInTheDocument();
+  });
+
   it("updates profile and posts when initial props change", async () => {
     const { rerender } = render(<ProfilePage {...baseProps} />);
 
@@ -294,11 +380,12 @@ describe("ProfilePage", () => {
 
     await waitFor(() => expect(screen.getByText("newuser")).toBeInTheDocument());
     expect(screen.getByText("New Name")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View post 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View post by testuser:/ })).toBeInTheDocument();
     expect(screen.getByTestId("is-following")).toHaveTextContent("false");
   });
 
   afterEach(async () => {
     await flushEffects();
+    Reflect.deleteProperty(window, "IntersectionObserver");
   });
 });

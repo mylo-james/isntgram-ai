@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
 async function main() {
   // Ensure the AppModule uses SQLite (in-memory) so this can run without external infra.
@@ -27,7 +27,9 @@ async function main() {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  const outputPath = join(__dirname, '..', 'openapi.json');
+  const outputPath = process.argv[2]
+    ? resolve(process.argv[2])
+    : join(__dirname, '..', 'openapi.json');
   await writeFile(outputPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
 
   await app.close();

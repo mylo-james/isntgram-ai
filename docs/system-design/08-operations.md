@@ -68,19 +68,7 @@ Actions:
 3. Check token expiry settings (`JWT_EXPIRES_IN`) and server time skew.
 4. Ensure `tokenVersion` has not been bumped unexpectedly (logout invalidates old tokens).
 
-### 3) “AI endpoint is slow / timing out”
-
-Signals:
-
-- Increased latency and failures on `/api/ai/rewrite`
-
-Actions:
-
-1. Confirm provider status and network connectivity.
-2. Reduce timeouts or add bounded retries only if safe.
-3. Apply AI-specific rate limits and per-user caps (budget protection).
-
-### 4) “Media uploads failing”
+### 3) “Media uploads failing”
 
 Signals:
 

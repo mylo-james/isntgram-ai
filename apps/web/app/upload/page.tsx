@@ -10,21 +10,27 @@ export default async function UploadPage() {
   const requestId = await getRequestId();
 
   if (!session?.user?.id || !accessToken) {
-    redirect("/login");
+    redirect(session?.user?.id ? "/login?reauth=1" : "/login");
   }
 
-  const { data } = await internalApi.GET("/api/users/me", {
+  const { data, response } = await internalApi.GET("/api/users/me", {
     headers: { Authorization: `Bearer ${accessToken}`, "x-request-id": requestId },
     cache: "no-store",
   });
 
-  const avatarSrc = data?.profilePictureUrl ?? "/assets/profile.jpeg";
-  const profileHref = session.user.username ? `/${session.user.username}` : "/feed";
+  const avatarSrc = data?.profilePictureUrl ?? "/assets/default-avatar.svg";
+  const profileHref =
+    response.ok && typeof data?.username === "string" && data.username.length > 0 ? `/${data.username}` : "/feed";
 
   return (
     <>
       <LegacyNav avatarSrc={avatarSrc} profileHref={profileHref} />
-      <main className="min-h-screen bg-[#fafafa]" style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 54px)" }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="social-page min-h-screen bg-[#fafafa]"
+        style={{ paddingTop: "calc(var(--demo-banner-height, 0px) + 72px)" }}
+      >
         <UploadClient />
       </main>
     </>

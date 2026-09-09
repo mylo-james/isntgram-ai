@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { User } from '../src/users/entities/user.entity';
@@ -13,17 +14,30 @@ import { Follow } from '../src/follows/entities/follow.entity';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 import { ConfigModule } from '@nestjs/config';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { selectTestDatabase } = require('./test-database-target.cjs') as {
+  selectTestDatabase: (
+    env: NodeJS.ProcessEnv,
+  ) => { kind: 'sqlite' } | { kind: 'postgres'; url: string };
+};
+
 describe('Users Integration Tests', () => {
   let app: INestApplication;
+  let isPostgres = false;
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
+    const selectedDatabase = selectTestDatabase(process.env);
+    isPostgres = selectedDatabase.kind === 'postgres';
+    const databaseConnection =
+      selectedDatabase.kind === 'postgres'
+        ? { type: 'postgres' as const, url: selectedDatabase.url }
+        : { type: 'sqlite' as const, database: ':memory:' };
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
+          ...databaseConnection,
           entities: [User, Post, Like, Comment, Follow],
           synchronize: true,
         }),
@@ -50,11 +64,18 @@ describe('Users Integration Tests', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    await app.init();
+    // Keep one loopback listener for the suite; Supertest must not close it per request.
+    await app.listen(0, '127.0.0.1');
+  });
+
+  beforeEach(async () => {
+    if (isPostgres) {
+      await app.get(DataSource).query('TRUNCATE TABLE "users" CASCADE');
+    }
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('should check username availability, update profile with auth, and protect PII', async () => {

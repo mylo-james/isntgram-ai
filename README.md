@@ -1,7 +1,6 @@
-# Isntgram AI
+# Isntgram
 
-A modern, full-stack social platform built with Next.js (App Router), NestJS, and PostgreSQL — with an optional
-AI-assisted “polish” workflow for posts.
+A social platform for photos and text posts, built with Next.js (App Router), NestJS and PostgreSQL.
 
 ## Highlights
 
@@ -12,8 +11,7 @@ AI-assisted “polish” workflow for posts.
 - **Typed clients:** `openapi-fetch` clients in web/server consume the generated contract (no stringly-typed endpoints)
 - **Cursor-based feeds:** stable pagination by `createdAt` + `id`
 - **S3-compatible media uploads:** works with MinIO locally
-- **AI assist (optional):** `POST /api/ai/rewrite` via `AI_PROVIDER=mock|openai`
-- **Rate limits:** auth + AI + media endpoints are throttled to prevent abuse
+- **Rate limits:** auth + media endpoints are throttled to prevent abuse
 - **Tests:** unit + integration + Playwright E2E
 
 ## Product brief
@@ -21,7 +19,7 @@ AI-assisted “polish” workflow for posts.
 Isntgram is a signal-first social feed designed for thoughtful updates. The core product focuses on:
 
 - A fast, readable feed with stable pagination.
-- A clean posting flow with optional AI “polish.”
+- A posting flow with photo descriptions and recoverable errors.
 - A profile experience that encourages follow-driven discovery.
 
 ## Engineering brief
@@ -32,6 +30,9 @@ Isntgram is a signal-first social feed designed for thoughtful updates. The core
 
 ## Start here
 
+- For the current local v1 implementation, use [the guarded local operator guide](docs/v1-local.md). The legacy Quick
+  Start below is not the v1 runtime entry point. Do not combine broad setup commands with an existing guarded v1
+  database or storage instance.
 - `docs/system-design/` — system design packet (15-minute read)
 - `docs/observability.md` — metrics/logs/request IDs (hands-on)
 - `docs/adr/001-auth-model.md` — auth boundary rationale
@@ -93,11 +94,6 @@ Set `DEMO_ENABLED=true` in `apps/api/.env` to allow the demo sign-in flow. Each 
 pnpm run usertest
 ```
 
-### AI Mode (optional)
-
-- Default: `AI_PROVIDER=mock` (no external keys; deterministic rewrite for local dev/tests)
-- Real LLM: set `AI_PROVIDER=openai` and `OPENAI_API_KEY` in `apps/api/.env`
-
 ### Production secrets
 
 Set `AUTH_SECRET` (or `NEXTAUTH_SECRET`) for production runtime. Auth will not work correctly without it. Optionally set
@@ -113,6 +109,17 @@ pnpm run type-check
 pnpm run test -- --watchAll=false
 pnpm run test:e2e
 ```
+
+The browser posting tests use real, disposable photo storage. Install SeaweedFS 4.45 and start it in a separate
+terminal:
+
+```bash
+E2E_WEED_BIN=/path/to/weed bash scripts/e2e-storage.sh
+```
+
+Then run `node apps/api/scripts/bootstrap-e2e-storage.cjs` before `pnpm run test:e2e`. The test server uses port 9000,
+the `isntgram-e2e` bucket, and synthetic credentials defined in the test configuration. Stop it with Ctrl+C after
+testing. CI downloads the pinned release, checks its checksum, and starts and stops this storage automatically.
 
 ## Database + Migrations
 

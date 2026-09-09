@@ -10,7 +10,6 @@ import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { FollowsModule } from './follows/follows.module';
 import { MediaModule } from './media/media.module';
-import { AiModule } from './ai/ai.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -21,6 +20,8 @@ import { HttpLoggingInterceptor } from './common/interceptors/http-logging.inter
 import { validateEnv } from './config/env.validation';
 import { getPostgresSslOptions } from './config/postgres-ssl';
 import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
+import { AdmissionModule } from './common/admission/admission.module';
+import { AdmissionGuard } from './common/admission/admission.guard';
 
 function getDatabaseModules() {
   if (process.env.SKIP_DB === 'true') {
@@ -80,7 +81,6 @@ function getFeatureModules() {
     FollowsModule,
     NotificationsModule,
     MediaModule,
-    AiModule,
   ];
 }
 
@@ -105,6 +105,7 @@ function getThrottlerOptions() {
       validate: validateEnv,
     }),
     ThrottlerModule.forRoot(getThrottlerOptions()),
+    AdmissionModule,
     MetricsModule,
     ...getDatabaseModules(),
     ...getFeatureModules(),
@@ -112,6 +113,10 @@ function getThrottlerOptions() {
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useExisting: AdmissionGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: UserThrottlerGuard,

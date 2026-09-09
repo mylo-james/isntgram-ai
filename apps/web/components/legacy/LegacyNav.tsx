@@ -1,4 +1,8 @@
+"use client";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Brand from "@/components/ui/Brand";
+import SignOutButton from "@/components/auth/SignOutButton";
 
 function Icon({ path, className }: { path: string; className?: string }) {
   return (
@@ -31,59 +35,76 @@ const icons = {
 } as const;
 
 export default function LegacyNav({
-  avatarSrc = "/assets/profile.jpeg",
+  avatarSrc = "/assets/default-avatar.svg",
   profileHref = "/feed",
 }: {
   avatarSrc?: string;
   profileHref?: string;
 }) {
+  const pathname = usePathname();
+  const entries = [
+    { href: "/feed", label: "Home", icon: icons.home },
+    { href: "/explore", label: "Explore", icon: icons.search },
+    { href: "/upload", label: "Create", icon: icons.camera },
+    { href: "/notifications", label: "Activity", icon: icons.heart },
+    { href: profileHref, label: "Profile", icon: null },
+  ];
   return (
-    <div
-      className="fixed left-0 right-0 h-[54px] w-full border-b border-gray-300 bg-white z-[100] flex justify-center"
+    <header
+      className="social-header fixed inset-x-0 z-[100] h-[72px] bg-white"
       style={{ top: "var(--demo-banner-height, 0px)" }}
     >
-      <nav className="flex justify-between items-center w-full max-w-[935px] px-5">
-        <Link href="/feed">
-          {/* Using the legacy logo SVG for pixel parity. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="mt-2 h-10" src="/assets/logo.svg" alt="logo" />
-        </Link>
-
-        <ul className="flex items-center gap-4 sm:gap-[22px]">
-          <li className="pt-1.5">
-            <Link href="/feed" aria-label="Home" className="text-gray-800 hover:text-blue-500 transition-colors">
-              <Icon path={icons.home} className="text-2xl fill-current" />
-            </Link>
-          </li>
-          <li className="pt-1.5">
-            <Link href="/explore" aria-label="Search" className="text-gray-800 hover:text-blue-500 transition-colors">
-              <Icon path={icons.search} className="text-2xl fill-current" />
-            </Link>
-          </li>
-          <li className="pt-1.5">
-            <Link href="/upload" aria-label="Upload" className="text-gray-800 hover:text-blue-500 transition-colors">
-              <Icon path={icons.camera} className="text-2xl fill-current" />
-            </Link>
-          </li>
-          <li className="pt-1.5">
-            <Link
-              href="/notifications"
-              aria-label="Notifications"
-              className="text-gray-800 hover:text-blue-500 transition-colors"
-            >
-              <Icon path={icons.heart} className="text-2xl fill-current" />
-            </Link>
-          </li>
-          <li className="pt-1.5">
-            <Link href={profileHref} aria-label="Profile" className="block">
-              <div className="w-6 h-6 rounded-full overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="w-full h-full object-cover" src={avatarSrc} alt="avatar" />
-              </div>
-            </Link>
-          </li>
-        </ul>
-      </nav>
-    </div>
+      <div className="mx-auto flex h-full max-w-[1000px] items-center justify-between gap-4 px-4">
+        <Brand href="/feed" className="shrink-0" />
+        <nav
+          aria-label="Main navigation"
+          className="social-nav fixed inset-x-0 bottom-0 bg-white pb-[env(safe-area-inset-bottom)] sm:static sm:pb-0"
+        >
+          <ul className="flex justify-around gap-1 px-1 sm:gap-2 sm:px-0">
+            {entries.map(({ href, label, icon }) => (
+              <li key={label} className="min-w-0 flex-1 sm:flex-auto">
+                {label === "Profile" && href === "/feed" ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="Profile unavailable"
+                    className="flex min-h-16 min-w-11 items-center justify-center px-1 py-2 text-xs text-gray-600 sm:min-h-11 sm:px-3 sm:text-sm"
+                  >
+                    <span className="h-6 w-6 overflow-hidden rounded-full" aria-hidden="true">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                    </span>
+                  </button>
+                ) : (
+                  <Link
+                    href={href}
+                    aria-label={label}
+                    title={label}
+                    aria-current={pathname === href && (label !== "Profile" || href !== "/feed") ? "page" : undefined}
+                    className="nav-item flex min-h-16 min-w-11 flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm"
+                  >
+                    {icon ? (
+                      <Icon path={icon} className="text-xl" />
+                    ) : (
+                      <span className="h-6 w-6 overflow-hidden rounded-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                      </span>
+                    )}
+                  </Link>
+                )}
+              </li>
+            ))}
+            <li className="min-w-0 flex-1 sm:flex-auto">
+              <SignOutButton
+                iconOnly
+                variant="outline"
+                className="nav-item min-h-16 min-w-11 px-1 py-2 sm:min-h-11 sm:px-3"
+              />
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
   );
 }

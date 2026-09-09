@@ -1,5 +1,6 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ADMISSION_TRACKER } from '../admission/admission.guard';
 
 @Injectable()
 export class UserThrottlerGuard extends ThrottlerGuard {
@@ -13,16 +14,14 @@ export class UserThrottlerGuard extends ThrottlerGuard {
   }
 
   protected async getTracker(req: Record<string, any>): Promise<string> {
+    const admittedTracker = req[ADMISSION_TRACKER];
+    if (typeof admittedTracker === 'string' && admittedTracker)
+      return admittedTracker;
     const userId = req.user?.userId ?? req.user?.id;
     if (typeof userId === 'string' && userId.trim().length > 0) {
       return `user-${userId}`;
     }
 
-    const forwardedFor = req.headers?.['x-forwarded-for'];
-    if (typeof forwardedFor === 'string' && forwardedFor.trim().length > 0) {
-      return forwardedFor.split(',')[0]?.trim() ?? req.ip;
-    }
-
-    return req.ip;
+    return typeof req.ip === 'string' && req.ip ? req.ip : 'unknown';
   }
 }

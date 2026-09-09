@@ -17,7 +17,6 @@ The goal is to show _senior-level judgement_: scale the simplest thing until mea
 - **API error rate:** 4xx/5xx by route
 - **DB health:** CPU, connections, replication lag (if any), query latency
 - **Cache hit rate:** (only once we add caching)
-- **AI spend & saturation:** requests/min, timeouts, per-user caps, error rate
 - **Media throughput:** presign rate, upload failures, object store latency
 
 ## Feed (fan-out on read)
@@ -91,23 +90,6 @@ The goal is to show _senior-level judgement_: scale the simplest thing until mea
 1. Separate rate limits for auth endpoints vs general API.
 2. Add lockouts / anomaly detection (IP + account).
 3. Add email verification / password reset flows (product-driven).
-
-## AI assist
-
-### What breaks first
-
-- Cost and provider latency (timeouts) are the first real scaling constraints.
-
-### Triggers
-
-- Provider timeouts > 1–2% or p95 > 2–3s.
-- Spend exceeds a budget threshold.
-
-### Next moves
-
-1. Stricter AI-specific rate limits + per-user caps (base throttler is already enabled).
-2. Better timeouts/retries (bounded) + circuit breaker behavior.
-3. Move to async execution (queue + workers) if p95 needs to be predictable under load.
 
 ## Databases & networking
 

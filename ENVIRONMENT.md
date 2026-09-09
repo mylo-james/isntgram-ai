@@ -1,6 +1,6 @@
 # Environment Configuration
 
-This document describes the environment variables needed for the Isntgram AI application.
+This document describes the environment variables needed for the Isntgram application.
 
 ## Backend Environment Variables (apps/api/.env)
 
@@ -12,6 +12,9 @@ PORT=3001
 
 # Database
 DATABASE_URL=postgresql://postgres:password@localhost:5432/isntgram
+# Direct, non-pooled URL for migration and maintenance jobs only.
+DATABASE_DIRECT_URL=
+DEPLOYMENT_ENV=development
 
 # Database TLS (recommended for managed Postgres)
 # - Defaults: enabled in production, disabled otherwise
@@ -39,6 +42,10 @@ ALLOW_PROD_MAINTENANCE=false
 
 # Media storage (S3-compatible)
 S3_BUCKET=isntgram-media
+# Hosted profiles use separate buckets. S3_BUCKET remains a local compatibility
+# default and must not identify a public bucket in production.
+S3_PENDING_BUCKET=
+S3_PUBLISHED_BUCKET=
 S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=minioadmin
@@ -63,11 +70,6 @@ METRICS_ENABLED=true
 THROTTLER_TTL=60000
 THROTTLER_LIMIT=10
 
-# AI (optional)
-# Options: mock | openai
-AI_PROVIDER=mock
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## Frontend Environment Variables (apps/web/.env.local)

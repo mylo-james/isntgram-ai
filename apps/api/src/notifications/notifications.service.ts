@@ -6,6 +6,8 @@ import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import { NotificationsResponseDto } from './dto/notifications-response.dto';
 import { NotificationActorDto, NotificationDto } from './dto/notification.dto';
 import { User } from '../users/entities/user.entity';
+import { ConfigService } from '@nestjs/config';
+import { projectMediaUrl } from '../media/media-url';
 
 const DEFAULT_NOTIFICATIONS_LIMIT = 20;
 
@@ -15,6 +17,7 @@ export class NotificationsService {
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
   async getNotifications(
@@ -72,7 +75,11 @@ export class NotificationsService {
         : undefined,
       actor: actorDto,
       postId: notification.postId ?? undefined,
-      postMediaUrl: notification.post?.mediaUrl ?? undefined,
+      postMediaUrl: projectMediaUrl(
+        notification.post?.mediaUrl,
+        this.configService.get<string>('S3_PUBLIC_BASE_URL'),
+        this.configService.get<string>('S3_DISPLAY_BASE_URL'),
+      ),
       commentId: notification.commentId ?? undefined,
     };
   }
@@ -82,7 +89,11 @@ export class NotificationsService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      profilePictureUrl: user.profilePictureUrl,
+      profilePictureUrl: projectMediaUrl(
+        user.profilePictureUrl,
+        this.configService.get<string>('S3_PUBLIC_BASE_URL'),
+        this.configService.get<string>('S3_DISPLAY_BASE_URL'),
+      ),
     };
   }
 
