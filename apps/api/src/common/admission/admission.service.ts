@@ -13,6 +13,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_LIVE_MEDIA_BYTES = 1024 * 1024 * 1024;
+const CLEANUP_STALE_AFTER_SECONDS = 97_200;
 
 class AdmissionLimitException extends HttpException {
   constructor(response: string | Record<string, unknown>) {
@@ -89,7 +90,11 @@ export class AdmissionService {
   private async assertCleanupFresh(
     manager: EntityManager = this.dataSource.manager,
   ): Promise<void> {
-    const staleAfter = this.positiveInt('CLEANUP_STALE_AFTER_SECONDS', 10_800);
+    const staleAfter = this.positiveInt(
+      'CLEANUP_STALE_AFTER_SECONDS',
+      CLEANUP_STALE_AFTER_SECONDS,
+      CLEANUP_STALE_AFTER_SECONDS,
+    );
     const rows = (await manager.query(
       `SELECT cleanup_last_succeeded_at
        FROM deployment_maintenance_state WHERE environment = $1`,

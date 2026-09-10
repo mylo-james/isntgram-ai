@@ -34,7 +34,9 @@ production data replacement is a separate, explicitly approved recovery operatio
 ## Recovery signals
 
 The cleanup workflow records success and failure in `deployment_maintenance_state`. New demo/upload admission fails
-closed when cleanup success is absent or older than three hours in a deployment environment. Investigate the workflow,
+closed when cleanup success is absent or older than 27 hours in a deployment environment. Daily cleanup runs at
+08:17 UTC; the extra three hours allow scheduling delays or recovery. `CLEANUP_STALE_AFTER_SECONDS` may shorten,
+but cannot extend, this cutoff. Investigate the workflow,
 pending deletion intents, and bucket credentials, then run the manually dispatched cleanup. Do not clear the timestamp
 manually.
 
