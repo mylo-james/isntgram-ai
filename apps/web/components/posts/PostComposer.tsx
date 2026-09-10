@@ -220,8 +220,8 @@ export default function PostComposer({ onPostCreated, onCancel }: PostComposerPr
     >
       {process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true" ? (
         <p className="mb-4 text-sm text-gray-600">
-          Demo uploads expire with your 48-hour session. Private recovery copies
-          expire after 7 days. Please use photos you can share publicly.
+          Your demo lasts 48 hours. Expired uploads are removed during daily
+          cleanup. Please use photos you can share publicly.
         </p>
       ) : null}
       <div className="mb-5">

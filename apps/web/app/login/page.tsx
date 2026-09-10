@@ -326,8 +326,8 @@ function LoginInner() {
 
               {process.env.NEXT_PUBLIC_DEPLOYMENT_DEMO === "true" ? (
                 <p className="text-sm text-center text-gray-600">
-                  This public demo lasts 48 hours. Your uploads are temporary;
-                  private recovery copies expire after 7 days.
+                  This public demo lasts 48 hours. Expired accounts and uploads
+                  are removed during daily cleanup.
                 </p>
               ) : <div className="text-sm text-center">
                 <span className="text-gray-600">Don&apos;t have an account? </span>
