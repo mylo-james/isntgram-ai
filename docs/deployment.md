@@ -93,14 +93,20 @@ ALLOW_PROD_MAINTENANCE=true pnpm --filter api demo:cleanup
 Cleanup is environment-scoped and records deletion intents before database removal. It retries object deletion from the
 pending and published buckets, and must use the direct connection.
 
-The disabled `.github/workflows/demo-cleanup.yml` and `.github/workflows/deployment-backup.yml` workflows are the future
-hourly minute-17 and daily 03:43 UTC maintenance entry points. They do nothing until the repository variable
+The `.github/workflows/demo-cleanup.yml` and `.github/workflows/deployment-backup.yml` workflows are the
+daily 08:17 UTC cleanup and daily 03:43 UTC backup entry points. They do nothing until the repository variable
 `ISNTGRAM_MAINTENANCE_ENABLED` is explicitly `true`. The scheduled workflow selects its named target through
 `ISNTGRAM_MAINTENANCE_ENVIRONMENT`; manual dispatch selects `preview` or `production`. Each protected GitHub Environment
 holds its own `ISNTGRAM_DEPLOYED_RECORD` JSON variable and scoped database/storage secrets. The record binds source SHA
 and configuration revision in one update. The SHA is validated as a 40-character commit before checkout, so maintenance
 never implicitly uses the default branch. GitHub schedules execute only after the reviewed workflow reaches the
 repository default branch; a draft candidate does not activate it.
+
+The cleanup freshness cutoff defaults to 27 hours, giving the daily schedule a three-hour margin. Set
+`CLEANUP_STALE_AFTER_SECONDS` only to tighten that cutoff; values above 97,200 seconds are capped. Deploy the
+matching API before changing a live hourly schedule to daily, so the previous three-hour guard does not pause
+new demos and uploads. The two workflows share the enable variable: keep the backup workflow disabled in GitHub
+unless backup operation is separately configured and intended. Changing the cleanup cadence does not enable backups.
 
 Cleanup uses `CLEANUP_S3_ACCESS_KEY_ID` and `CLEANUP_S3_SECRET_ACCESS_KEY`. Backup uses separate
 `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`, and `BACKUP_ENCRYPTION_KEY_BASE64`; no workflow uploads backup
